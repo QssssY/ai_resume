@@ -1,0 +1,57 @@
+import request from '@/utils/request'
+
+/**
+ * 上传简历PDF文件并创建诊断任务
+ * @param {File} file - PDF文件对象
+ * @returns {Promise}
+ */
+export function uploadResume(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return request({
+    url: '/api/resume/upload',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 查询任务详情
+ * @param {number|string} taskId - 任务ID
+ * @returns {Promise}
+ */
+export function getResumeTask(taskId) {
+  return request({
+    url: `/api/resume/task/${taskId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 查询历史记录
+ * @returns {Promise}
+ */
+export function getResumeHistory() {
+  return request({
+    url: '/api/resume/history',
+    method: 'get'
+  })
+}
+
+/**
+ * 从文件URL中提取文件名
+ * @param {string} fileUrl - 文件URL
+ * @returns {string} 文件名
+ */
+export function extractFileName(fileUrl) {
+  if (!fileUrl) return '未知文件'
+  const parts = fileUrl.split('/')
+  const fullName = parts[parts.length - 1]
+  // 移除时间戳前缀（如果有）
+  const match = fullName.match(/\d+_(.+)/)
+  return match ? match[1] : fullName
+}
