@@ -100,6 +100,14 @@
             >
               查看会话
             </el-button>
+            <el-button
+              v-if="item.status === 1"
+              type="success"
+              size="small"
+              @click="viewReport(item.sessionId)"
+            >
+              查看报告
+            </el-button>
           </div>
         </div>
       </div>
@@ -250,6 +258,10 @@ const continueSession = (sessionId) => {
 // 查看会话 - sessionId 仅用于内部跳转
 const viewSession = (sessionId) => {
   router.push(`/interview/session/${sessionId}`)
+}
+
+const viewReport = (sessionId) => {
+  router.push(`/interview/report/${sessionId}`)
 }
 
 // 生命周期

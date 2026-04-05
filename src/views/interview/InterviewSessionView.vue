@@ -309,7 +309,8 @@ const confirmEndInterview = async () => {
 }
 
 const viewReport = () => {
-  ElMessage.info('评价报告功能开发中...')
+  if (!sessionId.value) return
+  router.push(`/interview/report/${sessionId.value}`)
 }
 
 const goBack = () => {
