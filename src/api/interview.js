@@ -17,14 +17,14 @@ export function createInterviewSession(data) {
 
 /**
  * 发送面试消息
+ * @param {string} sessionId - 会话ID
  * @param {Object} data - 消息参数
- * @param {string} data.sessionId - 会话ID
  * @param {string} data.content - 消息内容
  * @returns {Promise}
  */
-export function sendInterviewMessage(data) {
+export function sendInterviewMessage(sessionId, data) {
   return request({
-    url: '/api/interview/message',
+    url: `/api/interview/session/${sessionId}/message`,
     method: 'post',
     data
   })

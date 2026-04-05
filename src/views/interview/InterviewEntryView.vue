@@ -242,7 +242,7 @@ const startInterview = async () => {
       difficulty: selectedDifficulty.value
     })
 
-    const sessionId = res.data
+    const sessionId = res.data.sessionId
 
     ElMessage.success('面试会话创建成功')
 

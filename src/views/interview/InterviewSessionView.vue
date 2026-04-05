@@ -269,7 +269,7 @@ const sendMessage = async () => {
   sending.value = true
 
   try {
-    await sendInterviewMessage({
+    await sendInterviewMessage(sessionId.value, {
       sessionId: sessionId.value,
       content
     })
