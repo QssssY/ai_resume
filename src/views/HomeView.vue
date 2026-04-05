@@ -113,7 +113,7 @@
         </div>
         <div class="record-list">
           <template v-if="recentInterviewRecords.length > 0">
-            <div v-for="record in recentInterviewRecords" :key="record.id" class="record-item">
+            <div v-for="record in recentInterviewRecords" :key="record.sessionId" class="record-item">
               <div class="record-main">
                 <span class="record-name">{{ record.jobRole }}</span>
                 <span class="record-time">{{ record.time }}</span>
@@ -140,6 +140,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getResumeHistory, extractFileName } from '@/api/resume'
+import { getInterviewHistory } from '@/api/interview'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -155,6 +156,7 @@ const interviewQuotaLeft = computed(() => {
 
 // 真实历史记录数据
 const allResumeHistory = ref([])
+const allInterviewHistory = ref([])
 
 // 本月诊断统计（根据真实数据计算）
 const resumeCountThisMonth = computed(() => {
@@ -181,7 +183,17 @@ const recentResumeRecords = computed(() => {
   }))
 })
 
-const recentInterviewRecords = ref([])
+const recentInterviewRecords = computed(() => {
+  return allInterviewHistory.value.slice(0, 5).map(item => ({
+    sessionId: item.sessionId,
+    jobRole: item.jobRole,
+    time: formatTime(item.createTime),
+    score: item.comprehensiveScore ?? item.score,
+    status: item.status,
+    difficulty: item.difficulty,
+    mode: item.interviewMode || item.mode || 'normal'
+  }))
+})
 
 // 状态映射
 const statusMap = {
@@ -211,16 +223,47 @@ const formatTime = (timeStr) => {
   })
 }
 
-// 获取历史记录
+// 获取简历诊断历史记录
 const fetchResumeHistory = async () => {
   try {
     const res = await getResumeHistory()
+    // 兼容分页和非分页响应
+    let list = []
+    if (res.data) {
+      if (Array.isArray(res.data)) {
+        list = res.data
+      } else if (res.data.list && Array.isArray(res.data.list)) {
+        list = res.data.list
+      }
+    }
     // 按创建时间降序排序（最新的在前面）
-    allResumeHistory.value = (res.data || []).sort((a, b) => {
+    allResumeHistory.value = list.sort((a, b) => {
       return new Date(b.createTime) - new Date(a.createTime)
     })
   } catch (err) {
     console.error('获取简历诊断历史失败:', err)
+  }
+}
+
+// 获取模拟面试历史记录
+const fetchInterviewHistory = async () => {
+  try {
+    const res = await getInterviewHistory()
+    // 兼容分页和非分页响应
+    let list = []
+    if (res.data) {
+      if (Array.isArray(res.data)) {
+        list = res.data
+      } else if (res.data.list && Array.isArray(res.data.list)) {
+        list = res.data.list
+      }
+    }
+    // 按创建时间降序排序（最新的在前面）
+    allInterviewHistory.value = list.sort((a, b) => {
+      return new Date(b.createTime) - new Date(a.createTime)
+    })
+  } catch (err) {
+    console.error('获取模拟面试历史失败:', err)
   }
 }
 
@@ -231,6 +274,8 @@ onMounted(() => {
   }
   // 获取简历诊断历史记录
   fetchResumeHistory()
+  // 获取模拟面试历史记录
+  fetchInterviewHistory()
 })
 
 const startResumeDiagnosis = () => {
@@ -247,7 +292,7 @@ const viewAllResume = () => {
 }
 
 const viewAllInterview = () => {
-  console.log('查看全部模拟面试')
+  router.push('/interview/history')
 }
 </script>
 

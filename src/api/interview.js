@@ -55,12 +55,16 @@ export function getInterviewSession(sessionId) {
 }
 
 /**
- * 查询面试历史记录
+ * 查询面试历史记录（分页）
+ * @param {Object} params - 分页参数
+ * @param {number} params.pageNum - 页码
+ * @param {number} params.pageSize - 每页大小
  * @returns {Promise}
  */
-export function getInterviewHistory() {
+export function getInterviewHistory(params = { pageNum: 1, pageSize: 5 }) {
   return request({
     url: '/api/interview/history',
-    method: 'get'
+    method: 'get',
+    params
   })
 }

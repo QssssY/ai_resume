@@ -31,7 +31,7 @@
     </div>
 
     <!-- 空状态 -->
-    <div v-else-if="historyList.length === 0" class="empty-section">
+    <div v-else-if="total === 0" class="empty-section">
       <div class="empty-content">
         <el-icon :size="64" color="#dcdfe6"><Document /></el-icon>
         <div class="empty-title">暂无诊断记录</div>
@@ -50,19 +50,12 @@
           :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 500 }"
         >
           <!-- 文件名 -->
-          <el-table-column label="文件名" min-width="200">
+          <el-table-column label="文件名" min-width="280">
             <template #default="{ row }">
               <div class="file-name-cell">
                 <el-icon :size="16" color="#409eff"><Document /></el-icon>
                 <span class="file-name" :title="getFileName(row)">{{ getFileName(row) }}</span>
               </div>
-            </template>
-          </el-table-column>
-
-          <!-- 任务ID -->
-          <el-table-column label="任务ID" width="120">
-            <template #default="{ row }">
-              <span class="task-id">{{ row.taskId }}</span>
             </template>
           </el-table-column>
 
@@ -98,12 +91,17 @@
         </el-table>
       </div>
 
-      <!-- 刷新按钮 -->
-      <div class="refresh-section">
-        <el-button :loading="refreshing" @click="fetchHistory">
-          <el-icon><Refresh /></el-icon>
-          刷新列表
-        </el-button>
+      <!-- 分页器 -->
+      <div v-if="total > 0" class="pagination-section">
+        <el-pagination
+          v-model:current-page="pageNum"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
       </div>
     </div>
   </div>
@@ -115,8 +113,7 @@ import { useRouter } from 'vue-router'
 import {
   Loading,
   CircleClose,
-  Document,
-  Refresh
+  Document
 } from '@element-plus/icons-vue'
 import { getResumeHistory, extractFileName } from '@/api/resume'
 import { ElMessage } from 'element-plus'
@@ -125,9 +122,16 @@ const router = useRouter()
 
 // 状态
 const loading = ref(true)
-const refreshing = ref(false)
 const error = ref('')
 const historyList = ref([])
+
+// 分页状态 - 默认 pageSize 为 10
+const pageNum = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+const totalPages = ref(0)
+const hasNextPage = ref(false)
+const hasPreviousPage = ref(false)
 
 // 状态映射
 const statusMap = {
@@ -167,30 +171,57 @@ const formatTime = (timeStr) => {
 
 // 获取历史记录
 const fetchHistory = async () => {
-  if (refreshing.value) return
-
-  if (!loading.value) {
-    refreshing.value = true
-  }
-
+  loading.value = true
   error.value = ''
 
   try {
-    const res = await getResumeHistory()
-    historyList.value = res.data || []
-    loading.value = false
-    refreshing.value = false
+    const res = await getResumeHistory({ pageNum: pageNum.value, pageSize: pageSize.value })
+
+    // 解析分页响应
+    if (res.data) {
+      if (Array.isArray(res.data)) {
+        // 兼容非分页响应
+        historyList.value = res.data
+        total.value = res.data.length
+      } else if (res.data.list && Array.isArray(res.data.list)) {
+        // 分页响应
+        historyList.value = res.data.list
+        total.value = res.data.total || 0
+        pageNum.value = res.data.pageNum || 1
+        pageSize.value = res.data.pageSize || 10
+        totalPages.value = res.data.totalPages || 0
+        hasNextPage.value = res.data.hasNextPage || false
+        hasPreviousPage.value = res.data.hasPreviousPage || false
+      } else {
+        historyList.value = []
+        total.value = 0
+      }
+    } else {
+      historyList.value = []
+      total.value = 0
+    }
   } catch (err) {
     console.error('获取历史记录失败:', err)
     error.value = err.message || '获取历史记录失败，请稍后重试'
+  } finally {
     loading.value = false
-    refreshing.value = false
   }
 }
 
-// 查看结果
+// 分页事件处理
+const handleSizeChange = (val) => {
+  pageSize.value = val
+  pageNum.value = 1
+  fetchHistory()
+}
+
+const handleCurrentChange = (val) => {
+  pageNum.value = val
+  fetchHistory()
+}
+
+// 查看结果 - taskId 仅用于内部跳转，不展示给用户
 const viewResult = (row) => {
-  // 跳转到结果页，与 ResultView.vue 读取 taskId 的方式保持一致
   router.push(`/resume/result/${row.taskId}`)
 }
 
@@ -361,14 +392,7 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 200px;
-}
-
-/* 任务ID */
-.task-id {
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 13px;
-  color: #606266;
+  max-width: 280px;
 }
 
 /* 创建时间 */
@@ -377,10 +401,10 @@ onMounted(() => {
   color: #606266;
 }
 
-/* 刷新按钮区域 */
-.refresh-section {
+/* 分页器 */
+.pagination-section {
   display: flex;
   justify-content: center;
-  margin-top: 24px;
+  padding: 16px 0;
 }
 </style>

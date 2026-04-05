@@ -45,6 +45,11 @@ const routes = [
         path: 'interview/session/:sessionId',
         name: 'InterviewSession',
         component: () => import('@/views/interview/InterviewSessionView.vue')
+      },
+      {
+        path: 'interview/history',
+        name: 'InterviewHistory',
+        component: () => import('@/views/interview/InterviewHistoryView.vue')
       }
     ]
   }

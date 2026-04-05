@@ -31,10 +31,27 @@
             <span class="nav-icon">面</span>
             <span>模拟面试</span>
           </router-link>
-          <router-link to="/resume/history" class="nav-item" :class="{ active: $route.path === '/resume/history' }">
-            <span class="nav-icon">历</span>
-            <span>历史记录</span>
-          </router-link>
+
+          <!-- 历史记录子菜单 - 纯自定义实现 -->
+          <div class="nav-group">
+            <div
+              class="nav-item nav-group-title"
+              :class="{ active: isHistoryActive }"
+              @click="toggleHistoryMenu"
+            >
+              <span class="nav-icon">历</span>
+              <span>历史记录</span>
+              <span class="expand-icon" :class="{ expanded: isHistoryExpanded }">▼</span>
+            </div>
+            <div v-show="isHistoryExpanded" class="nav-group-content">
+              <router-link to="/resume/history" class="nav-subitem" :class="{ active: $route.path === '/resume/history' }">
+                <span>简历诊断历史</span>
+              </router-link>
+              <router-link to="/interview/history" class="nav-subitem" :class="{ active: $route.path === '/interview/history' }">
+                <span>模拟面试历史</span>
+              </router-link>
+            </div>
+          </div>
         </nav>
       </aside>
       <section class="layout-content">
@@ -46,7 +63,7 @@
 
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -62,10 +79,26 @@ const isResumeDiagnosisActive = computed(() => {
 })
 
 // 模拟面试菜单激活判断
-// 当路由以 /interview 开头时激活
+// 当路由以 /interview 开头，但不以 /interview/history 开头时激活
 const isInterviewActive = computed(() => {
-  return route.path.startsWith('/interview')
+  const path = route.path
+  return path.startsWith('/interview') && !path.startsWith('/interview/history')
 })
+
+// 历史记录菜单激活判断
+// 当路由是 /resume/history 或 /interview/history 时激活
+const isHistoryActive = computed(() => {
+  const path = route.path
+  return path === '/resume/history' || path === '/interview/history'
+})
+
+// 历史记录子菜单展开状态（默认展开，如果当前在历史记录相关页面）
+const isHistoryExpanded = ref(isHistoryActive.value)
+
+// 切换历史记录菜单展开状态
+const toggleHistoryMenu = () => {
+  isHistoryExpanded.value = !isHistoryExpanded.value
+}
 
 // 初始化时获取用户信息
 if (userStore.isLoggedIn() && !userStore.userInfo) {
@@ -197,6 +230,52 @@ const handleLogout = async () => {
 .nav-item.active .nav-icon {
   background-color: #409eff;
   color: #fff;
+}
+
+/* 导航组样式 */
+.nav-group {
+  border-bottom: none;
+}
+
+.nav-group-title {
+  position: relative;
+  user-select: none;
+}
+
+.expand-icon {
+  position: absolute;
+  right: 16px;
+  font-size: 10px;
+  color: #909399;
+  transition: transform 0.2s;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.nav-group-content {
+  background-color: #fafafa;
+  padding: 4px 0;
+}
+
+.nav-subitem {
+  display: block;
+  padding: 10px 20px 10px 50px;
+  color: #606266;
+  font-size: 13px;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.nav-subitem:hover {
+  color: #409eff;
+  background-color: #f0f2f5;
+}
+
+.nav-subitem.active {
+  color: #409eff;
+  background-color: #e6f2ff;
 }
 
 .layout-content {

@@ -32,13 +32,17 @@ export function getResumeTask(taskId) {
 }
 
 /**
- * 查询历史记录
+ * 查询历史记录（分页）
+ * @param {Object} params - 分页参数
+ * @param {number} params.pageNum - 页码
+ * @param {number} params.pageSize - 每页大小
  * @returns {Promise}
  */
-export function getResumeHistory() {
+export function getResumeHistory(params = { pageNum: 1, pageSize: 10 }) {
   return request({
     url: '/api/resume/history',
-    method: 'get'
+    method: 'get',
+    params
   })
 }
 
