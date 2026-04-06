@@ -287,6 +287,7 @@ const sendMessage = async () => {
   await nextTick()
   scrollToBottom()
 
+  let streamSucceeded = false
   try {
     const token = getToken()
     const response = await streamInterviewMessage(
@@ -339,13 +340,22 @@ const sendMessage = async () => {
       }
     }
 
-    await fetchSessionDetail()
+    streamSucceeded = true
+    sessionData.value.chatLogs = (sessionData.value.chatLogs || []).filter(m => m.id !== tempMsgId)
+
+    try {
+      await fetchSessionDetail()
+    } catch (fetchErr) {
+      console.warn('流结束但 fetchSessionDetail 失败，不影响已显示内容:', fetchErr)
+    }
     inputMessage.value = ''
 
   } catch (err) {
     console.error('流式消息失败:', err)
     ElMessage.error(err.message || '发送消息失败，请稍后重试')
-    sessionData.value.chatLogs = (sessionData.value.chatLogs || []).filter(m => m.id !== tempMsgId)
+    if (!streamSucceeded) {
+      sessionData.value.chatLogs = (sessionData.value.chatLogs || []).filter(m => m.id !== tempMsgId)
+    }
   } finally {
     sending.value = false
     isStreaming.value = false
