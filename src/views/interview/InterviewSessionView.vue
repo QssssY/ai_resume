@@ -171,9 +171,11 @@ import {
 import {
   getInterviewSession,
   sendInterviewMessage,
-  endInterview as apiEndInterview
+  endInterview as apiEndInterview,
+  streamInterviewMessage
 } from '@/api/interview'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getToken } from '@/utils/auth'
 
 // 导入图片资源
 import assistantAvatarImg from '@/assets/assistant.png'
@@ -193,6 +195,9 @@ const inputMessage = ref('')
 const sending = ref(false)
 const ending = ref(false)
 const showEndDialog = ref(false)
+const streamingContent = ref('')
+const isStreaming = ref(false)
+const pendingAssistantMsgId = ref(null)
 
 // 图片资源
 const assistantAvatar = assistantAvatarImg
@@ -267,23 +272,95 @@ const sendMessage = async () => {
   if (!content || !sessionId.value) return
 
   sending.value = true
+  isStreaming.value = true
+  streamingContent.value = ''
+
+  const tempMsgId = `temp-${Date.now()}`
+  pendingAssistantMsgId.value = tempMsgId
+
+  sessionData.value.chatLogs = [
+    ...(sessionData.value.chatLogs || []),
+    { id: `user-${Date.now()}`, messageRole: 'user', content: content, createTime: new Date().toISOString() },
+    { id: tempMsgId, messageRole: 'assistant', content: '', createTime: new Date().toISOString() }
+  ]
+  inputMessage.value = ''
+  await nextTick()
+  scrollToBottom()
 
   try {
-    await sendInterviewMessage(sessionId.value, {
-      sessionId: sessionId.value,
-      content
-    })
+    const token = getToken()
+    const response = await streamInterviewMessage(
+      sessionId.value,
+      { sessionId: sessionId.value, content },
+      token
+    )
 
+    if (!response.ok) {
+      let errMsg = `请求失败 (${response.status})`
+      try {
+        const errBody = await response.json()
+        errMsg = errBody.message || errBody.msg || errMsg
+      } catch {}
+      throw new Error(errMsg)
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let currentEvent = null
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const text = decoder.decode(value, { stream: true })
+      const lines = text.split('\n')
+
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          currentEvent = line.substring('event:'.length).trim()
+        } else if (line.startsWith('data:')) {
+          if (currentEvent === 'content') {
+            const data = line.substring('data:'.length)
+            if (data) {
+              streamingContent.value += data
+              const msgIndex = sessionData.value.chatLogs.findIndex(m => m.id === tempMsgId)
+              if (msgIndex !== -1) sessionData.value.chatLogs[msgIndex].content += data
+              await nextTick()
+              scrollToBottom()
+            }
+          } else if (currentEvent === 'error') {
+            const errMsg = line.substring('data:'.length).trim()
+            throw new Error(errMsg)
+          }
+        } else if (line.trim() === '') {
+          if (currentEvent === 'done') break
+          currentEvent = null
+        }
+      }
+    }
+
+    await fetchSessionDetail()
     inputMessage.value = ''
 
-    // 重新获取会话详情以更新聊天记录
-    await fetchSessionDetail()
   } catch (err) {
-    console.error('发送消息失败:', err)
+    console.error('流式消息失败:', err)
     ElMessage.error(err.message || '发送消息失败，请稍后重试')
+    sessionData.value.chatLogs = (sessionData.value.chatLogs || []).filter(m => m.id !== tempMsgId)
   } finally {
     sending.value = false
+    isStreaming.value = false
+    pendingAssistantMsgId.value = null
+    streamingContent.value = ''
   }
+}
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    const container = document.querySelector('.chat-messages')
+    if (container) {
+      container.scrollTop = container.scrollHeight
+    }
+  })
 }
 
 const endInterview = () => {

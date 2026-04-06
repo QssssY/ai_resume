@@ -31,6 +31,21 @@ export function sendInterviewMessage(sessionId, data) {
 }
 
 /**
+ * 发送面试消息（流式回复）
+ * 返回 fetch Response，可用于读取 SSE 流
+ */
+export function streamInterviewMessage(sessionId, data, token) {
+  return fetch(`/api/interview/session/${sessionId}/message/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : ''
+    },
+    body: JSON.stringify(data)
+  })
+}
+
+/**
  * 结束面试
  * @param {string} sessionId - 会话ID
  * @returns {Promise}
