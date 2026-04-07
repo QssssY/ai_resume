@@ -71,9 +71,10 @@ export function getInterviewSession(sessionId) {
 
 /**
  * 查询面试历史记录（分页）
+ *
  * @param {Object} params - 分页参数
- * @param {number} params.pageNum - 页码
- * @param {number} params.pageSize - 每页大小
+ * @param {number} params.pageNum - 页码，默认 1
+ * @param {number} params.pageSize - 每页大小，默认 5（列表用），统计时请用 1000
  * @returns {Promise}
  */
 export function getInterviewHistory(params = { pageNum: 1, pageSize: 5 }) {

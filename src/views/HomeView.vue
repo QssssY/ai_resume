@@ -154,45 +154,108 @@ const interviewQuotaLeft = computed(() => {
   return userStore.userInfo?.interviewQuota ?? 0
 })
 
-// 真实历史记录数据
-const allResumeHistory = ref([])
-const allInterviewHistory = ref([])
+// 【关键修改】分离数据源：
+// - allResumeHistoryForStats / allInterviewHistoryForStats: 用于统计（大分页）
+// - allResumeHistoryForDisplay / allInterviewHistoryForDisplay: 用于列表展示
+const allResumeHistoryForStats = ref([])
+const allInterviewHistoryForStats = ref([])
+const allResumeHistoryForDisplay = ref([])
+const allInterviewHistoryForDisplay = ref([])
 
-// 本月诊断统计（根据真实数据计算）
-const resumeCountThisMonth = computed(() => {
+/**
+ * 从 API 响应中提取列表数据
+ * 兼容多种分页响应结构：
+ * - res.data (直接是数组)
+ * - res.data.list / res.data.records / res.data.rows
+ * - res.data.data (嵌套一层)
+ *
+ * @param {Object} res - API 响应对象
+ * @returns {Array} 提取出的列表数据
+ */
+const extractListFromResponse = (res) => {
+  if (!res) return []
+
+  // 情况1: res.data 直接是数组
+  if (Array.isArray(res.data)) {
+    return res.data
+  }
+
+  // 情况2: res.data 是对象，检查各种可能的列表字段
+  if (res.data && typeof res.data === 'object') {
+    const listFields = ['list', 'records', 'rows', 'data']
+    for (const field of listFields) {
+      if (Array.isArray(res.data[field])) {
+        return res.data[field]
+      }
+    }
+  }
+
+  // 情况3: 直接检查 res 下的字段（有些响应结构没有 data 包装）
+  if (res && typeof res === 'object') {
+    const listFields = ['list', 'records', 'rows', 'data']
+    for (const field of listFields) {
+      if (Array.isArray(res[field])) {
+        return res[field]
+      }
+    }
+  }
+
+  return []
+}
+
+/**
+ * 判断给定时间是否为本月
+ * 统一封装本月判断逻辑，避免重复代码
+ *
+ * @param {string|Date} timeValue - 时间值（字符串或 Date 对象）
+ * @returns {boolean} 是否为本月
+ */
+const isCurrentMonth = (timeValue) => {
+  if (!timeValue) return false
+
   const now = new Date()
   const currentMonth = now.getMonth()
   const currentYear = now.getFullYear()
 
-  return allResumeHistory.value.filter(item => {
-    const itemDate = new Date(item.createTime)
-    return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear
+  const itemDate = new Date(timeValue)
+  if (isNaN(itemDate.getTime())) return false
+
+  return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear
+}
+
+/**
+ * 从记录项中提取时间字段值
+ * 兼容多种时间字段名：createTime / createdAt / startTime / created_time / updateTime / updatedAt
+ *
+ * @param {Object} item - 记录项对象
+ * @returns {string|Date|null} 提取到的时间值
+ */
+const extractTimeFromRecord = (item) => {
+  if (!item) return null
+
+  return item.createTime ||
+         item.createdAt ||
+         item.startTime ||
+         item.created_time ||
+         item.updateTime ||
+         item.updatedAt ||
+         null
+}
+
+// 本月诊断统计（基于统计专用数据源计算）
+const resumeCountThisMonth = computed(() => {
+  return allResumeHistoryForStats.value.filter(item => {
+    const timeValue = extractTimeFromRecord(item)
+    return isCurrentMonth(timeValue)
   }).length
 })
 
-const interviewCountThisMonth = ref(0) // 面试数据暂无接口，保持为0
-
-// 最近记录 - 从真实数据获取最多5条
-const recentResumeRecords = computed(() => {
-  return allResumeHistory.value.slice(0, 5).map(item => ({
-    taskId: item.taskId,
-    fileName: extractFileName(item.fileUrl),
-    time: formatTime(item.createTime),
-    statusText: getStatusText(item.status),
-    statusClass: getStatusClass(item.status)
-  }))
-})
-
-const recentInterviewRecords = computed(() => {
-  return allInterviewHistory.value.slice(0, 5).map(item => ({
-    sessionId: item.sessionId,
-    jobRole: item.jobRole,
-    time: formatTime(item.createTime),
-    score: item.comprehensiveScore ?? item.score,
-    status: item.status,
-    difficulty: item.difficulty,
-    mode: item.interviewMode || item.mode || 'normal'
-  }))
+// 本月面试统计（基于统计专用数据源计算）
+const interviewCountThisMonth = computed(() => {
+  return allInterviewHistoryForStats.value.filter(item => {
+    const timeValue = extractTimeFromRecord(item)
+    return isCurrentMonth(timeValue)
+  }).length
 })
 
 // 状态映射
@@ -223,47 +286,86 @@ const formatTime = (timeStr) => {
   })
 }
 
-// 获取简历诊断历史记录
+// 最近记录 - 从展示专用数据源获取最多5条
+const recentResumeRecords = computed(() => {
+  return allResumeHistoryForDisplay.value.slice(0, 5).map(item => ({
+    taskId: item.taskId,
+    fileName: extractFileName(item.fileUrl),
+    time: formatTime(extractTimeFromRecord(item)),
+    statusText: getStatusText(item.status),
+    statusClass: getStatusClass(item.status)
+  }))
+})
+
+const recentInterviewRecords = computed(() => {
+  return allInterviewHistoryForDisplay.value.slice(0, 5).map(item => ({
+    sessionId: item.sessionId,
+    jobRole: item.jobRole,
+    time: formatTime(extractTimeFromRecord(item)),
+    score: item.comprehensiveScore ?? item.score,
+    status: item.status,
+    difficulty: item.difficulty,
+    mode: item.interviewMode || item.mode || 'normal'
+  }))
+})
+
+/**
+ * 获取简历诊断历史记录（分离统计和展示数据源）
+ * 统计数据使用大分页（pageSize=1000），展示数据使用正常分页（pageSize=10）
+ */
 const fetchResumeHistory = async () => {
   try {
-    const res = await getResumeHistory()
-    // 兼容分页和非分页响应
-    let list = []
-    if (res.data) {
-      if (Array.isArray(res.data)) {
-        list = res.data
-      } else if (res.data.list && Array.isArray(res.data.list)) {
-        list = res.data.list
-      }
+    // 统计用：大分页，获取尽可能多的数据用于准确统计
+    const resStats = await getResumeHistory({ pageNum: 1, pageSize: 1000 })
+    allResumeHistoryForStats.value = extractListFromResponse(resStats)
+
+    // 展示用：正常分页，用于最近记录列表
+    const resDisplay = await getResumeHistory({ pageNum: 1, pageSize: 10 })
+    allResumeHistoryForDisplay.value = extractListFromResponse(resDisplay)
+
+    // 统一按时间降序排序
+    const sortByTime = (a, b) => {
+      const timeA = new Date(extractTimeFromRecord(a)).getTime()
+      const timeB = new Date(extractTimeFromRecord(b)).getTime()
+      return timeB - timeA
     }
-    // 按创建时间降序排序（最新的在前面）
-    allResumeHistory.value = list.sort((a, b) => {
-      return new Date(b.createTime) - new Date(a.createTime)
-    })
+    allResumeHistoryForStats.value.sort(sortByTime)
+    allResumeHistoryForDisplay.value.sort(sortByTime)
   } catch (err) {
-    console.error('获取简历诊断历史失败:', err)
+    // 仅开发环境输出错误日志
+    if (import.meta.env.DEV) {
+      console.error('[首页] 获取简历诊断历史失败:', err)
+    }
   }
 }
 
-// 获取模拟面试历史记录
+/**
+ * 获取模拟面试历史记录（分离统计和展示数据源）
+ * 统计数据使用大分页（pageSize=1000），展示数据使用正常分页（pageSize=10）
+ */
 const fetchInterviewHistory = async () => {
   try {
-    const res = await getInterviewHistory()
-    // 兼容分页和非分页响应
-    let list = []
-    if (res.data) {
-      if (Array.isArray(res.data)) {
-        list = res.data
-      } else if (res.data.list && Array.isArray(res.data.list)) {
-        list = res.data.list
-      }
+    // 统计用：大分页，获取尽可能多的数据用于准确统计
+    const resStats = await getInterviewHistory({ pageNum: 1, pageSize: 1000 })
+    allInterviewHistoryForStats.value = extractListFromResponse(resStats)
+
+    // 展示用：正常分页，用于最近记录列表
+    const resDisplay = await getInterviewHistory({ pageNum: 1, pageSize: 10 })
+    allInterviewHistoryForDisplay.value = extractListFromResponse(resDisplay)
+
+    // 统一按时间降序排序
+    const sortByTime = (a, b) => {
+      const timeA = new Date(extractTimeFromRecord(a)).getTime()
+      const timeB = new Date(extractTimeFromRecord(b)).getTime()
+      return timeB - timeA
     }
-    // 按创建时间降序排序（最新的在前面）
-    allInterviewHistory.value = list.sort((a, b) => {
-      return new Date(b.createTime) - new Date(a.createTime)
-    })
+    allInterviewHistoryForStats.value.sort(sortByTime)
+    allInterviewHistoryForDisplay.value.sort(sortByTime)
   } catch (err) {
-    console.error('获取模拟面试历史失败:', err)
+    // 仅开发环境输出错误日志
+    if (import.meta.env.DEV) {
+      console.error('[首页] 获取模拟面试历史失败:', err)
+    }
   }
 }
 
@@ -272,9 +374,7 @@ onMounted(() => {
   if (userStore.isLoggedIn() && !userStore.userInfo) {
     userStore.fetchUserInfo()
   }
-  // 获取简历诊断历史记录
   fetchResumeHistory()
-  // 获取模拟面试历史记录
   fetchInterviewHistory()
 })
 

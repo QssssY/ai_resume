@@ -112,7 +112,8 @@
             <div class="module-title">基础信息完整度</div>
           </div>
           <div class="module-body">
-            <BasicInfoSection :data="parsedResult.basicInfoEvaluation" />
+            <!-- 【关键修改】传入完整的 parsedResult，包含 basicInfoDetails -->
+            <BasicInfoSection :data="parsedResult" />
           </div>
         </div>
 
@@ -277,21 +278,64 @@ const statusClass = computed(() => {
   }
 })
 
-// 解析诊断结果
+/**
+ * 统一解析 diagnosisResult 方法
+ *
+ * @param {string|Object|null} raw - 原始诊断结果
+ * @returns {Object} 解析后的对象，失败返回空对象
+ */
+const parseDiagnosisResult = (raw) => {
+  if (!raw) return {}
+
+  // 如果已经是对象，直接返回
+  if (typeof raw === 'object') {
+    return raw
+  }
+
+  // 如果是字符串，尝试 JSON.parse
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return parsed || {}
+    } catch (e) {
+      console.warn('parseDiagnosisResult JSON 解析失败:', e)
+      return {}
+    }
+  }
+
+  return {}
+}
+
+// 解析后的完整诊断结果（统一数据源）
+const parsedDiagnosisResult = computed(() => {
+  return parseDiagnosisResult(task.value?.diagnosisResult)
+})
+
+// 基础信息评价（用于完整度得分）
+const basicInfoEvaluation = computed(() => {
+  return parsedDiagnosisResult.value?.basicInfoEvaluation || {}
+})
+
+// 基础信息详情（用于展示具体字段值）
+const basicInfoDetails = computed(() => {
+  return parsedDiagnosisResult.value?.basicInfoDetails || {}
+})
+
+// 解析诊断结果（保留原有 computed 用于兼容）
 const parsedResult = computed(() => {
   if (!task.value?.diagnosisResult) return null
 
   try {
-    const result = typeof task.value.diagnosisResult === 'string'
-      ? JSON.parse(task.value.diagnosisResult)
-      : task.value.diagnosisResult
+    const result = parsedDiagnosisResult.value
 
     // 确保返回的对象包含各个模块
     return {
       overallEvaluation: result.overallEvaluation || result.overall || {},
       highlights: result.highlights || result.strengths || [],
       skillEvaluation: result.skillEvaluation || result.skills || {},
-      basicInfoEvaluation: result.basicInfoEvaluation || result.basicInfo || {},
+      // 【关键修改】同时传递 basicInfoEvaluation 和 basicInfoDetails
+      basicInfoEvaluation: basicInfoEvaluation.value,
+      basicInfoDetails: basicInfoDetails.value,
       workExperienceEvaluation: result.workExperienceEvaluation || result.experience || {},
       projectExperienceEvaluation: result.projectExperienceEvaluation || result.projects || {},
       optimizationSuggestions: result.optimizationSuggestions || result.suggestions || []
@@ -371,6 +415,7 @@ const fetchTaskDetail = async () => {
   try {
     const res = await getResumeTask(taskId.value)
     const previousStatus = task.value?.status
+    // 【关键确认】确保接口返回层级正确：res.data 就是 task 对象
     task.value = res.data
     loading.value = false
     refreshing.value = false
