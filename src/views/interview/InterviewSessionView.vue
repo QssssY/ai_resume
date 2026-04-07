@@ -70,13 +70,30 @@
         <div class="chat-messages" ref="chatContainer">
           <template v-if="chatLogs.length > 0">
             <!-- ===== AI 面试官消息 - 左侧布局 ===== -->
-            <template v-for="(msg, index) in chatLogs" :key="index">
+            <template v-for="msg in chatLogs" :key="msg.id || msg.tempId || `msg-${msg.createTime}`">
+              <!-- ===== AI 面试官消息 - 左侧布局 ===== -->
               <div v-if="msg.messageRole === 'assistant'" class="message-row assistant-row">
                 <div class="message-avatar assistant-avatar">
                   <img :src="assistantAvatar" alt="AI面试官" @error="handleImageError" />
                 </div>
                 <div class="message-content assistant-content">
-                  <div class="message-bubble assistant-bubble">{{ msg.content }}</div>
+                  <div class="message-bubble assistant-bubble">
+                    <!-- 思考中状态：显示"思考中..."动画 -->
+                    <span v-if="msg.status === 'thinking'" class="thinking-indicator">
+                      <span class="thinking-text">思考中</span><span class="thinking-dots">...</span>
+                    </span>
+                    <!-- 错误状态：显示错误提示 -->
+                    <span v-else-if="msg.status === 'error'" class="error-text">回复失败，请重试</span>
+                    <!--
+                      【修复】状态严格分离的渲染逻辑：
+                      1. streaming 状态：只显示 msg.displayContent（打字缓冲区内容）
+                      2. done 状态：只显示 msg.content（后端返回的完整内容，不再用 displayContent）
+                      3. 其他历史消息（无 status 字段）：直接显示 msg.content
+                      注意：done 状态下绝对不能再显示 displayContent，因为那是打字过程中的中间状态
+                    -->
+                    <span v-else-if="msg.status === 'streaming'" class="streaming-text">{{ msg.displayContent }}<span class="typing-cursor">|</span></span>
+                    <span v-else class="done-text">{{ msg.content || '' }}</span>
+                  </div>
                   <div class="message-time assistant-time">{{ formatTime(msg.createTime) }}</div>
                 </div>
               </div>
@@ -258,6 +275,26 @@ const fetchSessionDetail = async () => {
 
   try {
     const res = await getInterviewSession(sessionId.value)
+
+    // 【关键修复】将后端返回的原始 chatLogs 消息对象 normalize 为前端扩展格式
+    // 后端返回格式：{ id, messageRole, content, createTime, ... }
+    // 前端需要格式：{ id, messageRole, content, displayContent, pendingContent, status, ... }
+    //
+    // 映射规则：
+    // - displayContent = 后端 content（历史消息没有流式过程，直接显示即可）
+    // - pendingContent = ''（历史消息不需要缓冲区）
+    // - status = 'done'（历史消息已结束，不需要打字机）
+    // - rawContent = 后端 content（保留完整内容引用）
+    if (res.data?.chatLogs && Array.isArray(res.data.chatLogs)) {
+      res.data.chatLogs = res.data.chatLogs.map(msg => ({
+        ...msg,
+        displayContent: msg.content || '',   // 历史消息直接显示 content
+        pendingContent: '',                  // 历史消息无缓冲区
+        status: msg.status || 'done',       // 历史消息标记为已完成
+        rawContent: msg.content || ''       // 保留完整内容引用
+      }))
+    }
+
     sessionData.value = res.data
     loading.value = false
   } catch (err) {
@@ -267,25 +304,102 @@ const fetchSessionDetail = async () => {
   }
 }
 
+// 打字机状态管理
+let typingTimer = null
+const TYPE_INTERVAL_MS = 35  // 逐字打印间隔（毫秒），越小越快
+
 const sendMessage = async () => {
   const content = inputMessage.value.trim()
   if (!content || !sessionId.value) return
 
+  // 停止可能还在运行的打字机
+  if (typingTimer) {
+    clearInterval(typingTimer)
+    typingTimer = null
+  }
+
   sending.value = true
   isStreaming.value = true
-  streamingContent.value = ''
 
+  // 【核心改动】assistant 消息结构升级：
+  // - displayContent：界面实际渲染的内容（随打字机逐步追加）
+  // - pendingContent：后端到达但尚未打印的缓冲区
+  // - rawContent：后端原始完整内容
+  // - status：thinking → streaming → done/error
   const tempMsgId = `temp-${Date.now()}`
-  pendingAssistantMsgId.value = tempMsgId
+  const assistantMsg = {
+    id: tempMsgId,
+    messageRole: 'assistant',
+    content: '',          // 保留兼容（旧的 chatLogs 没有此字段）
+    displayContent: '',   // 界面已渲染内容
+    pendingContent: '',    // 待打印缓冲区
+    rawContent: '',       // 后端原始完整内容
+    status: 'thinking',   // thinking → streaming → done/error
+    streamFinished: false, // SSE 流是否已结束（打字机需要此标志才能停止）
+    createTime: new Date().toISOString()
+  }
 
   sessionData.value.chatLogs = [
     ...(sessionData.value.chatLogs || []),
     { id: `user-${Date.now()}`, messageRole: 'user', content: content, createTime: new Date().toISOString() },
-    { id: tempMsgId, messageRole: 'assistant', content: '', createTime: new Date().toISOString() }
+    assistantMsg
   ]
+
   inputMessage.value = ''
   await nextTick()
   scrollToBottom()
+
+  /**
+   * 启动打字机：从 pendingContent 逐字提取追加到 displayContent
+   *
+   * 【设计说明】
+   * - 收到 SSE chunk 后，内容先进入 pendingContent（待打印队列）
+   * - 打字机定时器每 35ms 从 pendingContent 取 1 个字符
+   * - 取出的字符追加到 displayContent，界面渲染 displayContent
+   * - pendingContent 为空时停止计时器
+   * - SSE 结束后（done 事件），如果 pendingContent 还有内容，打字机继续直到清空
+   *
+   * 【为什么这样做】
+   * - 不用后端来一个 chunk 就直接显示（太快，没有打字机效果）
+   * - 也不用等后端全部返回再显示（失去实时感）
+   * - 而是用一个缓冲区让打字节奏均匀、可控
+   */
+  const startTypingMachine = () => {
+    if (typingTimer) clearInterval(typingTimer)
+    typingTimer = setInterval(() => {
+      const logs = sessionData.value?.chatLogs || []
+      const msgIndex = logs.findIndex(m => m.id === tempMsgId)
+      if (msgIndex === -1) {
+        clearInterval(typingTimer)
+        typingTimer = null
+        return
+      }
+      const msg = logs[msgIndex]
+      // 缓冲区还有内容，继续打印
+      if (msg.pendingContent.length > 0) {
+        // 每次从缓冲区取 1 个字符追加到显示区
+        msg.displayContent += msg.pendingContent[0]
+        msg.pendingContent = msg.pendingContent.substring(1)
+        msg.status = 'streaming'
+        nextTick(() => scrollToBottom())
+      } else if (msg.streamFinished && msg.pendingContent.length === 0) {
+        // 【修复】只有当 SSE 已结束(streamFinished=true) 且缓冲区已清空时，才停止打字机
+        // 停止计时器
+        clearInterval(typingTimer)
+        typingTimer = null
+        // 【关键修复】不再调用 fetchSessionDetail，因为那会用后端完整 chatLogs 覆盖本地显示
+        // 改为：直接在本地用 rawContent 收口这条消息
+        if (msg.status !== 'error') {
+          // 将后端原始完整内容固化为 message.content（从此 displayContent 不再需要）
+          msg.content = msg.rawContent
+          msg.status = 'done'
+        } else {
+          msg.status = 'error'
+        }
+        // 注意：不再调用 fetchSessionDetail()，这样打字效果就不会被整体刷新覆盖
+      }
+    }, TYPE_INTERVAL_MS)
+  }
 
   let streamSucceeded = false
   try {
@@ -307,7 +421,6 @@ const sendMessage = async () => {
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
-    let currentEvent = null
 
     while (true) {
       const { done, value } = await reader.read()
@@ -317,50 +430,101 @@ const sendMessage = async () => {
       const lines = text.split('\n')
 
       for (const line of lines) {
+        // 解析新的统一 JSON SSE 格式
+        // 格式：event: message\ndata: {"type":"content","content":"文本"}\n\n
         if (line.startsWith('event:')) {
-          currentEvent = line.substring('event:'.length).trim()
+          // 记录事件类型（当前统一为 'message'）
+          continue
         } else if (line.startsWith('data:')) {
-          if (currentEvent === 'content') {
-            const data = line.substring('data:'.length)
-            if (data) {
-              streamingContent.value += data
-              const msgIndex = sessionData.value.chatLogs.findIndex(m => m.id === tempMsgId)
-              if (msgIndex !== -1) sessionData.value.chatLogs[msgIndex].content += data
-              await nextTick()
-              scrollToBottom()
-            }
-          } else if (currentEvent === 'error') {
-            const errMsg = line.substring('data:'.length).trim()
-            throw new Error(errMsg)
+          // 提取 JSON 数据
+          const jsonStr = line.substring('data:'.length).trim()
+          if (!jsonStr) continue
+
+          let payload
+          try {
+            payload = JSON.parse(jsonStr)
+          } catch (e) {
+            console.warn('[stream] JSON解析失败:', jsonStr, e)
+            continue
           }
-        } else if (line.trim() === '') {
-          if (currentEvent === 'done') break
-          currentEvent = null
+
+          // 【统一事件分发】根据 payload.type 处理不同事件
+          if (payload.type === 'content') {
+            // 内容片段：需要追加到 pendingContent
+            const data = payload.content || ''
+            if (!data) continue
+
+            const msgIndex = sessionData.value.chatLogs.findIndex(m => m.id === tempMsgId)
+            if (msgIndex !== -1) {
+              const msg = sessionData.value.chatLogs[msgIndex]
+              // 【修复】标准化处理：去除 \r 字符
+              const normalizedData = data.replace(/\r/g, '')
+              // 【新增】判断是否为纯空白 chunk
+              const visibleContent = normalizedData.replace(/[\s\u00A0]/g, '')
+              if (visibleContent === '') {
+                // 纯空白 chunk：跳过
+                console.debug('[stream] 跳过纯空白chunk:', JSON.stringify(normalizedData))
+              } else {
+                // 有可见内容的有效 chunk
+                // 首次收到有效 content：切换为 streaming 状态，启动打字机
+                if (msg.status === 'thinking') {
+                  msg.status = 'streaming'
+                  startTypingMachine()
+                }
+                // 内容追加到缓冲区
+                msg.rawContent += normalizedData
+                msg.pendingContent += normalizedData
+              }
+            }
+            await nextTick()
+            scrollToBottom()
+          } else if (payload.type === 'done') {
+            // 流结束：标记 streamFinished，打字机会在 pendingContent 为空时自动停止
+            console.debug('[stream] 收到done事件')
+            const msgIndex = sessionData.value.chatLogs.findIndex(m => m.id === tempMsgId)
+            if (msgIndex !== -1) {
+              const msg = sessionData.value.chatLogs[msgIndex]
+              msg.streamFinished = true
+            }
+            break  // 跳出 while 循环
+          } else if (payload.type === 'error') {
+            // 错误事件：抛出错误，由外层 catch 处理
+            throw new Error(payload.message || 'AI 回复失败')
+          }
         }
       }
     }
 
+    // 流正常结束
     streamSucceeded = true
-    sessionData.value.chatLogs = (sessionData.value.chatLogs || []).filter(m => m.id !== tempMsgId)
-
-    try {
-      await fetchSessionDetail()
-    } catch (fetchErr) {
-      console.warn('流结束但 fetchSessionDetail 失败，不影响已显示内容:', fetchErr)
+    const msgIndex = sessionData.value.chatLogs.findIndex(m => m.id === tempMsgId)
+    if (msgIndex !== -1) {
+      const msg = sessionData.value.chatLogs[msgIndex]
+      // 标记 SSE 已结束，打字机会在 pendingContent 为空时自动停止
+      msg.streamFinished = true
     }
-    inputMessage.value = ''
+    // 不再调用 fetchSessionDetail，打字效果不会被整体刷新覆盖
 
   } catch (err) {
     console.error('流式消息失败:', err)
     ElMessage.error(err.message || '发送消息失败，请稍后重试')
     if (!streamSucceeded) {
-      sessionData.value.chatLogs = (sessionData.value.chatLogs || []).filter(m => m.id !== tempMsgId)
+      // 标记消息为错误状态（界面会显示"回复失败"）
+      const msgIndex = sessionData.value.chatLogs.findIndex(m => m.id === tempMsgId)
+      if (msgIndex !== -1) {
+        const msg = sessionData.value.chatLogs[msgIndex]
+        msg.status = 'error'
+        msg.streamFinished = true  // 让打字机能正确停止
+      }
+      // 等待打字机停止后再过滤掉
+      await nextTick()
     }
   } finally {
     sending.value = false
     isStreaming.value = false
     pendingAssistantMsgId.value = null
     streamingContent.value = ''
+    // 打字机在 pendingContent 为空时会自动停止
   }
 }
 
@@ -603,6 +767,66 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   text-align: left;
+}
+
+/* 思考中状态 */
+.thinking-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #909399;
+  font-style: italic;
+}
+
+.thinking-text {
+  font-size: 13px;
+}
+
+.thinking-dots {
+  animation: thinkingPulse 1.2s ease-in-out infinite;
+  font-size: 13px;
+}
+
+@keyframes thinkingPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* 打字机光标 */
+.typing-cursor {
+  display: inline-block;
+  color: #409eff;
+  font-weight: bold;
+  animation: blink 0.8s step-end infinite;
+  margin-left: 1px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* 错误状态 */
+.error-text {
+  color: #f56c6c;
+  font-size: 13px;
+}
+
+/* 流式输出中的正文样式（关键：消除 span 默认间隙） */
+.streaming-text,
+.done-text {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  /* 明确关闭可能导致字间距拉开的默认样式 */
+  letter-spacing: normal;
+  word-spacing: normal;
+  /* 换行处理：保留换行但不需要保留所有空格 */
+  white-space: pre-line;
+  word-break: break-word;
 }
 
 /* ===== 用户消息 - 右侧布局 ===== */
