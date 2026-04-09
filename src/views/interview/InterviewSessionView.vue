@@ -248,7 +248,16 @@ const difficultyType = computed(() => {
 })
 
 const modeText = computed(() => {
-  return modeFromQuery.value === 'normal' ? '普通面试' : '压力面试'
+  if (sessionData.value?.interviewModeDesc) {
+    return sessionData.value.interviewModeDesc
+  }
+  if (sessionData.value?.interviewMode === 'stress') {
+    return '压力面试'
+  }
+  if (sessionData.value?.interviewMode === 'normal') {
+    return '普通面试'
+  }
+  return '普通面试'
 })
 
 const chatLogs = computed(() => {

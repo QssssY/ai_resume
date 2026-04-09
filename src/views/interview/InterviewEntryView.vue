@@ -239,7 +239,8 @@ const startInterview = async () => {
   try {
     const res = await createInterviewSession({
       jobRole: selectedJobRole.value,
-      difficulty: selectedDifficulty.value
+      difficulty: selectedDifficulty.value,
+      interviewMode: selectedMode.value === 'pressure' ? 'stress' : selectedMode.value
     })
 
     const sessionId = res.data.sessionId
