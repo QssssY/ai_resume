@@ -3,163 +3,117 @@
     <!-- 页面标题区 -->
     <div class="page-header">
       <h1 class="page-title">模拟面试</h1>
-      <p class="page-desc">选择岗位与难度，开启AI模拟面试，提升面试技巧</p>
+      <p class="page-desc">配置面试参数，开始一场真实的模拟面试</p>
     </div>
 
-    <!-- 配置选择区 -->
+    <!-- 准备就绪提示条 -->
+    <div class="ready-bar">
+      <div class="ready-icon">
+        <el-icon :size="20"><CircleCheckFilled /></el-icon>
+      </div>
+      <span class="ready-text">准备就绪，随时可以开始面试</span>
+    </div>
+
+    <!-- 配置选项 -->
     <div class="config-section">
       <div class="config-card">
-        <!-- 岗位选择 -->
+        <!-- 面试岗位下拉选择 -->
         <div class="config-item">
-          <div class="config-label">
-            <el-icon :size="16"><Briefcase /></el-icon>
-            <span>面试岗位</span>
-          </div>
-          <div class="config-content">
+          <div class="config-label">面试岗位</div>
+          <div class="config-control">
             <el-select
-              v-model="selectedJobRole"
+              v-model="selectedJob"
               placeholder="请选择面试岗位"
               size="large"
               class="job-select"
+              :disabled="creating"
+              popper-class="job-select-popper"
             >
+              <template #empty>
+                <div class="empty-options">暂无岗位数据</div>
+              </template>
               <el-option
-                v-for="job in jobRoles"
+                v-for="job in jobOptions"
                 :key="job.value"
                 :label="job.label"
                 :value="job.value"
               >
-                <div class="job-option">
+                <div class="job-option-content">
                   <span class="job-name">{{ job.label }}</span>
-                  <el-tag v-if="job.hot" type="danger" size="small">热门</el-tag>
+                  <span class="job-tag" :class="'tag-' + job.tagType">{{
+                    job.tag
+                  }}</span>
                 </div>
               </el-option>
             </el-select>
           </div>
         </div>
 
-        <!-- 难度选择 -->
+        <!-- 难度级别选择 - pill 风格按钮组 -->
         <div class="config-item">
-          <div class="config-label">
-            <el-icon :size="16"><TrendCharts /></el-icon>
-            <span>难度级别</span>
-          </div>
-          <div class="config-content">
-            <el-radio-group v-model="selectedDifficulty" size="large">
-              <el-radio-button :value="1">
-                <div class="difficulty-option easy">
-                  <el-icon><StarFilled /></el-icon>
-                  <span>初级</span>
-                </div>
-              </el-radio-button>
-              <el-radio-button :value="2">
-                <div class="difficulty-option medium">
-                  <el-icon><StarFilled /></el-icon>
-                  <el-icon><StarFilled /></el-icon>
-                  <span>中级</span>
-                </div>
-              </el-radio-button>
-              <el-radio-button :value="3">
-                <div class="difficulty-option hard">
-                  <el-icon><StarFilled /></el-icon>
-                  <el-icon><StarFilled /></el-icon>
-                  <el-icon><StarFilled /></el-icon>
-                  <span>高级</span>
-                </div>
-              </el-radio-button>
-            </el-radio-group>
-          </div>
-        </div>
-
-        <!-- 模式选择 -->
-        <div class="config-item">
-          <div class="config-label">
-            <el-icon :size="16"><SetUp /></el-icon>
-            <span>面试模式</span>
-          </div>
-          <div class="config-content">
-            <el-radio-group v-model="selectedMode" size="large">
-              <el-radio-button value="normal">
-                <div class="mode-option">
-                  <el-icon><ChatDotRound /></el-icon>
-                  <span>普通面试</span>
-                </div>
-              </el-radio-button>
-              <el-radio-button value="pressure">
-                <div class="mode-option">
-                  <el-icon><Lightning /></el-icon>
-                  <span>压力面试</span>
-                </div>
-              </el-radio-button>
-            </el-radio-group>
-            <div class="mode-desc">
-              <template v-if="selectedMode === 'normal'">
-                标准面试流程，问题由浅入深，适合日常练习
-              </template>
-              <template v-else>
-                高强度连续追问，锻炼应变能力，适合进阶训练
-              </template>
+          <div class="config-label">难度级别</div>
+          <div class="config-control pill-control">
+            <div
+              v-for="level in difficultyOptions"
+              :key="level.value"
+              class="pill-button"
+              :class="{ active: selectedDifficulty === level.value }"
+              @click="selectedDifficulty = level.value"
+            >
+              <span class="pill-label">{{ level.label }}</span>
+              <span class="pill-hint">{{ level.hint }}</span>
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- 操作按钮区 -->
-    <div class="action-section">
-      <div class="action-card">
-        <div class="action-info">
-          <div class="action-title">准备就绪</div>
-          <div class="action-desc">
-            已选择：{{ selectedJobRoleLabel }} | {{ selectedDifficultyLabel }} | {{ selectedModeLabel }}
+        <!-- 面试模式选择 - pill 风格按钮组 -->
+        <div class="config-item">
+          <div class="config-label">面试模式</div>
+          <div class="config-control pill-control">
+            <div
+              v-for="mode in modeOptions"
+              :key="mode.value"
+              class="pill-button"
+              :class="{ active: selectedMode === mode.value }"
+              @click="selectedMode = mode.value"
+            >
+              <span class="pill-label">{{ mode.label }}</span>
+              <span class="pill-hint">{{ mode.hint }}</span>
+            </div>
           </div>
         </div>
-        <el-button
-          type="primary"
-          size="large"
-          :loading="starting"
-          :disabled="!canStart"
-          @click="startInterview"
-        >
-          {{ startButtonText }}
-        </el-button>
+
+        <!-- 开始面试按钮 -->
+        <div class="start-section">
+          <el-button
+            type="primary"
+            size="large"
+            :disabled="!selectedJob || creating"
+            :loading="creating"
+            @click="handleStart"
+          >
+            {{ creating ? "创建面试中..." : "开始面试" }}
+          </el-button>
+        </div>
       </div>
     </div>
 
-    <!-- 说明提示区 -->
+    <!-- 面试说明 -->
     <div class="info-section">
       <div class="info-card">
-        <h3 class="info-title">
-          <el-icon><InfoFilled /></el-icon>
-          面试流程说明
-        </h3>
+        <h3 class="info-title">面试说明</h3>
         <div class="info-list">
           <div class="info-item">
-            <div class="info-step">1</div>
-            <div class="info-content">
-              <div class="info-item-title">选择配置</div>
-              <div class="info-item-desc">选择目标岗位、难度级别和面试模式</div>
-            </div>
+            <div class="info-number">1</div>
+            <div class="info-text">AI 面试官会通过文字与您交流</div>
           </div>
           <div class="info-item">
-            <div class="info-step">2</div>
-            <div class="info-content">
-              <div class="info-item-title">开始面试</div>
-              <div class="info-item-desc">AI面试官会根据配置生成针对性问题</div>
-            </div>
+            <div class="info-number">2</div>
+            <div class="info-text">面试结束后会自动生成评估报告</div>
           </div>
           <div class="info-item">
-            <div class="info-step">3</div>
-            <div class="info-content">
-              <div class="info-item-title">回答问题</div>
-              <div class="info-item-desc">根据问题给出回答，AI会进行追问和评价</div>
-            </div>
-          </div>
-          <div class="info-item">
-            <div class="info-step">4</div>
-            <div class="info-content">
-              <div class="info-item-title">查看评价</div>
-              <div class="info-item-desc">面试结束后查看综合评分和详细反馈</div>
-            </div>
+            <div class="info-number">3</div>
+            <div class="info-text">报告包含表现评分和改进建议</div>
           </div>
         </div>
       </div>
@@ -168,100 +122,119 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import {
-  Briefcase,
-  TrendCharts,
-  StarFilled,
-  SetUp,
-  ChatDotRound,
-  Lightning,
-  InfoFilled
-} from '@element-plus/icons-vue'
-import { createInterviewSession } from '@/api/interview'
-import { ElMessage } from 'element-plus'
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { CircleCheckFilled } from "@element-plus/icons-vue";
+import { ElMessage } from "element-plus";
+import { useUserStore } from "@/stores/user";
+import { createInterviewSession } from "@/api/interview";
 
-const router = useRouter()
+const router = useRouter();
+const userStore = useUserStore();
 
-// 岗位列表
-const jobRoles = [
-  { value: 'Java开发工程师', label: 'Java开发工程师', hot: true },
-  { value: '前端开发工程师', label: '前端开发工程师', hot: true },
-  { value: 'Python开发工程师', label: 'Python开发工程师', hot: false },
-  { value: '产品经理', label: '产品经理', hot: true },
-  { value: 'UI设计师', label: 'UI设计师', hot: false },
-  { value: '数据分析师', label: '数据分析师', hot: false },
-  { value: '测试工程师', label: '测试工程师', hot: false },
-  { value: '运维工程师', label: '运维工程师', hot: false }
-]
+// 岗位选项 - 带热度标签
+const jobOptions = [
+  {
+    label: "前端开发工程师",
+    value: "前端开发工程师",
+    tag: "热门",
+    tagType: "hot",
+  },
+  {
+    label: "后端开发工程师",
+    value: "后端开发工程师",
+    tag: "热门",
+    tagType: "hot",
+  },
+  {
+    label: "Java开发工程师",
+    value: "Java开发工程师",
+    tag: "热门",
+    tagType: "hot",
+  },
+  { label: "产品经理", value: "产品经理", tag: "常见", tagType: "common" },
+  {
+    label: "算法工程师",
+    value: "算法工程师",
+    tag: "高竞争",
+    tagType: "competitive",
+  },
+  { label: "运营", value: "运营", tag: "常规", tagType: "normal" },
+  { label: "市场/销售", value: "市场/销售", tag: "常规", tagType: "normal" },
+];
 
-// 选择状态
-const selectedJobRole = ref('')
-const selectedDifficulty = ref(1)
-const selectedMode = ref('normal')
-const starting = ref(false)
+// 难度级别选项 - 带辅助说明
+const difficultyOptions = [
+  { label: "初级", value: "primary", hint: "入门基础" },
+  { label: "中级", value: "intermediate", hint: "项目实践" },
+  { label: "高级", value: "advanced", hint: "深度能力" },
+];
 
-// 计算属性
-const selectedJobRoleLabel = computed(() => {
-  const job = jobRoles.find(j => j.value === selectedJobRole.value)
-  return job?.label || '未选择'
-})
+// 面试模式选项 - 带辅助说明
+const modeOptions = [
+  { label: "普通面试", value: "normal", hint: "标准流程" },
+  { label: "压力面试", value: "stress", hint: "高压情境" },
+];
 
-const selectedDifficultyLabel = computed(() => {
-  const map = { 1: '初级', 2: '中级', 3: '高级' }
-  return map[selectedDifficulty.value] || '初级'
-})
+// 难度级别映射：前端值 -> 后端期望值
+const difficultyMap = {
+  primary: 1,
+  intermediate: 2,
+  advanced: 3,
+};
 
-const selectedModeLabel = computed(() => {
-  return selectedMode.value === 'normal' ? '普通面试' : '压力面试'
-})
+// 选中状态
+const selectedJob = ref("");
+const selectedDifficulty = ref("primary");
+const selectedMode = ref("normal");
+const creating = ref(false);
 
-const canStart = computed(() => {
-  return !!selectedJobRole.value
-})
-
-const startButtonText = computed(() => {
-  if (starting.value) return '创建中...'
-  if (!selectedJobRole.value) return '请先选择岗位'
-  return '开始面试'
-})
-
-// 开始面试
-const startInterview = async () => {
-  if (!canStart.value) {
-    ElMessage.warning('请先选择面试岗位')
-    return
+// 开始面试 - 先创建会话，再跳转
+const handleStart = async () => {
+  if (!userStore.isLoggedIn()) {
+    ElMessage.warning("请先登录");
+    router.push("/login");
+    return;
   }
 
-  starting.value = true
+  if (!selectedJob.value) {
+    ElMessage.warning("请选择面试岗位");
+    return;
+  }
+
+  creating.value = true;
 
   try {
+    // 调用创建会话接口
     const res = await createInterviewSession({
-      jobRole: selectedJobRole.value,
-      difficulty: selectedDifficulty.value,
-      interviewMode: selectedMode.value === 'pressure' ? 'stress' : selectedMode.value
-    })
+      jobRole: selectedJob.value,
+      difficulty: difficultyMap[selectedDifficulty.value],
+      interviewMode: selectedMode.value,
+    });
 
-    const sessionId = res.data.sessionId
+    // 从响应中提取 sessionId
+    let sessionId = null;
+    if (res.data) {
+      sessionId = res.data.sessionId || res.data.id || res.data;
+    } else if (res.sessionId) {
+      sessionId = res.sessionId;
+    } else if (typeof res === "string") {
+      sessionId = res;
+    }
 
-    ElMessage.success('面试会话创建成功')
+    if (!sessionId) {
+      throw new Error("创建会话失败，未获取到会话ID");
+    }
 
-    // 跳转到面试会话页
-    await router.push({
-      path: `/interview/session/${sessionId}`,
-      query: {
-        mode: selectedMode.value,
-        difficulty: selectedDifficulty.value
-      }
-    })
+    // 跳转到真实会话页
+    router.push(`/interview/session/${sessionId}`);
   } catch (err) {
-    console.error('创建面试会话失败:', err)
-    ElMessage.error(err.message || '创建面试会话失败，请稍后重试')
+    console.error("创建面试会话失败:", err);
+    ElMessage.error(err.message || "创建面试会话失败，请稍后重试");
   } finally {
-    starting.value = false
+    creating.value = false;
   }
-}
+};
 </script>
 
 <style scoped>
@@ -276,206 +249,322 @@ const startInterview = async () => {
 
 .page-title {
   margin: 0 0 6px 0;
-  font-size: 20px;
-  font-weight: 500;
-  color: #303133;
+  font-size: 24px;
+  font-weight: 600;
+  color: #2f2f2f;
 }
 
 .page-desc {
   margin: 0;
   font-size: 14px;
-  color: #909399;
+  color: #888888;
 }
 
-/* 配置选择区 */
+/* 准备就绪提示条 */
+.ready-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #fff3e8 0%, #fff8f3 100%);
+  border: 1px solid #ffd7bf;
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+
+.ready-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #ff8c42;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.ready-text {
+  font-size: 14px;
+  color: #555555;
+}
+
+/* 配置选项区 */
 .config-section {
   margin-bottom: 24px;
 }
 
 .config-card {
-  background-color: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 24px;
+  background-color: #ffffff;
+  border: 1px solid #f3d8c7;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
 }
 
 .config-item {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
-.config-item:last-child {
-  margin-bottom: 0;
+.config-item:last-of-type {
+  margin-bottom: 36px;
 }
 
 .config-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2f2f2f;
+  margin-bottom: 14px;
+  letter-spacing: 0.5px;
+}
+
+.config-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* 岗位下拉选择器样式 */
+.job-select {
+  width: 360px;
+}
+
+.job-select :deep(.el-input__wrapper) {
+  border-radius: 10px;
+  border: 1px solid #f3d8c7;
+  box-shadow: none;
+  transition: all 0.2s;
+  padding: 0 16px;
+}
+
+.job-select :deep(.el-input__wrapper:hover) {
+  border-color: #ff8c42;
+}
+
+.job-select :deep(.el-input__wrapper.is-focus) {
+  border-color: #ff8c42;
+  box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.1);
+}
+
+.job-select :deep(.el-input__inner) {
+  color: #2f2f2f;
+  font-size: 15px;
+}
+
+.job-select :deep(.el-input__inner::placeholder) {
+  color: #888888;
+}
+
+/* 下拉面板样式 - 使选项更舒展 */
+.job-select-popper {
+  width: 380px !important;
+  padding: 8px 0;
+}
+
+.job-select-popper .el-select-dropdown__item {
+  height: 52px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #303133;
 }
 
-.config-content {
-  padding-left: 22px;
+.job-select-popper .el-select-dropdown__item.hover,
+.job-select-popper .el-select-dropdown__item:hover {
+  background-color: #fff8f3;
 }
 
-/* 岗位选择 */
-.job-select {
-  width: 100%;
-  max-width: 400px;
+.job-select-popper .el-select-dropdown__item.selected {
+  color: #ff8c42;
+  font-weight: 600;
+  background-color: #fff8f3;
 }
 
-.job-option {
+/* 下拉选项样式 */
+.job-option-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
 }
 
 .job-name {
-  font-size: 14px;
+  font-size: 15px;
+  color: #2f2f2f;
+  font-weight: 500;
 }
 
-/* 难度选择 */
-.difficulty-option {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+.job-tag {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-left: 16px;
 }
 
-.difficulty-option.easy {
+/* 岗位标签颜色 */
+.tag-hot {
+  background-color: #fff3e8;
+  color: #ff8c42;
+}
+
+.tag-common {
+  background-color: #f0f9eb;
   color: #67c23a;
 }
 
-.difficulty-option.medium {
+.tag-competitive {
+  background-color: #fdf6ec;
   color: #e6a23c;
 }
 
-.difficulty-option.hard {
-  color: #f56c6c;
-}
-
-/* 模式选择 */
-.mode-option {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-}
-
-.mode-desc {
-  margin-top: 12px;
-  padding: 10px 12px;
+.tag-normal {
   background-color: #f5f7fa;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #606266;
-  line-height: 1.6;
+  color: #909399;
 }
 
-/* 操作按钮区 */
-.action-section {
-  margin-bottom: 24px;
+.empty-options {
+  padding: 20px;
+  text-align: center;
+  color: #888888;
+  font-size: 14px;
 }
 
-.action-card {
+/* Pill 风格按钮组 */
+.pill-control {
+  gap: 16px;
+}
+
+.pill-button {
+  min-width: 96px;
+  height: 44px;
+  padding: 0 20px;
+  border: 1px solid #f3d8c7;
+  border-radius: 22px;
+  background-color: #ffffff;
+  cursor: pointer;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
-  border-radius: 4px;
-  padding: 20px 24px;
-  color: #fff;
+  justify-content: center;
+  gap: 2px;
+  transition: all 0.25s ease;
 }
 
-.action-title {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 4px;
+.pill-button:hover {
+  border-color: #ff8c42;
+  background-color: #fff8f3;
 }
 
-.action-desc {
-  font-size: 13px;
-  opacity: 0.9;
+.pill-button.active {
+  border-color: #ff8c42;
+  background-color: #ff8c42;
+  box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
 }
 
-/* 说明提示区 */
+.pill-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555555;
+  transition: color 0.25s ease;
+}
+
+.pill-hint {
+  font-size: 11px;
+  color: #888888;
+  transition: color 0.25s ease;
+}
+
+.pill-button:hover .pill-label {
+  color: #ff8c42;
+}
+
+.pill-button.active .pill-label {
+  color: #ffffff;
+}
+
+.pill-button.active .pill-hint {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 开始面试按钮 */
+.start-section {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.start-section .el-button {
+  padding: 14px 56px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff8c42 0%, #e67a35 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(255, 140, 66, 0.35);
+  transition: all 0.25s ease;
+}
+
+.start-section .el-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 140, 66, 0.45);
+}
+
+.start-section .el-button:disabled {
+  background: #f3d8c7;
+  border-color: #f3d8c7;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* 面试说明区 */
 .info-section {
   margin-bottom: 24px;
 }
 
 .info-card {
-  background-color: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
+  background-color: #ffffff;
+  border: 1px solid #f3d8c7;
+  border-radius: 12px;
   padding: 24px;
+  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
 }
 
 .info-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 16px 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: #303133;
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2f2f2f;
 }
 
 .info-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
 .info-item {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 16px;
 }
 
-.info-step {
-  width: 24px;
-  height: 24px;
+.info-number {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background-color: #409eff;
-  color: #fff;
+  background: linear-gradient(135deg, #ff8c42 0%, #ffb07a 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
   flex-shrink: 0;
 }
 
-.info-content {
-  flex: 1;
-}
-
-.info-item-title {
+.info-text {
   font-size: 14px;
-  font-weight: 500;
-  color: #303133;
-  margin-bottom: 2px;
-}
-
-.info-item-desc {
-  font-size: 13px;
-  color: #909399;
-  line-height: 1.5;
-}
-
-/* 响应式适配 */
-@media (max-width: 768px) {
-  .info-list {
-    grid-template-columns: 1fr;
-  }
-
-  .action-card {
-    flex-direction: column;
-    gap: 16px;
-    text-align: center;
-  }
+  color: #555555;
 }
 </style>

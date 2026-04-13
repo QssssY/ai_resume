@@ -4,12 +4,14 @@
   box-sizing: border-box;
 }
 
-html, body, #app {
+html,
+body,
+#app {
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   font-size: 14px;
-  color: #303133;
-  background-color: #f5f7fa;
+  color: #555555;
+  background-color: #FFF8F3;
   line-height: 1.5;
 }
 
@@ -18,13 +20,200 @@ a {
   color: inherit;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 
-/* 弱化 Element Plus 默认样式 */
 :root {
-  --el-color-primary: #409eff;
-  --el-border-radius-base: 4px;
+  /* Element Plus 主色覆盖 - 淡橙色体系 */
+  --el-color-primary: #FF8C42;
+  --el-color-primary-light-3: #FFB07A;
+  --el-color-primary-light-5: #FFC9A6;
+  --el-color-primary-light-7: #FFE2D1;
+  --el-color-primary-light-8: #FFF0E6;
+  --el-color-primary-light-9: #FFF8F3;
+  --el-color-primary-dark-2: #E67A35;
+
+  /* 圆角和字体 */
+  --el-border-radius-base: 8px;
   --el-font-size-base: 14px;
+
+  /* 自定义主题色变量 */
+  --bg-page: #FFF8F3;
+  --bg-card: #FFFFFF;
+  --border-card: #F3D8C7;
+  --text-title: #2F2F2F;
+  --text-body: #555555;
+  --text-muted: #888888;
+  --shadow-card: 0 2px 12px rgba(255, 140, 66, 0.08);
+  --shadow-hover: 0 4px 16px rgba(255, 140, 66, 0.15);
+  --orange-main: #FF8C42;
+  --orange-deep: #FF6B1A;
+  --orange-light-bg: #FFF3E8;
+  --orange-border: #FFD7BF;
+}
+
+/* Element Plus 全局按钮样式覆盖 */
+.el-button--primary {
+  --el-button-bg-color: #FF8C42;
+  --el-button-border-color: #FF8C42;
+  --el-button-hover-bg-color: #FFB07A;
+  --el-button-hover-border-color: #FFB07A;
+  --el-button-active-bg-color: #E67A35;
+  --el-button-active-border-color: #E67A35;
+}
+
+.el-button--primary.is-plain {
+  --el-button-bg-color: #FFF8F3;
+  --el-button-border-color: #FF8C42;
+  --el-button-text-color: #FF8C42;
+  --el-button-hover-bg-color: #FFF3E8;
+  --el-button-hover-border-color: #FF8C42;
+  --el-button-hover-text-color: #FF8C42;
+}
+
+/* Element Plus 链接样式覆盖 */
+.el-link--primary {
+  --el-link-font-color: #FF8C42;
+  --el-link-hover-font-color: #FFB07A;
+}
+
+/* Element Plus 表格样式覆盖 */
+.el-table {
+  --el-table-border-color: #F3D8C7;
+  --el-table-header-bg-color: #FFF8F3;
+}
+
+.el-table th.el-table__cell {
+  background-color: #FFF8F3;
+  color: #2F2F2F;
+  font-weight: 600;
+}
+
+.el-table tr {
+  background-color: #FFFFFF;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: #FFFBF8;
+}
+
+/* Element Plus 分页样式覆盖 */
+.el-pagination {
+  --el-pagination-button-bg-color: #FFFFFF;
+  --el-pagination-hover-color: #FF8C42;
+}
+
+.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+  background-color: #FF8C42;
+}
+
+/* Element Plus 标签样式覆盖 */
+.el-tag--primary {
+  --el-tag-bg-color: #FFF3E8;
+  --el-tag-border-color: #FFD7BF;
+  --el-tag-text-color: #FF8C42;
+}
+
+/* Element Plus 步骤条样式覆盖 */
+.el-step__icon {
+  border-color: #FF8C42;
+  color: #FF8C42;
+}
+
+.el-step__title {
+  color: #555555;
+}
+
+.el-step__head.is-finish .el-step__icon {
+  border-color: #FF8C42;
+  color: #FF8C42;
+}
+
+.el-step__head.is-finish .el-step__line {
+  background-color: #FF8C42;
+}
+
+.el-step__head.is-process .el-step__icon {
+  border-color: #FF8C42;
+  color: #FF8C42;
+}
+
+/* Element Plus 上传样式覆盖 */
+.el-upload-dragger {
+  border-color: #FFD7BF;
+  background-color: #FFFBF8;
+}
+
+.el-upload-dragger:hover {
+  border-color: #FF8C42;
+}
+
+.el-upload-dragger .el-upload__text {
+  color: #555555;
+}
+
+/* Element Plus 消息提示覆盖 */
+.el-message {
+  --el-message-bg-color: #FFFFFF;
+  border-color: #FFD7BF;
+}
+
+.el-message--success {
+  --el-message-bg-color: #FFFFFF;
+  border-color: #67c23a;
+}
+
+.el-message--warning {
+  --el-message-bg-color: #FFFFFF;
+  border-color: #e6a23c;
+}
+
+.el-message--error {
+  --el-message-bg-color: #FFFFFF;
+  border-color: #f56c6c;
+}
+
+/* Element Plus 下拉菜单覆盖 */
+.el-dropdown-menu {
+  border-color: #F3D8C7;
+}
+
+.el-dropdown-menu__item:hover {
+  background-color: #FFF8F3;
+  color: #FF8C42;
+}
+
+/* Element Plus 卡片覆盖 */
+.el-card {
+  --el-card-border-color: #F3D8C7;
+  border-radius: 12px;
+}
+
+/* 移除蓝色相关的全局样式 */
+[class*="blue"],
+[class*="is-primary"],
+.bg-blue,
+.text-blue {
+  /* 已废弃，勿用 */
+}
+
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFF8F3;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #FFD7BF;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF8C42;
 }

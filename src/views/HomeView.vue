@@ -14,45 +14,6 @@
       </div>
     </div>
 
-    <!-- 核心任务入口区 -->
-    <div class="task-section">
-      <div class="task-card resume-card">
-        <div class="task-card-header">
-          <div class="task-icon resume-icon">简</div>
-          <div class="task-info">
-            <h3 class="task-title">简历诊断</h3>
-            <p class="task-desc">上传简历，获取智能分析与优化建议</p>
-          </div>
-        </div>
-        <div class="task-card-footer">
-          <div class="task-quota">
-            <span class="quota-text">剩余 {{ resumeQuotaLeft }} 次</span>
-          </div>
-          <el-button type="primary" size="default" @click="startResumeDiagnosis">
-            开始诊断
-          </el-button>
-        </div>
-      </div>
-
-      <div class="task-card interview-card">
-        <div class="task-card-header">
-          <div class="task-icon interview-icon">面</div>
-          <div class="task-info">
-            <h3 class="task-title">模拟面试</h3>
-            <p class="task-desc">选择岗位与难度，开启AI模拟面试</p>
-          </div>
-        </div>
-        <div class="task-card-footer">
-          <div class="task-quota">
-            <span class="quota-text">剩余 {{ interviewQuotaLeft }} 次</span>
-          </div>
-          <el-button type="primary" size="default" @click="startInterview">
-            开始面试
-          </el-button>
-        </div>
-      </div>
-    </div>
-
     <!-- 数据概览区 -->
     <div class="stats-section">
       <div class="stats-bar">
@@ -154,9 +115,7 @@ const interviewQuotaLeft = computed(() => {
   return userStore.userInfo?.interviewQuota ?? 0
 })
 
-// 【关键修改】分离数据源：
-// - allResumeHistoryForStats / allInterviewHistoryForStats: 用于统计（大分页）
-// - allResumeHistoryForDisplay / allInterviewHistoryForDisplay: 用于列表展示
+// 分离数据源：用于统计和展示
 const allResumeHistoryForStats = ref([])
 const allInterviewHistoryForStats = ref([])
 const allResumeHistoryForDisplay = ref([])
@@ -164,23 +123,12 @@ const allInterviewHistoryForDisplay = ref([])
 
 /**
  * 从 API 响应中提取列表数据
- * 兼容多种分页响应结构：
- * - res.data (直接是数组)
- * - res.data.list / res.data.records / res.data.rows
- * - res.data.data (嵌套一层)
- *
- * @param {Object} res - API 响应对象
- * @returns {Array} 提取出的列表数据
  */
 const extractListFromResponse = (res) => {
   if (!res) return []
-
-  // 情况1: res.data 直接是数组
   if (Array.isArray(res.data)) {
     return res.data
   }
-
-  // 情况2: res.data 是对象，检查各种可能的列表字段
   if (res.data && typeof res.data === 'object') {
     const listFields = ['list', 'records', 'rows', 'data']
     for (const field of listFields) {
@@ -189,8 +137,6 @@ const extractListFromResponse = (res) => {
       }
     }
   }
-
-  // 情况3: 直接检查 res 下的字段（有些响应结构没有 data 包装）
   if (res && typeof res === 'object') {
     const listFields = ['list', 'records', 'rows', 'data']
     for (const field of listFields) {
@@ -199,40 +145,27 @@ const extractListFromResponse = (res) => {
       }
     }
   }
-
   return []
 }
 
 /**
  * 判断给定时间是否为本月
- * 统一封装本月判断逻辑，避免重复代码
- *
- * @param {string|Date} timeValue - 时间值（字符串或 Date 对象）
- * @returns {boolean} 是否为本月
  */
 const isCurrentMonth = (timeValue) => {
   if (!timeValue) return false
-
   const now = new Date()
   const currentMonth = now.getMonth()
   const currentYear = now.getFullYear()
-
   const itemDate = new Date(timeValue)
   if (isNaN(itemDate.getTime())) return false
-
   return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear
 }
 
 /**
  * 从记录项中提取时间字段值
- * 兼容多种时间字段名：createTime / createdAt / startTime / created_time / updateTime / updatedAt
- *
- * @param {Object} item - 记录项对象
- * @returns {string|Date|null} 提取到的时间值
  */
 const extractTimeFromRecord = (item) => {
   if (!item) return null
-
   return item.createTime ||
          item.createdAt ||
          item.startTime ||
@@ -242,7 +175,7 @@ const extractTimeFromRecord = (item) => {
          null
 }
 
-// 本月诊断统计（基于统计专用数据源计算）
+// 本月诊断统计
 const resumeCountThisMonth = computed(() => {
   return allResumeHistoryForStats.value.filter(item => {
     const timeValue = extractTimeFromRecord(item)
@@ -250,7 +183,7 @@ const resumeCountThisMonth = computed(() => {
   }).length
 })
 
-// 本月面试统计（基于统计专用数据源计算）
+// 本月面试统计
 const interviewCountThisMonth = computed(() => {
   return allInterviewHistoryForStats.value.filter(item => {
     const timeValue = extractTimeFromRecord(item)
@@ -258,7 +191,7 @@ const interviewCountThisMonth = computed(() => {
   }).length
 })
 
-// 状态映射
+// 状态映射 - 橙色主题
 const statusMap = {
   0: { text: '排队中', class: 'status-pending' },
   1: { text: '解析中', class: 'status-processing' },
@@ -286,7 +219,7 @@ const formatTime = (timeStr) => {
   })
 }
 
-// 最近记录 - 从展示专用数据源获取最多5条
+// 最近记录
 const recentResumeRecords = computed(() => {
   return allResumeHistoryForDisplay.value.slice(0, 5).map(item => ({
     taskId: item.taskId,
@@ -309,21 +242,13 @@ const recentInterviewRecords = computed(() => {
   }))
 })
 
-/**
- * 获取简历诊断历史记录（分离统计和展示数据源）
- * 统计数据使用大分页（pageSize=1000），展示数据使用正常分页（pageSize=10）
- */
+// 获取简历诊断历史记录
 const fetchResumeHistory = async () => {
   try {
-    // 统计用：大分页，获取尽可能多的数据用于准确统计
     const resStats = await getResumeHistory({ pageNum: 1, pageSize: 1000 })
     allResumeHistoryForStats.value = extractListFromResponse(resStats)
-
-    // 展示用：正常分页，用于最近记录列表
     const resDisplay = await getResumeHistory({ pageNum: 1, pageSize: 10 })
     allResumeHistoryForDisplay.value = extractListFromResponse(resDisplay)
-
-    // 统一按时间降序排序
     const sortByTime = (a, b) => {
       const timeA = new Date(extractTimeFromRecord(a)).getTime()
       const timeB = new Date(extractTimeFromRecord(b)).getTime()
@@ -332,28 +257,19 @@ const fetchResumeHistory = async () => {
     allResumeHistoryForStats.value.sort(sortByTime)
     allResumeHistoryForDisplay.value.sort(sortByTime)
   } catch (err) {
-    // 仅开发环境输出错误日志
     if (import.meta.env.DEV) {
       console.error('[首页] 获取简历诊断历史失败:', err)
     }
   }
 }
 
-/**
- * 获取模拟面试历史记录（分离统计和展示数据源）
- * 统计数据使用大分页（pageSize=1000），展示数据使用正常分页（pageSize=10）
- */
+// 获取模拟面试历史记录
 const fetchInterviewHistory = async () => {
   try {
-    // 统计用：大分页，获取尽可能多的数据用于准确统计
     const resStats = await getInterviewHistory({ pageNum: 1, pageSize: 1000 })
     allInterviewHistoryForStats.value = extractListFromResponse(resStats)
-
-    // 展示用：正常分页，用于最近记录列表
     const resDisplay = await getInterviewHistory({ pageNum: 1, pageSize: 10 })
     allInterviewHistoryForDisplay.value = extractListFromResponse(resDisplay)
-
-    // 统一按时间降序排序
     const sortByTime = (a, b) => {
       const timeA = new Date(extractTimeFromRecord(a)).getTime()
       const timeB = new Date(extractTimeFromRecord(b)).getTime()
@@ -362,7 +278,6 @@ const fetchInterviewHistory = async () => {
     allInterviewHistoryForStats.value.sort(sortByTime)
     allInterviewHistoryForDisplay.value.sort(sortByTime)
   } catch (err) {
-    // 仅开发环境输出错误日志
     if (import.meta.env.DEV) {
       console.error('[首页] 获取模拟面试历史失败:', err)
     }
@@ -386,7 +301,7 @@ const startInterview = () => {
   router.push('/interview/entry')
 }
 
-// 查看全部简历诊断 - 跳转到历史列表页
+// 查看全部简历诊断
 const viewAllResume = () => {
   router.push('/resume/history')
 }
@@ -411,109 +326,37 @@ const viewAllInterview = () => {
 
 .welcome-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 500;
-  color: #303133;
+  font-size: 24px;
+  font-weight: 600;
+  color: #2F2F2F;
 }
 
 .welcome-desc {
-  margin: 4px 0 0 0;
+  margin: 6px 0 0 0;
   font-size: 14px;
-  color: #909399;
+  color: #888888;
 }
 
 .quota-summary {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+  gap: 12px;
+  padding: 12px 20px;
+  background-color: #FFFFFF;
+  border: 1px solid #F3D8C7;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(255, 140, 66, 0.08);
 }
 
 .quota-label {
   font-size: 13px;
-  color: #606266;
+  color: #888888;
 }
 
 .quota-value {
   font-size: 14px;
-  font-weight: 500;
-  color: #303133;
-}
-
-/* 核心任务入口区 */
-.task-section {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.task-card {
-  background-color: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.task-card-header {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.task-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 500;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.resume-icon {
-  background-color: #409eff;
-}
-
-.interview-icon {
-  background-color: #67c23a;
-}
-
-.task-info {
-  flex: 1;
-}
-
-.task-title {
-  margin: 0 0 6px 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #303133;
-}
-
-.task-desc {
-  margin: 0;
-  font-size: 13px;
-  color: #909399;
-  line-height: 1.5;
-}
-
-.task-card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.task-quota {
-  font-size: 13px;
-  color: #606266;
+  font-weight: 600;
+  color: #FF8C42;
 }
 
 /* 数据概览区 */
@@ -522,67 +365,69 @@ const viewAllInterview = () => {
 }
 
 .stats-bar {
-  background-color: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 16px 24px;
+  background-color: #FFFFFF;
+  border: 1px solid #F3D8C7;
+  border-radius: 12px;
+  padding: 20px 24px;
   display: flex;
   align-items: center;
+  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   flex: 1;
   text-align: center;
 }
 
 .stat-label {
-  font-size: 12px;
-  color: #909399;
+  font-size: 13px;
+  color: #888888;
 }
 
 .stat-value {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
+  font-size: 22px;
+  font-weight: 700;
+  color: #FF8C42;
 }
 
 .stat-divider {
   width: 1px;
-  height: 32px;
-  background-color: #e4e7ed;
+  height: 40px;
+  background-color: #F3D8C7;
 }
 
 /* 最近记录区 */
 .records-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 20px;
 }
 
 .column {
-  background-color: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 16px 20px;
+  background-color: #FFFFFF;
+  border: 1px solid #F3D8C7;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
 }
 
 .column-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f5f7fa;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #F3D8C7;
 }
 
 .column-title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2F2F2F;
 }
 
 .record-list {
@@ -593,8 +438,8 @@ const viewAllInterview = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #f5f7fa;
+  padding: 12px 0;
+  border-bottom: 1px solid #FFF8F3;
 }
 
 .record-item:last-child {
@@ -611,7 +456,7 @@ const viewAllInterview = () => {
 
 .record-name {
   font-size: 14px;
-  color: #303133;
+  color: #555555;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -619,41 +464,41 @@ const viewAllInterview = () => {
 
 .record-time {
   font-size: 12px;
-  color: #c0c4cc;
+  color: #888888;
 }
 
 .record-status {
   font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 2px;
+  padding: 4px 10px;
+  border-radius: 4px;
   flex-shrink: 0;
 }
 
-/* 状态样式 */
+/* 状态样式 - 橙色主题 */
 .status-success {
-  background-color: #f0f9eb;
-  color: #67c23a;
+  background-color: #FFF3E8;
+  color: #FF8C42;
 }
 
 .status-processing {
-  background-color: #ecf5ff;
-  color: #409eff;
+  background-color: #FFF3E8;
+  color: #FF8C42;
 }
 
 .status-pending {
-  background-color: #fdf6ec;
-  color: #e6a23c;
+  background-color: #FFF8F3;
+  color: #E6A23C;
 }
 
 .status-failed {
-  background-color: #fef0f0;
-  color: #f56c6c;
+  background-color: #FEF0F0;
+  color: #F56C6C;
 }
 
 .record-score {
   font-size: 14px;
-  font-weight: 500;
-  color: #409eff;
+  font-weight: 600;
+  color: #FF8C42;
   flex-shrink: 0;
 }
 
@@ -662,11 +507,11 @@ const viewAllInterview = () => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 24px 0;
+  padding: 32px 0;
 }
 
 .empty-text {
   font-size: 13px;
-  color: #909399;
+  color: #888888;
 }
 </style>
