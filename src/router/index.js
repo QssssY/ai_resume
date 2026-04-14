@@ -2,11 +2,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { isLoggedIn } from '@/utils/auth'
 
 const routes = [
-  // 新首页 - 项目介绍页（LandingPage），显示顶部导航栏
+  // 站点首页
   {
     path: '/',
-    name: 'LandingPage',
-    component: () => import('@/views/LandingPage.vue'),
+    name: 'HomePage',
+    component: () => import('@/views/HomePageView.vue'),
     meta: { requiresAuth: false, useLayout: true }
   },
   // 登录页
@@ -16,11 +16,11 @@ const routes = [
     component: () => import('@/views/auth/LoginView.vue'),
     meta: { requiresAuth: false, useLayout: false }
   },
-  // 个人中心页（原首页内容去掉功能卡片）
+  // 个人中心 / 控制台
   {
     path: '/dashboard',
     name: 'Dashboard',
-    component: () => import('@/views/HomeView.vue'),
+    component: () => import('@/views/DashboardView.vue'),
     meta: { requiresAuth: true, useLayout: true }
   },
   // 简历上传

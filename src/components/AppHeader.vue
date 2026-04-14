@@ -5,7 +5,7 @@
       <span class="logo-text">智能模拟面试与简历诊断系统</span>
     </div>
 
-    <nav class="header-nav">
+    <nav class="header-nav desktop-nav">
       <!-- 首页始终显示 -->
       <router-link to="/" class="nav-link" :class="{ active: isHomeActive }">
         首页
@@ -53,7 +53,6 @@
             <el-dropdown-menu class="history-dropdown-menu">
               <el-dropdown-item
                 command="resume"
-                class="dropdown-item"
                 :class="{ active: isResumeHistoryActive }"
               >
                 <svg
@@ -72,7 +71,6 @@
               </el-dropdown-item>
               <el-dropdown-item
                 command="interview"
-                class="dropdown-item"
                 :class="{ active: isInterviewHistoryActive }"
               >
                 <svg
@@ -95,6 +93,20 @@
       </div>
     </nav>
 
+    <!-- 小屏汉堡按钮 -->
+    <button class="hamburger-btn" @click="drawerVisible = true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    </button>
+
     <div class="header-right">
       <!-- 已登录状态：显示头像和下拉菜单 -->
       <template v-if="userStore.isLoggedIn()">
@@ -104,8 +116,23 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu class="user-dropdown-menu">
+              <!-- 用户信息区 -->
+              <div class="user-info-header">
+                <div class="user-info-avatar">
+                  <img src="@/assets/user.png" />
+                </div>
+                <div class="user-info-content">
+                  <div class="user-info-name">
+                    {{ userStore.userInfo?.username || "用户" }}
+                  </div>
+                  <div class="user-info-role" :class="userRoleClass">
+                    {{ userRoleText }}
+                  </div>
+                </div>
+              </div>
+
               <!-- 个人中心入口 -->
-              <el-dropdown-item command="profile" class="dropdown-item">
+              <el-dropdown-item command="profile">
                 <svg
                   class="dropdown-icon"
                   viewBox="0 0 24 24"
@@ -119,10 +146,7 @@
                 个人中心
               </el-dropdown-item>
               <!-- 退出登录 -->
-              <el-dropdown-item
-                command="logout"
-                class="dropdown-item logout-item"
-              >
+              <el-dropdown-item command="logout" class="logout-item">
                 <svg
                   class="dropdown-icon"
                   viewBox="0 0 24 24"
@@ -145,11 +169,64 @@
         <router-link to="/login" class="login-link">登录/注册</router-link>
       </template>
     </div>
+
+    <!-- 移动端 Drawer -->
+    <el-drawer
+      v-model="drawerVisible"
+      title="导航菜单"
+      direction="rtl"
+      size="280px"
+      :with-header="true"
+    >
+      <nav class="mobile-nav">
+        <router-link
+          to="/"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >首页</router-link
+        >
+        <router-link
+          v-if="userStore.isLoggedIn()"
+          to="/resume/upload"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >简历诊断</router-link
+        >
+        <router-link
+          v-if="userStore.isLoggedIn()"
+          to="/interview/entry"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >模拟面试</router-link
+        >
+        <router-link
+          v-if="userStore.isLoggedIn()"
+          to="/resume/history"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >简历诊断历史</router-link
+        >
+        <router-link
+          v-if="userStore.isLoggedIn()"
+          to="/interview/history"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >模拟面试历史</router-link
+        >
+        <router-link
+          v-if="userStore.isLoggedIn()"
+          to="/dashboard"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >个人中心</router-link
+        >
+      </nav>
+    </el-drawer>
   </header>
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
 import { ElMessage } from "element-plus";
@@ -157,6 +234,32 @@ import { ElMessage } from "element-plus";
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
+
+const drawerVisible = ref(false);
+
+// 用户角色判定
+const isAdmin = computed(() => userStore.userInfo?.role === 9);
+const isVipUser = computed(() => {
+  const role = userStore.userInfo?.role;
+  const vipExpireTime = userStore.userInfo?.vipExpireTime;
+  if (role !== 1) return false;
+  if (!vipExpireTime) return false;
+  return new Date(vipExpireTime) > new Date();
+});
+
+// 角色徽章文本
+const userRoleText = computed(() => {
+  if (isAdmin.value) return "管理员";
+  if (isVipUser.value) return "会员";
+  return "普通用户";
+});
+
+// 角色徽章样式类
+const userRoleClass = computed(() => {
+  if (isAdmin.value) return "role-admin";
+  if (isVipUser.value) return "role-vip";
+  return "role-normal";
+});
 
 // 首页激活状态
 const isHomeActive = computed(() => {
@@ -328,74 +431,94 @@ const handleCommand = (command) => {
   transform: rotate(180deg);
 }
 
-.history-dropdown-menu {
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  border: 1px solid #f0f0f0;
-  padding: 6px 0;
-  min-width: 180px;
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  font-size: 14px;
-  color: #555555;
-  transition: all 0.2s;
+/* 小屏汉堡按钮 */
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
   cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
 }
 
-.dropdown-item:hover {
+.hamburger-btn:hover {
+  background-color: #fff8f3;
+}
+
+.hamburger-btn svg {
+  width: 22px;
+  height: 22px;
+  color: #333;
+  display: block;
+}
+
+/* 移动端导航 */
+.mobile-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-nav-link {
+  display: block;
+  padding: 14px 16px;
+  font-size: 15px;
+  color: #555;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+
+.mobile-nav-link:hover {
   background-color: #fff8f3;
   color: #ff8c42;
 }
 
-.dropdown-item.active {
+.mobile-nav-link.router-link-active {
   background-color: #fff8f3;
   color: #ff8c42;
   font-weight: 500;
 }
 
-.dropdown-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
+/* 响应式断点 */
+/* 中屏：1024px - 1279px */
+@media (max-width: 1279px) {
+  .logo-text {
+    font-size: 14px;
+  }
+  .nav-link {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .header-left {
+    gap: 10px;
+  }
 }
 
-/* 用户下拉菜单样式 */
-.user-dropdown-menu {
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid #f0f0f0;
-  padding: 4px 0;
-}
-
-.user-dropdown-menu .dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  font-size: 14px;
-  color: #333333;
-  transition: background-color 0.2s;
-}
-
-.user-dropdown-menu .dropdown-item:hover {
-  background-color: #fff8f3;
-  color: #ff8c42;
-}
-
-.logout-item {
-  color: #666666;
-  border-top: 1px solid #f0f0f0;
-  margin-top: 4px;
-  padding-top: 10px;
-}
-
-.logout-item:hover {
-  background-color: #fff8f3;
-  color: #ff8c42;
+/* 小屏：≤1023px */
+@media (max-width: 1023px) {
+  .hamburger-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .desktop-nav {
+    display: none;
+  }
+  .header-nav {
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .header-left {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .logo-text {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 </style>

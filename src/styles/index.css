@@ -185,6 +185,228 @@ ol {
   color: #FF8C42;
 }
 
+/* ============================================
+   历史记录下拉菜单 - 全局样式
+   ============================================ */
+.history-dropdown-menu {
+  background: #ffffff !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 40px rgba(255, 140, 66, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(243, 216, 199, 0.6) !important;
+  padding: 8px 0 !important;
+  min-width: 200px !important;
+}
+
+.history-dropdown-menu.el-dropdown-menu {
+  border-color: rgba(243, 216, 199, 0.6) !important;
+}
+
+.history-dropdown-menu::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 28px;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-left: 1px solid rgba(243, 216, 199, 0.6);
+  border-top: 1px solid rgba(243, 216, 199, 0.6);
+  transform: rotate(45deg);
+}
+
+.history-dropdown-menu .el-dropdown-menu__item {
+  height: 42px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #5c5c5c;
+  transition: all 0.15s ease;
+  position: relative;
+  box-sizing: border-box;
+  justify-content: flex-start;
+}
+
+.history-dropdown-menu .el-dropdown-menu__item:hover {
+  background: #fff8f3 !important;
+  color: #e67a35 !important;
+}
+
+.history-dropdown-menu .el-dropdown-menu__item.active {
+  background: #fff8f3 !important;
+  color: #e67a35 !important;
+  font-weight: 500;
+}
+
+.history-dropdown-menu .el-dropdown-menu__item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #ff8c42 0%, #e67a35 100%);
+  border-radius: 0 3px 3px 0;
+}
+
+.history-dropdown-menu .dropdown-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-dropdown-menu .dropdown-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.history-dropdown-menu .el-dropdown-menu__item:hover .dropdown-icon,
+.history-dropdown-menu .el-dropdown-menu__item.active .dropdown-icon {
+  opacity: 1;
+}
+
+/* ============================================
+   用户下拉菜单 - 全局样式
+   ============================================ */
+.user-dropdown-menu {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 12px 48px rgba(255, 140, 66, 0.14), 0 4px 12px rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(243, 216, 199, 0.5) !important;
+  padding: 0 !important;
+  min-width: 220px !important;
+  overflow: hidden;
+}
+
+.user-dropdown-menu.el-dropdown-menu {
+  border-color: rgba(243, 216, 199, 0.5) !important;
+}
+
+.user-dropdown-menu .user-info-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #fff8f3 0%, #fffcfa 100%);
+  border-bottom: 1px solid rgba(243, 216, 199, 0.4);
+}
+
+.user-dropdown-menu .user-info-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #ffb07a;
+  box-shadow: 0 2px 6px rgba(255, 140, 66, 0.15);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-dropdown-menu .user-info-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-dropdown-menu .user-info-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.user-dropdown-menu .user-info-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2f2f2f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.user-dropdown-menu .user-info-role {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+  line-height: 1.4;
+  width: fit-content;
+}
+
+.user-dropdown-menu .user-info-role.role-admin {
+  background: rgba(255, 140, 66, 0.15);
+  color: #ff8c42;
+}
+
+.user-dropdown-menu .user-info-role.role-vip {
+  background: rgba(255, 140, 66, 0.12);
+  color: #e67a35;
+}
+
+.user-dropdown-menu .user-info-role.role-normal {
+  background: #f5f7fa;
+  color: #909399;
+}
+
+.user-dropdown-menu .el-dropdown-menu__item {
+  height: 42px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #5c5c5c;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+  justify-content: flex-start;
+}
+
+.user-dropdown-menu .el-dropdown-menu__item:hover {
+  background: #fff8f3 !important;
+  color: #e67a35 !important;
+}
+
+.user-dropdown-menu .dropdown-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-dropdown-menu .dropdown-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.user-dropdown-menu .el-dropdown-menu__item:hover .dropdown-icon {
+  opacity: 1;
+}
+
+.user-dropdown-menu .logout-item {
+  color: #909399 !important;
+  border-top: 1px solid rgba(243, 216, 199, 0.3);
+}
+
+.user-dropdown-menu .logout-item:hover {
+  background: #fff8f3 !important;
+  color: #d4564a !important;
+}
+
 /* Element Plus 卡片覆盖 */
 .el-card {
   --el-card-border-color: #F3D8C7;
