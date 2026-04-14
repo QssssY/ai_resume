@@ -56,7 +56,7 @@ const routes = [
     path: '/interview/session/:sessionId',
     name: 'InterviewSession',
     component: () => import('@/views/interview/InterviewSessionView.vue'),
-    meta: { requiresAuth: true, useLayout: true }
+    meta: { requiresAuth: true, useLayout: false }
   },
   // 面试历史
   {

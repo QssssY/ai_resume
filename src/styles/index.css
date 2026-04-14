@@ -52,6 +52,15 @@ ol {
   --orange-deep: #FF6B1A;
   --orange-light-bg: #FFF3E8;
   --orange-border: #FFD7BF;
+
+  /* Avatar 统一尺寸系统 - 比例固定 8:1 (光环:头像) */
+  --avatar-lg-ring: 68px;
+  --avatar-lg-img: 60px;
+  --avatar-md-ring: 52px;
+  --avatar-md-img: 44px;
+  --avatar-sm-ring: 40px;
+  --avatar-sm-img: 32px;
+  --avatar-ring-thickness: 4px;
 }
 
 /* Element Plus 全局按钮样式覆盖 */
@@ -287,6 +296,82 @@ ol {
   border-color: rgba(243, 216, 199, 0.5) !important;
 }
 
+/* ============================================
+   Avatar 统一样式
+   ============================================ */
+.avatar-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatar-ring {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 var(--avatar-ring-thickness) rgba(255, 255, 255, 0.3),
+    0 4px 16px rgba(255, 140, 66, 0.25);
+}
+
+.avatar-img {
+  border-radius: 50%;
+  object-fit: cover;
+  transform: translateY(-1px);
+}
+
+/* Avatar 尺寸 - lg */
+.avatar-wrapper.avatar-lg {
+  width: var(--avatar-lg-ring);
+  height: var(--avatar-lg-ring);
+}
+
+.avatar-ring.avatar-lg {
+  width: var(--avatar-lg-ring);
+  height: var(--avatar-lg-ring);
+}
+
+.avatar-img.avatar-lg {
+  width: var(--avatar-lg-img);
+  height: var(--avatar-lg-img);
+}
+
+/* Avatar 尺寸 - md */
+.avatar-wrapper.avatar-md {
+  width: var(--avatar-md-ring);
+  height: var(--avatar-md-ring);
+}
+
+.avatar-ring.avatar-md {
+  width: var(--avatar-md-ring);
+  height: var(--avatar-md-ring);
+}
+
+.avatar-img.avatar-md {
+  width: var(--avatar-md-img);
+  height: var(--avatar-md-img);
+}
+
+/* Avatar 尺寸 - sm */
+.avatar-wrapper.avatar-sm {
+  width: var(--avatar-sm-ring);
+  height: var(--avatar-sm-ring);
+}
+
+.avatar-ring.avatar-sm {
+  width: var(--avatar-sm-ring);
+  height: var(--avatar-sm-ring);
+}
+
+.avatar-img.avatar-sm {
+  width: var(--avatar-sm-img);
+  height: var(--avatar-sm-img);
+}
+
+/* ============================================
+   用户信息下拉菜单
+   ============================================ */
 .user-dropdown-menu .user-info-header {
   display: flex;
   align-items: center;
@@ -296,23 +381,24 @@ ol {
   border-bottom: 1px solid rgba(243, 216, 199, 0.4);
 }
 
-.user-dropdown-menu .user-info-avatar {
-  width: 40px;
-  height: 40px;
+.user-dropdown-menu .user-info-avatar-wrapper {
+  width: var(--avatar-md-ring);
+  height: var(--avatar-md-ring);
   border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid #ffb07a;
-  box-shadow: 0 2px 6px rgba(255, 140, 66, 0.15);
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 0 0 var(--avatar-ring-thickness) rgba(255, 255, 255, 0.3),
+    0 4px 16px rgba(255, 140, 66, 0.25);
+  flex-shrink: 0;
 }
 
-.user-dropdown-menu .user-info-avatar img {
-  width: 100%;
-  height: 100%;
+.user-dropdown-menu .user-info-avatar-wrapper img {
+  width: var(--avatar-md-img);
+  height: var(--avatar-md-img);
+  border-radius: 50%;
   object-fit: cover;
+  transform: translateY(-1px);
 }
 
 .user-dropdown-menu .user-info-content {

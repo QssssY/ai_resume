@@ -111,14 +111,16 @@
       <!-- 已登录状态：显示头像和下拉菜单 -->
       <template v-if="userStore.isLoggedIn()">
         <el-dropdown trigger="click" @command="handleCommand">
-          <div class="user-avatar-wrapper">
-            <img src="@/assets/user.png" class="user-avatar" />
+          <div class="avatar-wrapper avatar-sm">
+            <div class="avatar-ring avatar-sm">
+              <img src="@/assets/user.png" class="avatar-img avatar-sm" />
+            </div>
           </div>
           <template #dropdown>
             <el-dropdown-menu class="user-dropdown-menu">
               <!-- 用户信息区 -->
               <div class="user-info-header">
-                <div class="user-info-avatar">
+                <div class="user-info-avatar-wrapper">
                   <img src="@/assets/user.png" />
                 </div>
                 <div class="user-info-content">
@@ -382,24 +384,6 @@ const handleCommand = (command) => {
 .header-right {
   display: flex;
   align-items: center;
-}
-
-.user-avatar-wrapper {
-  cursor: pointer;
-  border-radius: 50%;
-  overflow: hidden;
-  transition: opacity 0.2s;
-}
-
-.user-avatar-wrapper:hover {
-  opacity: 0.8;
-}
-
-.user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
 }
 
 .login-link {

@@ -7,9 +7,10 @@
         <div class="card-bg-decoration"></div>
         <div class="card-content">
           <div class="identity-left">
-            <div class="user-avatar-wrapper">
-              <img src="@/assets/user.png" class="user-avatar" />
-              <div class="avatar-ring"></div>
+            <div class="avatar-wrapper avatar-lg">
+              <div class="avatar-ring avatar-lg">
+                <img src="@/assets/user.png" class="avatar-img avatar-lg" />
+              </div>
             </div>
             <div class="user-info">
               <div class="welcome-text">欢迎回来</div>
@@ -697,25 +698,6 @@ const viewAllInterview = () => {
   gap: 18px;
 }
 
-.user-avatar-wrapper {
-  position: relative;
-}
-
-.user-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid rgba(255, 255, 255, 0.4);
-}
-
-.avatar-ring {
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-}
-
 .user-info {
   display: flex;
   flex-direction: column;
@@ -1239,10 +1221,6 @@ const viewAllInterview = () => {
   }
   .identity-card {
     padding: 20px 20px;
-  }
-  .user-avatar {
-    width: 52px;
-    height: 52px;
   }
   .welcome-text {
     font-size: 12px;
