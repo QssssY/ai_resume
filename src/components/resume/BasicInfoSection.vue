@@ -275,19 +275,26 @@ const comment = computed(() => {
 
 .info-items {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
 }
 
 .info-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 12px;
   background-color: #f5f7fa;
-  border-radius: 4px;
+  border-radius: 8px;
   transition: background-color 0.2s;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  word-break: break-word;
 }
 
 .info-item:hover {
@@ -312,6 +319,7 @@ const comment = computed(() => {
 .item-content {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .item-label {
@@ -335,9 +343,12 @@ const comment = computed(() => {
   font-size: 14px;
   color: #303133;
   font-weight: 500;
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
+  word-break: break-all;
+  line-height: 1.5;
 }
 
 .item-value.is-empty {

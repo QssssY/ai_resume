@@ -1,178 +1,373 @@
 <template>
   <div class="resume-result-view">
-    <!-- 页面标题区 -->
-    <div class="page-header">
-      <h1 class="page-title">简历诊断结果</h1>
-      <p class="page-desc">查看本次简历诊断任务的处理状态与结果</p>
-    </div>
-
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-section">
       <div class="loading-content">
-        <el-icon class="loading-icon" :size="48"><Loading /></el-icon>
-        <div class="loading-text">加载中...</div>
+        <div class="loading-ring"></div>
+        <div class="loading-text">AI 正在分析你的简历...</div>
       </div>
     </div>
 
     <!-- 错误状态 -->
     <div v-else-if="error" class="error-section">
       <div class="error-card">
-        <div class="error-icon">
-          <el-icon :size="48" color="#f56c6c"><CircleClose /></el-icon>
+        <div class="error-icon-wrap">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="#f56c6c" stroke-width="2"/>
+            <line x1="15" y1="9" x2="9" y2="15" stroke="#f56c6c" stroke-width="2"/>
+            <line x1="9" y1="9" x2="15" y2="15" stroke="#f56c6c" stroke-width="2"/>
+          </svg>
         </div>
-        <div class="error-content">
-          <div class="error-title">加载失败</div>
-          <div class="error-desc">{{ error }}</div>
-          <div class="error-actions">
-            <el-button type="primary" @click="fetchTaskDetail">重试</el-button>
-            <el-button @click="goToUpload">返回上传</el-button>
-          </div>
+        <div class="error-title">加载失败</div>
+        <div class="error-desc">{{ error }}</div>
+        <div class="error-actions">
+          <el-button type="primary" @click="fetchTaskDetail">重试</el-button>
+          <el-button @click="goToUpload">返回上传</el-button>
         </div>
       </div>
     </div>
 
     <!-- 任务内容 -->
-    <div v-else-if="task" class="task-section">
-      <!-- 任务状态区 -->
-      <div class="status-card">
-        <div class="status-header">
-          <div class="status-icon" :class="statusClass">
-            <el-icon :size="32">
-              <component :is="statusIcon" />
-            </el-icon>
+    <div v-else-if="task" class="result-content">
+      <!-- Hero 诊断总览区 -->
+      <div class="hero-section" :class="`hero-${task.status}`">
+        <div class="hero-left">
+          <div class="score-display">
+            <template v-if="isCompleted && parsedResult?.overallEvaluation">
+              <div class="ring-wrapper">
+                <svg width="80" height="80" viewBox="0 0 80 80" class="ring-svg">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="#f3d8c7" stroke-width="6"/>
+                  <circle
+                    cx="40" cy="40" r="34"
+                    fill="none"
+                    stroke="#FF8C42"
+                    stroke-width="6"
+                    stroke-linecap="round"
+                    :stroke-dasharray="`${(parsedResult.overallEvaluation.totalScore || 0) * 2.13} 213`"
+                    transform="rotate(-90 40 40)"
+                  />
+                </svg>
+                <span class="ring-score">{{ parsedResult.overallEvaluation.totalScore || 0 }}</span>
+              </div>
+            </template>
+            <template v-else-if="isProcessing">
+              <div class="ring-wrapper">
+                <svg width="80" height="80" viewBox="0 0 80 80" class="ring-svg">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="#f3d8c7" stroke-width="6"/>
+                </svg>
+                <span class="ring-score muted">--</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="ring-wrapper">
+                <svg width="80" height="80" viewBox="0 0 80 80" class="ring-svg">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="#f3d8c7" stroke-width="6"/>
+                </svg>
+                <span class="ring-score muted">{{ task.status === 3 ? '--' : '0' }}</span>
+              </div>
+            </template>
           </div>
-          <div class="status-info">
-            <div class="status-title">{{ statusText }}</div>
-            <div class="status-time">
-              <template v-if="task.updateTime">
-                更新时间：{{ formatTime(task.updateTime) }}
-              </template>
-              <template v-else>
-                创建时间：{{ formatTime(task.createTime) }}
-              </template>
-            </div>
+          <div class="level-badge" :class="levelClass" v-if="isCompleted && parsedResult?.overallEvaluation">
+            {{ levelText }}
           </div>
         </div>
+        <div class="hero-right">
+          <div class="ai-summary" v-if="isCompleted && parsedResult?.overallEvaluation?.summary">
+            <div class="summary-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a10 10 0 1 0 10 10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+              AI 总评
+            </div>
+            <p class="summary-text">{{ parsedResult.overallEvaluation.summary }}</p>
+          </div>
+          <div class="ai-summary" v-else-if="isProcessing">
+            <p class="summary-text processing">AI 正在深度分析你的简历，请稍候...</p>
+          </div>
+          <div class="status-row">
+            <span class="status-badge" :class="`status-${task.status}`">
+              <span class="status-dot"></span>
+              {{ statusText }}
+            </span>
+            <span class="update-time" v-if="task.updateTime">
+              {{ formatTime(task.updateTime) }}
+            </span>
+          </div>
+          <div v-if="isProcessing" class="refresh-hint">
+            <el-button size="small" :loading="refreshing" @click="fetchTaskDetail">
+              {{ refreshing ? '刷新中...' : '刷新状态' }}
+            </el-button>
+          </div>
+        </div>
+      </div>
 
-        <!-- 处理中状态：提供刷新按钮 -->
-        <div v-if="isProcessing" class="status-actions">
-          <el-button :loading="refreshing" @click="fetchTaskDetail">
-            {{ refreshing ? '刷新中...' : '刷新状态' }}
-          </el-button>
+      <!-- KPI 指标仪表盘（仅完成时显示） -->
+      <div v-if="isCompleted && parsedResult" class="kpi-section">
+        <div class="score-grid">
+          <!-- 综合评分 -->
+          <div class="card kpi-card">
+            <div class="card-label">综合评分</div>
+            <div class="ring-wrapper">
+              <svg width="72" height="72" viewBox="0 0 72 72" class="ring-svg">
+                <circle cx="36" cy="36" r="30" fill="none" stroke="#f3d8c7" stroke-width="5"/>
+                <circle
+                  cx="36" cy="36" r="30"
+                  fill="none"
+                  stroke="#FF8C42"
+                  stroke-width="5"
+                  stroke-linecap="round"
+                  :stroke-dasharray="`${(parsedResult.overallEvaluation?.totalScore || 0) * 1.88} 188`"
+                  transform="rotate(-90 36 36)"
+                />
+              </svg>
+              <span class="ring-score">{{ parsedResult.overallEvaluation?.totalScore || 0 }}</span>
+            </div>
+          </div>
+          <!-- 信息完整度 -->
+          <div class="card kpi-card">
+            <div class="card-label">信息完整度</div>
+            <div class="ring-wrapper">
+              <svg width="72" height="72" viewBox="0 0 72 72" class="ring-svg">
+                <circle cx="36" cy="36" r="30" fill="none" stroke="#f3d8c7" stroke-width="5"/>
+                <circle
+                  cx="36" cy="36" r="30"
+                  fill="none"
+                  stroke="#67C23A"
+                  stroke-width="5"
+                  stroke-linecap="round"
+                  :stroke-dasharray="`${(basicInfoEvaluation?.score || 0) * 1.88} 188`"
+                  transform="rotate(-90 36 36)"
+                />
+              </svg>
+              <span class="ring-score">{{ basicInfoEvaluation?.score || 0 }}</span>
+            </div>
+          </div>
+          <!-- 技能得分 -->
+          <div class="card kpi-card">
+            <div class="card-label">技能得分</div>
+            <div class="ring-wrapper">
+              <svg width="72" height="72" viewBox="0 0 72 72" class="ring-svg">
+                <circle cx="36" cy="36" r="30" fill="none" stroke="#f3d8c7" stroke-width="5"/>
+                <circle
+                  cx="36" cy="36" r="30"
+                  fill="none"
+                  stroke="#409EFF"
+                  stroke-width="5"
+                  stroke-linecap="round"
+                  :stroke-dasharray="`${(skillScore || 0) * 1.88} 188`"
+                  transform="rotate(-90 36 36)"
+                />
+              </svg>
+              <span class="ring-score">{{ skillScore || 0 }}</span>
+            </div>
+          </div>
+          <!-- 经验得分 -->
+          <div class="card kpi-card">
+            <div class="card-label">经验得分</div>
+            <div class="ring-wrapper">
+              <svg width="72" height="72" viewBox="0 0 72 72" class="ring-svg">
+                <circle cx="36" cy="36" r="30" fill="none" stroke="#f3d8c7" stroke-width="5"/>
+                <circle
+                  cx="36" cy="36" r="30"
+                  fill="none"
+                  stroke="#A855F7"
+                  stroke-width="5"
+                  stroke-linecap="round"
+                  :stroke-dasharray="`${(experienceScore || 0) * 1.88} 188`"
+                  transform="rotate(-90 36 36)"
+                />
+              </svg>
+              <span class="ring-score">{{ experienceScore || 0 }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- 诊断结果结构化展示（仅完成时显示） -->
       <template v-if="isCompleted && parsedResult">
-        <!-- 总体评价 -->
-        <div class="result-module">
-          <div class="module-header">
-            <div class="module-icon overall">
-              <el-icon :size="20"><Trophy /></el-icon>
-            </div>
-            <div class="module-title">总体评价</div>
-          </div>
-          <div class="module-body">
-            <OverallEvaluation :data="parsedResult.overallEvaluation" />
-          </div>
-        </div>
-
-        <!-- 亮点概览 -->
-        <div class="result-module">
-          <div class="module-header">
-            <div class="module-icon highlight">
-              <el-icon :size="20"><Star /></el-icon>
-            </div>
-            <div class="module-title">亮点概览</div>
-          </div>
-          <div class="module-body">
-            <HighlightsSection :data="parsedResult.highlights" />
-          </div>
-        </div>
-
         <!-- 技能情况 -->
-        <div class="result-module">
-          <div class="module-header">
-            <div class="module-icon skill">
-              <el-icon :size="20"><Tools /></el-icon>
+        <div class="section-card" v-if="parsedResult.skillEvaluation">
+          <div class="section-header">
+            <div class="section-icon skill">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+              </svg>
             </div>
-            <div class="module-title">技能情况</div>
+            <h3 class="section-title">技能情况</h3>
           </div>
-          <div class="module-body">
+          <div class="section-body">
             <SkillsSection :data="parsedResult.skillEvaluation" />
           </div>
         </div>
 
-        <!-- 基础信息完整度 -->
-        <div class="result-module">
-          <div class="module-header">
-            <div class="module-icon basic">
-              <el-icon :size="20"><User /></el-icon>
+        <!-- 亮点概览 -->
+        <div class="section-card" v-if="parsedResult.highlights?.length">
+          <div class="section-header">
+            <div class="section-icon highlight">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
             </div>
-            <div class="module-title">基础信息完整度</div>
+            <h3 class="section-title">亮点确认</h3>
           </div>
-          <div class="module-body">
-            <!-- 【关键修改】传入完整的 parsedResult，包含 basicInfoDetails -->
-            <BasicInfoSection :data="parsedResult" />
+          <div class="section-body">
+            <HighlightsSection :data="parsedResult.highlights" />
+          </div>
+        </div>
+
+        <!-- 基础信息完整度 -->
+        <div class="section-card" v-if="basicInfoDetails">
+          <div class="section-header">
+            <div class="section-icon basic">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <h3 class="section-title">基础信息完整度</h3>
+          </div>
+          <div class="section-body">
+            <!-- 得分展示 -->
+            <div class="item-row score-row" v-if="basicInfoEvaluation?.score">
+              <span class="item-label">完整度得分</span>
+              <span class="item-value">{{ basicInfoEvaluation.score }}分</span>
+            </div>
+            <!-- 五项填写状态 -->
+            <div class="basic-items-grid" v-if="basicInfoDetails">
+              <div class="basic-item" v-if="basicInfoDetails.hasName !== undefined">
+                <span class="label">姓名</span>
+                <span :class="basicInfoDetails.hasName ? 'value success' : 'value warning'">
+                  {{ basicInfoDetails.hasName ? '已填写' : '未填写' }}
+                </span>
+              </div>
+              <div class="basic-item" v-if="basicInfoDetails.hasEmail !== undefined">
+                <span class="label">邮箱</span>
+                <span :class="basicInfoDetails.hasEmail ? 'value success' : 'value warning'">
+                  {{ basicInfoDetails.hasEmail ? '已填写' : '未填写' }}
+                </span>
+              </div>
+              <div class="basic-item" v-if="basicInfoDetails.hasPhone !== undefined">
+                <span class="label">电话</span>
+                <span :class="basicInfoDetails.hasPhone ? 'value success' : 'value warning'">
+                  {{ basicInfoDetails.hasPhone ? '已填写' : '未填写' }}
+                </span>
+              </div>
+              <div class="basic-item" v-if="basicInfoDetails.hasGithub !== undefined">
+                <span class="label">GitHub</span>
+                <span :class="basicInfoDetails.hasGithub ? 'value success' : 'value warning'">
+                  {{ basicInfoDetails.hasGithub ? '已填写' : '未填写' }}
+                </span>
+              </div>
+              <div class="basic-item" v-if="basicInfoDetails.hasBlog !== undefined">
+                <span class="label">博客</span>
+                <span :class="basicInfoDetails.hasBlog ? 'value success' : 'value warning'">
+                  {{ basicInfoDetails.hasBlog ? '已填写' : '未填写' }}
+                </span>
+              </div>
+            </div>
+            <!-- 建议 -->
+            <div class="suggestions-list" v-if="basicInfoEvaluation?.suggestions?.length">
+              <div class="suggestion-item" v-for="(s, i) in basicInfoEvaluation.suggestions" :key="i">
+                {{ s }}
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- 工作与项目经验 -->
-        <div class="result-module">
-          <div class="module-header">
-            <div class="module-icon experience">
-              <el-icon :size="20"><Briefcase /></el-icon>
+        <div class="section-card" v-if="workExperienceData">
+          <div class="section-header">
+            <div class="section-icon experience">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
             </div>
-            <div class="module-title">工作与项目经验</div>
+            <h3 class="section-title">工作与项目经验</h3>
           </div>
-          <div class="module-body">
+          <div class="section-body">
             <WorkExperienceSection :data="workExperienceData" />
           </div>
         </div>
 
         <!-- 优化建议 -->
-        <div class="result-module">
-          <div class="module-header">
-            <div class="module-icon optimization">
-              <el-icon :size="20"><Edit /></el-icon>
+        <div class="section-card" v-if="parsedResult.optimizationSuggestions?.length">
+          <div class="section-header">
+            <div class="section-icon optimization">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
             </div>
-            <div class="module-title">优化建议</div>
+            <h3 class="section-title">优化建议</h3>
           </div>
-          <div class="module-body">
-            <OptimizationSection :data="parsedResult.optimizationSuggestions" />
+          <div class="section-body">
+            <div class="suggestions-list">
+              <div class="suggestion-item" v-for="(item, idx) in parsedResult.optimizationSuggestions" :key="idx">
+                <span class="suggestion-index">{{ idx + 1 }}</span>
+                <span class="suggestion-text">{{ item }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 总体评价 -->
+        <div class="section-card" v-if="parsedResult.overallEvaluation">
+          <div class="section-header">
+            <div class="section-icon overall">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                <path d="M4 22h16"/>
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+              </svg>
+            </div>
+            <h3 class="section-title">AI 总体评价</h3>
+          </div>
+          <div class="section-body">
+            <OverallEvaluation :data="parsedResult.overallEvaluation" />
           </div>
         </div>
       </template>
 
-      <!-- 原始结果回退显示（当解析失败时） -->
-      <div v-else-if="isCompleted && task.diagnosisResult" class="result-card fallback">
-        <div class="result-header">
-          <h3 class="result-title">诊断结果</h3>
-          <el-tag v-if="!parsedResult" type="warning" size="small">原始数据</el-tag>
+      <!-- 原始结果回退显示 -->
+      <div v-else-if="isCompleted && task.diagnosisResult" class="section-card fallback">
+        <div class="section-header">
+          <h3 class="section-title">诊断结果（原始数据）</h3>
+          <el-tag type="warning" size="small">未解析</el-tag>
         </div>
-        <div class="result-content">
+        <div class="section-body">
           <pre class="result-pre">{{ formatRawResult(task.diagnosisResult) }}</pre>
         </div>
       </div>
 
-      <!-- 失败提示区（仅失败时显示） -->
-      <div v-if="isFailed" class="failed-card">
-        <div class="failed-icon">
-          <el-icon :size="32" color="#f56c6c"><WarningFilled /></el-icon>
-        </div>
-        <div class="failed-content">
-          <div class="failed-title">诊断失败</div>
-          <div class="failed-desc">
-            {{ task.errorMsg || '请稍后重试' }}
-          </div>
-        </div>
+      <!-- 失败提示区 -->
+      <div v-if="isFailed" class="failed-section">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="#f56c6c" stroke-width="2"/>
+          <line x1="12" y1="9" x2="12" y2="13" stroke="#f56c6c" stroke-width="2"/>
+          <line x1="12" y1="17" x2="12.01" y2="17" stroke="#f56c6c" stroke-width="2"/>
+        </svg>
+        <div class="failed-title">诊断失败</div>
+        <div class="failed-desc">{{ task.errorMsg || '请稍后重试' }}</div>
       </div>
 
-      <!-- 操作区 -->
-      <div class="actions-card">
-        <div class="actions-group">
-          <el-button @click="goToHome">返回首页</el-button>
-          <el-button @click="goToUpload">继续上传</el-button>
+      <!-- 底部操作区 -->
+      <div class="action-section">
+        <div class="action-group">
+          <el-button @click="goToHome" class="action-btn secondary">返回首页</el-button>
+          <el-button @click="goToUpload" class="action-btn secondary">继续上传</el-button>
+          <el-button
+            v-if="isCompleted"
+            type="primary"
+            class="action-btn primary"
+            @click="goToInterview"
+          >
+            进入模拟面试
+          </el-button>
         </div>
       </div>
     </div>
@@ -182,26 +377,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import {
-  Loading,
-  CircleClose,
-  CircleCheck,
-  Clock,
-  WarningFilled,
-  Trophy,
-  Star,
-  Tools,
-  User,
-  Briefcase,
-  Edit,
-  Warning,
-  InfoFilled
-} from '@element-plus/icons-vue'
 import { getResumeTask } from '@/api/resume'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 
-// 导入结构化展示组件
 import OverallEvaluation from '@/components/resume/OverallEvaluation.vue'
 import HighlightsSection from '@/components/resume/HighlightsSection.vue'
 import SkillsSection from '@/components/resume/SkillsSection.vue'
@@ -213,7 +392,6 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-// 状态
 const loading = ref(true)
 const refreshing = ref(false)
 const error = ref('')
@@ -221,119 +399,82 @@ const task = ref(null)
 const pollTimer = ref(null)
 const hasRefreshedUserInfo = ref(false)
 
-// 任务ID
 const taskId = computed(() => route.params.taskId)
 
-// 状态判断
 const isPending = computed(() => task.value?.status === 0)
 const isProcessing = computed(() => task.value?.status === 1)
 const isCompleted = computed(() => task.value?.status === 2)
 const isFailed = computed(() => task.value?.status === 3)
 
-// 状态文本
 const statusText = computed(() => {
   switch (task.value?.status) {
-    case 0:
-      return '排队中'
-    case 1:
-      return '解析分析中'
-    case 2:
-      return '已完成'
-    case 3:
-      return '已失败'
-    default:
-      return '未知状态'
+    case 0: return '排队中'
+    case 1: return '分析中'
+    case 2: return '已完成'
+    case 3: return '已失败'
+    default: return '未知'
   }
 })
 
-// 状态图标
-const statusIcon = computed(() => {
-  switch (task.value?.status) {
-    case 0:
-      return Clock
-    case 1:
-      return Loading
-    case 2:
-      return CircleCheck
-    case 3:
-      return WarningFilled
-    default:
-      return Clock
-  }
+const levelClass = computed(() => {
+  const score = parsedResult.value?.overallEvaluation?.totalScore || 0
+  if (score >= 80) return 'level-excellent'
+  if (score >= 60) return 'level-good'
+  if (score >= 40) return 'level-fair'
+  return 'level-poor'
 })
 
-// 状态样式类
-const statusClass = computed(() => {
-  switch (task.value?.status) {
-    case 0:
-      return 'status-pending'
-    case 1:
-      return 'status-processing'
-    case 2:
-      return 'status-completed'
-    case 3:
-      return 'status-failed'
-    default:
-      return ''
-  }
+const levelText = computed(() => {
+  const score = parsedResult.value?.overallEvaluation?.totalScore || 0
+  if (score >= 80) return '优秀'
+  if (score >= 60) return '良好'
+  if (score >= 40) return '一般'
+  return '待提升'
 })
 
-/**
- * 统一解析 diagnosisResult 方法
- *
- * @param {string|Object|null} raw - 原始诊断结果
- * @returns {Object} 解析后的对象，失败返回空对象
- */
 const parseDiagnosisResult = (raw) => {
   if (!raw) return {}
-
-  // 如果已经是对象，直接返回
-  if (typeof raw === 'object') {
-    return raw
-  }
-
-  // 如果是字符串，尝试 JSON.parse
+  if (typeof raw === 'object') return raw
   if (typeof raw === 'string') {
     try {
-      const parsed = JSON.parse(raw)
-      return parsed || {}
+      return JSON.parse(raw) || {}
     } catch (e) {
-      console.warn('parseDiagnosisResult JSON 解析失败:', e)
       return {}
     }
   }
-
   return {}
 }
 
-// 解析后的完整诊断结果（统一数据源）
 const parsedDiagnosisResult = computed(() => {
   return parseDiagnosisResult(task.value?.diagnosisResult)
 })
 
-// 基础信息评价（用于完整度得分）
 const basicInfoEvaluation = computed(() => {
   return parsedDiagnosisResult.value?.basicInfoEvaluation || {}
 })
 
-// 基础信息详情（用于展示具体字段值）
 const basicInfoDetails = computed(() => {
-  return parsedDiagnosisResult.value?.basicInfoDetails || {}
+  return parsedDiagnosisResult.value?.basicInfoDetails || parsedDiagnosisResult.value?.basicInfoEvaluation || {}
 })
 
-// 解析诊断结果（保留原有 computed 用于兼容）
+const skillScore = computed(() => {
+  return parsedDiagnosisResult.value?.skillEvaluation?.score || 0
+})
+
+const experienceScore = computed(() => {
+  const workScore = parsedDiagnosisResult.value?.workExperienceEvaluation?.score || 0
+  const projectScore = parsedDiagnosisResult.value?.projectExperienceEvaluation?.score || 0
+  return Math.round((workScore + projectScore) / 2)
+})
+
 const parsedResult = computed(() => {
   if (!task.value?.diagnosisResult) return null
-
   try {
     const result = parsedDiagnosisResult.value
-
-    // 确保返回的对象包含各个模块
     return {
       overallEvaluation: result.overallEvaluation || result.overall || {},
       highlights: result.highlights || result.strengths || [],
       skillEvaluation: result.skillEvaluation || result.skills || {},
-      // 【关键修改】同时传递 basicInfoEvaluation 和 basicInfoDetails
       basicInfoEvaluation: basicInfoEvaluation.value,
       basicInfoDetails: basicInfoDetails.value,
       workExperienceEvaluation: result.workExperienceEvaluation || result.experience || {},
@@ -341,15 +482,12 @@ const parsedResult = computed(() => {
       optimizationSuggestions: result.optimizationSuggestions || result.suggestions || []
     }
   } catch (e) {
-    console.error('解析诊断结果失败:', e)
     return null
   }
 })
 
-// 工作经验数据（合并工作和项目经验）
 const workExperienceData = computed(() => {
   if (!parsedResult.value) return {}
-
   return {
     workScore: parsedResult.value.workExperienceEvaluation?.score,
     projectScore: parsedResult.value.projectExperienceEvaluation?.score,
@@ -368,7 +506,6 @@ const workExperienceData = computed(() => {
   }
 })
 
-// 时间格式化
 const formatTime = (timeStr) => {
   if (!timeStr) return ''
   const date = new Date(timeStr)
@@ -381,14 +518,11 @@ const formatTime = (timeStr) => {
   })
 }
 
-// 格式化原始结果（用于回退显示）
 const formatRawResult = (result) => {
   if (!result) return ''
   try {
     if (typeof result === 'string') {
-      // 尝试解析并格式化JSON
-      const parsed = JSON.parse(result)
-      return JSON.stringify(parsed, null, 2)
+      return JSON.stringify(JSON.parse(result), null, 2)
     }
     return JSON.stringify(result, null, 2)
   } catch (e) {
@@ -396,7 +530,6 @@ const formatRawResult = (result) => {
   }
 }
 
-// 获取任务详情
 const fetchTaskDetail = async () => {
   if (!taskId.value) {
     error.value = '任务ID不存在'
@@ -405,7 +538,6 @@ const fetchTaskDetail = async () => {
   }
 
   if (refreshing.value) return
-
   if (!loading.value) {
     refreshing.value = true
   }
@@ -415,37 +547,28 @@ const fetchTaskDetail = async () => {
   try {
     const res = await getResumeTask(taskId.value)
     const previousStatus = task.value?.status
-    // 【关键确认】确保接口返回层级正确：res.data 就是 task 对象
     task.value = res.data
     loading.value = false
     refreshing.value = false
 
-    // 如果任务刚刚完成，刷新用户额度信息
     if (isCompleted.value && previousStatus !== 2 && !hasRefreshedUserInfo.value) {
       hasRefreshedUserInfo.value = true
       await userStore.fetchUserInfo()
       ElMessage.success('简历诊断已完成')
     }
   } catch (err) {
-    console.error('获取任务详情失败:', err)
     error.value = err.message || '获取任务详情失败，请稍后重试'
     loading.value = false
     refreshing.value = false
   }
 }
 
-// 轮询任务状态（仅处理中时）
 const startPolling = () => {
-  if (pollTimer.value) {
-    clearInterval(pollTimer.value)
-  }
-
-  // 每3秒轮询一次
+  if (pollTimer.value) clearInterval(pollTimer.value)
   pollTimer.value = setInterval(() => {
     if (isProcessing.value || isPending.value) {
       fetchTaskDetail()
     } else {
-      // 任务完成或失败，停止轮询
       stopPolling()
     }
   }, 3000)
@@ -458,16 +581,14 @@ const stopPolling = () => {
   }
 }
 
-// 跳转
-const goToHome = () => {
-  router.push('/')
+const goToHome = () => router.push('/')
+const goToUpload = () => router.push('/resume/upload')
+const goToInterview = () => {
+  if (taskId.value) {
+    router.push(`/interview/entry?resumeTaskId=${taskId.value}`)
+  }
 }
 
-const goToUpload = () => {
-  router.push('/resume/upload')
-}
-
-// 生命周期
 onMounted(() => {
   fetchTaskDetail()
 })
@@ -476,7 +597,6 @@ onUnmounted(() => {
   stopPolling()
 })
 
-// 监听任务状态变化，处理中时启动轮询
 const unwatch = watch(isProcessing, (newVal) => {
   if (newVal || isPending.value) {
     startPolling()
@@ -493,316 +613,673 @@ onUnmounted(() => {
 <style scoped>
 .resume-result-view {
   min-height: 100%;
+  background: #F8F6F3;
+  padding: 24px;
+  box-sizing: border-box;
 }
 
-/* 页面标题区 */
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-title {
-  margin: 0 0 6px 0;
-  font-size: 20px;
-  font-weight: 500;
-  color: #303133;
-}
-
-.page-desc {
-  margin: 0;
-  font-size: 14px;
-  color: #909399;
-}
-
-/* 加载状态 */
+/* ============================================
+   加载状态
+   ============================================ */
 .loading-section {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 80px 0;
+  min-height: 400px;
 }
 
 .loading-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
 }
 
-.loading-icon {
-  color: #409eff;
+.loading-ring {
+  width: 64px;
+  height: 64px;
+  border: 4px solid #f3d8c7;
+  border-top-color: #FF8C42;
+  border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 .loading-text {
-  font-size: 14px;
-  color: #606266;
+  font-size: 15px;
+  color: #666;
 }
 
-/* 错误状态 */
+/* ============================================
+   错误状态
+   ============================================ */
 .error-section {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 0;
+  min-height: 400px;
 }
 
 .error-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  background-color: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 32px;
-  max-width: 500px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  max-width: 400px;
+  border: 1px solid #f3d8c7;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
-.error-content {
-  flex: 1;
+.error-icon-wrap {
+  margin-bottom: 20px;
 }
 
 .error-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #f56c6c;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2f2f2f;
   margin-bottom: 8px;
 }
 
 .error-desc {
   font-size: 14px;
-  color: #606266;
-  margin-bottom: 16px;
+  color: #666;
+  margin-bottom: 24px;
 }
 
 .error-actions {
   display: flex;
   gap: 12px;
+  justify-content: center;
 }
 
-/* 任务卡片通用 */
-.status-card,
-.result-module,
-.failed-card,
-.actions-card,
-.result-card {
-  background-color: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  margin-bottom: 16px;
-}
-
-.status-card,
-.failed-card,
-.actions-card {
-  padding: 24px;
-}
-
-.result-card {
-  padding: 0;
+/* ============================================
+   Hero 诊断总览区
+   ============================================ */
+.hero-section {
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(243, 216, 199, 0.5);
+  box-shadow: 0 4px 20px rgba(255, 140, 66, 0.06);
+  box-sizing: border-box;
   overflow: hidden;
-}
-
-.result-card.fallback {
-  padding: 24px;
-}
-
-/* 任务状态区 */
-.status-header {
   display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.hero-section.hero-1 {
+  background: linear-gradient(135deg, #fff8f3 0%, #fff 100%);
+}
+
+.hero-section.hero-3 {
+  background: linear-gradient(135deg, #fff0f0 0%, #fff 100%);
+}
+
+.hero-left {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 12px;
+  min-width: 120px;
+}
+
+.score-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.level-badge {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 20px;
+  width: fit-content;
+}
+
+.level-excellent {
+  background: #E8F5E9;
+  color: #4CAF50;
+}
+
+.level-good {
+  background: #FFF3E0;
+  color: #FF9800;
+}
+
+.level-fair {
+  background: #FFF8E1;
+  color: #FFC107;
+}
+
+.level-poor {
+  background: #FFEBEE;
+  color: #F44336;
+}
+
+.hero-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
-.status-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
+.ai-summary {
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 12px;
+  border-left: 4px solid #FF8C42;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.summary-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #FF8C42;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.summary-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #2f2f2f;
+  word-break: break-all;
+  white-space: normal;
+}
+
+.summary-text.processing {
+  color: #909399;
+  font-style: italic;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.status-badge .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status-0 {
+  background: #fdf6ec;
+  color: #e6a23c;
+}
+
+.status-0 .status-dot {
+  background: #e6a23c;
+}
+
+.status-1 {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.status-1 .status-dot {
+  background: #409eff;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-2 {
+  background: #f0f9eb;
+  color: #67c23a;
+}
+
+.status-2 .status-dot {
+  background: #67c23a;
+}
+
+.status-3 {
+  background: #fef0f0;
+  color: #f56c6c;
+}
+
+.status-3 .status-dot {
+  background: #f56c6c;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.update-time {
+  font-size: 13px;
+  color: #999;
+}
+
+.refresh-hint {
+  margin-top: 8px;
+}
+
+/* ============================================
+   圆环核心样式
+   ============================================ */
+.ring-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring-svg {
+  display: block;
+}
+
+.ring-score {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  font-weight: 700;
+  color: #2f2f2f;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.ring-score.muted {
+  color: #c0c4cc;
+}
+
+/* ============================================
+   KPI 指标仪表盘
+   ============================================ */
+.kpi-section {
+  margin-bottom: 20px;
+}
+
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.kpi-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(243, 216, 199, 0.5);
+  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.04);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.card-label {
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+}
+
+/* ============================================
+   通用卡片区块
+   ============================================ */
+.section-card {
+  background: #fff;
+  border-radius: 16px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(243, 216, 199, 0.5);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #fff8f3 0%, #fff 100%);
+  border-bottom: 1px solid rgba(243, 216, 199, 0.3);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.section-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.status-icon.status-pending {
-  background-color: #fdf6ec;
-  color: #e6a23c;
-}
-
-.status-icon.status-processing {
-  background-color: #ecf5ff;
-  color: #409eff;
-}
-
-.status-icon.status-completed {
-  background-color: #f0f9eb;
+.section-icon.overall {
+  background: #f0f9eb;
   color: #67c23a;
 }
 
-.status-icon.status-failed {
-  background-color: #fef0f0;
-  color: #f56c6c;
+.section-icon.highlight {
+  background: #fff3e0;
+  color: #ff9800;
 }
 
-.status-info {
-  flex: 1;
-}
-
-.status-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #303133;
-  margin-bottom: 4px;
-}
-
-.status-time {
-  font-size: 13px;
-  color: #909399;
-}
-
-.status-actions {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f5f7fa;
-}
-
-/* 结果模块样式 */
-.result-module {
-  overflow: hidden;
-}
-
-.module-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background-color: #f5f7fa;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.module-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.module-icon.overall {
-  background-color: #f0f9eb;
-  color: #67c23a;
-}
-
-.module-icon.highlight {
-  background-color: #fdf6ec;
-  color: #e6a23c;
-}
-
-.module-icon.skill {
-  background-color: #ecf5ff;
+.section-icon.skill {
+  background: #ecf5ff;
   color: #409eff;
 }
 
-.module-icon.basic {
-  background-color: #f5f0ff;
+.section-icon.basic {
+  background: #f3e8ff;
   color: #a855f7;
 }
 
-.module-icon.experience {
-  background-color: #fff7ed;
+.section-icon.experience {
+  background: #fff7ed;
   color: #f97316;
 }
 
-.module-icon.optimization {
-  background-color: #f0f9eb;
+.section-icon.optimization {
+  background: #f0f9eb;
   color: #22c55e;
 }
 
-.module-title {
+.section-title {
+  margin: 0;
   font-size: 15px;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: #2f2f2f;
 }
 
-.module-body {
+.section-body {
   padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
-/* 原始结果回退显示 */
-.result-header {
+/* ============================================
+   基础信息完整度
+   ============================================ */
+.item-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f5f7fa;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
-.result-title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: #303133;
+.item-row:last-child {
+  border-bottom: none;
 }
 
-.result-content {
-  line-height: 1.8;
-}
-
-.result-pre {
+.item-label {
   font-size: 13px;
-  color: #606266;
-  background-color: #f5f7fa;
-  padding: 16px;
-  border-radius: 4px;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin: 0;
+  color: #666;
 }
 
-/* 失败提示区 */
-.failed-card {
+.item-value {
+  font-size: 13px;
+  color: #2f2f2f;
+  font-weight: 500;
+  word-break: break-all;
+  white-space: normal;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.basic-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.basic-item {
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  background-color: #fef0f0;
-  border-color: #fde2e2;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.failed-content {
-  flex: 1;
+.basic-item .label {
+  font-size: 13px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.basic-item .value {
+  font-size: 13px;
+  font-weight: 600;
+  word-break: break-all;
+  white-space: normal;
+  line-height: 1.4;
+  text-align: right;
+  min-width: 0;
+}
+
+.success {
+  color: #67c23a;
+}
+
+.warning {
+  color: #e6a23c;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.suggestion-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.suggestion-index {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FF8C42;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.suggestion-text {
+  font-size: 13px;
+  color: #2f2f2f;
+  line-height: 1.6;
+  word-break: break-all;
+  white-space: normal;
+}
+
+/* ============================================
+   失败状态
+   ============================================ */
+.failed-section {
+  background: #fff;
+  border-radius: 16px;
+  padding: 48px;
+  text-align: center;
+  margin-bottom: 20px;
+  border: 1px solid #fde2e2;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .failed-title {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
   color: #f56c6c;
-  margin-bottom: 6px;
+  margin: 16px 0 8px;
 }
 
 .failed-desc {
   font-size: 14px;
+  color: #666;
+}
+
+/* ============================================
+   回退显示
+   ============================================ */
+.result-pre {
+  font-size: 13px;
   color: #606266;
+  background: #f5f7fa;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  line-height: 1.7;
+  box-sizing: border-box;
 }
 
-/* 操作区 */
-.actions-card {
-  display: flex;
-  justify-content: center;
+/* ============================================
+   底部操作区
+   ============================================ */
+.action-section {
+  margin-top: 24px;
+  padding: 24px 0;
 }
 
-.actions-group {
+.action-group {
   display: flex;
   gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  border-radius: 24px;
+  padding: 10px 24px;
+  font-size: 14px;
+  min-height: 42px;
+  box-sizing: border-box;
+}
+
+.action-btn.secondary {
+  background: #fff;
+  border-color: #f3d8c7;
+  color: #666;
+}
+
+.action-btn.secondary:hover {
+  border-color: #FF8C42;
+  color: #FF8C42;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, #FF8C42 0%, #FF7A30 100%);
+  border: none;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(255, 140, 66, 0.3);
+}
+
+.action-btn.primary:hover {
+  opacity: 0.9;
+}
+
+/* ============================================
+   响应式
+   ============================================ */
+@media (max-width: 1023px) {
+  .hero-section {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .hero-left {
+    flex-direction: row;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 767px) {
+  .resume-result-view {
+    padding: 16px;
+  }
+
+  .hero-section {
+    padding: 20px;
+  }
+
+  .ring-score {
+    font-size: 18px;
+  }
+
+  .score-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .kpi-card {
+    padding: 16px 12px;
+  }
+
+  .section-header {
+    padding: 14px 16px;
+  }
+
+  .section-body {
+    padding: 16px;
+  }
+
+  .basic-items-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-btn {
+    width: 100%;
+  }
 }
 </style>
