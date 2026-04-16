@@ -13,7 +13,7 @@
 
       <!-- 已登录才显示简历诊断 -->
       <router-link
-        v-if="userStore.isLoggedIn()"
+        v-if="isLoggedIn"
         to="/resume/upload"
         class="nav-link"
         :class="{ active: isResumeActive }"
@@ -23,7 +23,7 @@
 
       <!-- 已登录才显示模拟面试 -->
       <router-link
-        v-if="userStore.isLoggedIn()"
+        v-if="isLoggedIn"
         to="/interview/entry"
         class="nav-link"
         :class="{ active: isInterviewActive }"
@@ -32,7 +32,7 @@
       </router-link>
 
       <!-- 已登录才显示历史记录下拉菜单 -->
-      <div v-if="userStore.isLoggedIn()" class="history-dropdown-wrapper">
+      <div v-if="isLoggedIn" class="history-dropdown-wrapper">
         <el-dropdown trigger="click" @command="handleHistoryCommand">
           <span
             class="nav-link history-trigger"
@@ -109,7 +109,7 @@
 
     <div class="header-right">
       <!-- 已登录状态：显示头像和下拉菜单 -->
-      <template v-if="userStore.isLoggedIn()">
+      <template v-if="isLoggedIn">
         <el-dropdown trigger="click" @command="handleCommand">
           <div class="avatar-wrapper avatar-sm">
             <div class="avatar-ring avatar-sm">
@@ -125,7 +125,7 @@
                 </div>
                 <div class="user-info-content">
                   <div class="user-info-name">
-                    {{ userStore.userInfo?.username || "用户" }}
+                    {{ username }}
                   </div>
                   <div class="user-info-role" :class="userRoleClass">
                     {{ userRoleText }}
@@ -188,35 +188,35 @@
           >首页</router-link
         >
         <router-link
-          v-if="userStore.isLoggedIn()"
+          v-if="isLoggedIn"
           to="/resume/upload"
           class="mobile-nav-link"
           @click="drawerVisible = false"
           >简历诊断</router-link
         >
         <router-link
-          v-if="userStore.isLoggedIn()"
+          v-if="isLoggedIn"
           to="/interview/entry"
           class="mobile-nav-link"
           @click="drawerVisible = false"
           >模拟面试</router-link
         >
         <router-link
-          v-if="userStore.isLoggedIn()"
+          v-if="isLoggedIn"
           to="/resume/history"
           class="mobile-nav-link"
           @click="drawerVisible = false"
           >简历诊断历史</router-link
         >
         <router-link
-          v-if="userStore.isLoggedIn()"
+          v-if="isLoggedIn"
           to="/interview/history"
           class="mobile-nav-link"
           @click="drawerVisible = false"
           >模拟面试历史</router-link
         >
         <router-link
-          v-if="userStore.isLoggedIn()"
+          v-if="isLoggedIn"
           to="/dashboard"
           class="mobile-nav-link"
           @click="drawerVisible = false"
@@ -232,22 +232,19 @@ import { computed, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
 import { ElMessage } from "element-plus";
+import { removeToken } from "@/utils/auth";
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 
 const drawerVisible = ref(false);
+const isLoggedIn = computed(() => userStore.isLoggedIn());
+const username = computed(() => userStore.userInfo?.username || "用户");
 
 // 用户角色判定
 const isAdmin = computed(() => userStore.userInfo?.role === 9);
-const isVipUser = computed(() => {
-  const role = userStore.userInfo?.role;
-  const vipExpireTime = userStore.userInfo?.vipExpireTime;
-  if (role !== 1) return false;
-  if (!vipExpireTime) return false;
-  return new Date(vipExpireTime) > new Date();
-});
+const isVipUser = computed(() => userStore.isVip());
 
 // 角色徽章文本
 const userRoleText = computed(() => {
@@ -312,7 +309,9 @@ const handleCommand = (command) => {
   if (command === "profile") {
     router.push("/dashboard");
   } else if (command === "logout") {
-    userStore.doLogout();
+    localStorage.removeItem("token");
+    removeToken();
+    userStore.clearUserInfo();
     ElMessage.success("已退出登录");
     router.push("/");
   }

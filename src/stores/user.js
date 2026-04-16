@@ -1,55 +1,73 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getToken, setToken, removeToken, isLoggedIn } from '@/utils/auth'
+import { getToken, setToken, removeToken } from '@/utils/auth'
 import { login, getCurrentUser } from '@/api/auth'
 
 export const useUserStore = defineStore('user', () => {
-  // 状态
-  const token = ref(getToken())
   const userInfo = ref(null)
   const loading = ref(false)
 
-  // 登录
+  const clearUserInfo = () => {
+    userInfo.value = null
+  }
+
+  const isLoggedIn = () => !!userInfo.value
+
+  const isVip = () => {
+    const role = userInfo.value?.role
+    const vipExpireTime = userInfo.value?.vipExpireTime
+
+    if (!vipExpireTime) return false
+
+    return (role === 'vip' || role === 1) && new Date(vipExpireTime) > new Date()
+  }
+
+  const fetchUserInfo = async () => {
+    const token = localStorage.getItem('token') || getToken()
+
+    if (!token) return
+
+    try {
+      const res = await getCurrentUser()
+      userInfo.value = res.data
+      return res
+    } catch (err) {
+      clearUserInfo()
+      throw err
+    }
+  }
+
   const doLogin = async (loginData) => {
     loading.value = true
+
     try {
       const res = await login(loginData)
       const { token: tokenStr, tokenType } = res.data
+
       setToken(tokenStr, tokenType)
-      token.value = tokenStr
-      // 登录成功后获取用户信息
+      localStorage.setItem('token', tokenStr)
       await fetchUserInfo()
+
       return res
     } finally {
       loading.value = false
     }
   }
 
-  // 获取用户信息
-  const fetchUserInfo = async () => {
-    if (!isLoggedIn()) return
-    try {
-      const res = await getCurrentUser()
-      userInfo.value = res.data
-    } catch (err) {
-      console.error('获取用户信息失败:', err)
-    }
-  }
-
-  // 登出
   const doLogout = () => {
+    localStorage.removeItem('token')
     removeToken()
-    token.value = null
-    userInfo.value = null
+    clearUserInfo()
   }
 
   return {
-    token,
     userInfo,
     loading,
-    isLoggedIn,
-    doLogin,
     fetchUserInfo,
+    clearUserInfo,
+    isLoggedIn,
+    isVip,
+    doLogin,
     doLogout
   }
 })

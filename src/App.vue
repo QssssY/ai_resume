@@ -5,18 +5,40 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
-import { useRoute } from "vue-router";
-import MainLayout from "@/layouts/MainLayout.vue";
+import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import MainLayout from '@/layouts/MainLayout.vue'
+import { useUserStore } from '@/stores/user'
+import { getToken, removeToken } from '@/utils/auth'
 
-const route = useRoute();
+const route = useRoute()
+const userStore = useUserStore()
 
 const layoutComponent = computed(() => {
   if (route.meta.useLayout) {
-    return MainLayout;
+    return MainLayout
   }
-  return "div";
-});
+
+  return 'div'
+})
+
+onMounted(async () => {
+  const token = localStorage.getItem('token') || getToken()
+
+  if (!token) return
+
+  if (!localStorage.getItem('token')) {
+    localStorage.setItem('token', token)
+  }
+
+  try {
+    await userStore.fetchUserInfo()
+  } catch (err) {
+    localStorage.removeItem('token')
+    removeToken()
+    userStore.clearUserInfo()
+  }
+})
 </script>
 
 <style>
