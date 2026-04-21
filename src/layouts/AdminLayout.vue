@@ -1,34 +1,38 @@
 <template>
   <div class="admin-layout">
-    <aside class="admin-sidebar">
-      <div class="admin-brand">
-        <div class="brand-title">管理端</div>
-        <div class="brand-subtitle">AI 面试与简历系统</div>
+    <header class="admin-header">
+      <img :src="logoUrl" alt="logo" class="header-logo" />
+      <div class="admin-header-title">智能简历助手管理端</div>
+      <div class="header-spacer"></div>
+      <div class="admin-user-info">
+        <el-icon><User /></el-icon>
+        <span class="admin-user-name">
+          {{ adminStore.adminInfo?.username || "管理员" }}
+        </span>
       </div>
+      <el-button text type="danger" @click="handleLogout" class="logout-btn">
+        <el-icon><SwitchButton /></el-icon>
+        退出
+      </el-button>
+    </header>
 
-      <nav class="admin-nav">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.path"
-          :to="item.path"
-          class="admin-nav-item"
-          :class="{ active: isNavActive(item.path) }"
-        >
-          {{ item.label }}
-        </RouterLink>
-      </nav>
-    </aside>
-
-    <div class="admin-main">
-      <header class="admin-header">
-        <div class="admin-header-title">后台管理</div>
-        <div class="admin-header-right">
-          <span class="admin-user-name">
-            {{ adminStore.adminInfo?.username || '管理员' }}
-          </span>
-          <el-button text type="danger" @click="handleLogout">退出</el-button>
-        </div>
-      </header>
+    <div class="admin-body">
+      <aside class="admin-sidebar">
+        <nav class="admin-nav">
+          <RouterLink
+            v-for="item in navItems"
+            :key="item.path"
+            :to="item.path"
+            class="admin-nav-item"
+            :class="{ active: isNavActive(item.path) }"
+          >
+            <el-icon class="nav-icon">
+              <component :is="item.icon" />
+            </el-icon>
+            <span class="nav-label">{{ item.label }}</span>
+          </RouterLink>
+        </nav>
+      </aside>
 
       <main class="admin-content">
         <RouterView />
@@ -38,25 +42,35 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { useAdminUserStore } from '@/stores/adminUser'
+import { computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
+import {
+  ChatLineRound,
+  DataAnalysis,
+  Document,
+  Odometer,
+  Setting,
+  SwitchButton,
+  User,
+  UserFilled,
+} from "@element-plus/icons-vue";
+import { useAdminUserStore } from "@/stores/adminUser";
+import logoUrl from "@/assets/logo.jpg";
 
-const route = useRoute()
-const router = useRouter()
-const adminStore = useAdminUserStore()
+const route = useRoute();
+const router = useRouter();
+const adminStore = useAdminUserStore();
 
 // 管理端侧边导航：先覆盖当前核心可用模块。
 const navItems = computed(() => [
-  { path: '/admin/dashboard', label: '数据看板' },
-  // 监控入口放在看板下方，便于先看业务指标再看运行态。
-  { path: '/admin/monitor', label: '监控总览' },
-  { path: '/admin/job-roles', label: '岗位配置' },
-  { path: '/admin/prompts', label: 'Prompt 管理' },
-  { path: '/admin/ai-engines', label: 'AI 引擎' },
-  { path: '/admin/users', label: '用户权益' }
-])
+  { path: "/admin/dashboard", label: "数据看板", icon: DataAnalysis },
+  { path: "/admin/monitor", label: "监控总览", icon: Odometer },
+  { path: "/admin/job-roles", label: "岗位配置", icon: Document },
+  { path: "/admin/prompts", label: "Prompt 管理", icon: ChatLineRound },
+  { path: "/admin/ai-engines", label: "AI 引擎", icon: Setting },
+  { path: "/admin/users", label: "用户权益", icon: UserFilled },
+]);
 
 /**
  * 导航高亮判断。
@@ -64,144 +78,178 @@ const navItems = computed(() => [
  * @param {string} navPath
  * @returns {boolean}
  */
-const isNavActive = (navPath) => route.path.startsWith(navPath)
+const isNavActive = (navPath) => route.path.startsWith(navPath);
 
 /**
  * 页面刷新后如果 Pinia 内存态丢失，主动补拉管理员信息。
  * 作用：确保头部用户名与权限状态不依赖单页内存。
  */
 onMounted(async () => {
-  if (adminStore.adminInfo) return
+  if (adminStore.adminInfo) return;
   try {
-    await adminStore.fetchAdminInfo()
+    await adminStore.fetchAdminInfo();
   } catch (error) {
-    adminStore.doAdminLogout()
-    ElMessage.error(error?.message || '管理员登录态已失效，请重新登录')
-    router.push('/admin/login')
+    adminStore.doAdminLogout();
+    ElMessage.error(error?.message || "管理员登录态已失效，请重新登录");
+    router.push("/admin/login");
   }
-})
+});
 
 /**
  * 管理端退出逻辑。
  * 说明：仅清理管理端会话，不影响用户端 token。
  */
 const handleLogout = () => {
-  adminStore.doAdminLogout()
-  router.push('/admin/login')
-}
+  adminStore.doAdminLogout();
+  router.push("/admin/login");
+};
 </script>
 
 <style scoped>
 .admin-layout {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  background: #fff7ef;
+  display: flex;
+  flex-direction: column;
+  background: #f5f6fa;
+}
+
+.admin-header {
+  height: 60px;
+  padding: 0 24px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.admin-header-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.header-spacer {
+  flex: 1;
+}
+
+.admin-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  color: #34495e;
+}
+
+.admin-user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.admin-body {
+  display: flex;
+  flex: 1;
 }
 
 .admin-sidebar {
-  background: linear-gradient(180deg, #ffb075 0%, #ff8f42 100%);
+  width: 200px;
+  background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
   color: #fff;
-  padding: 22px 16px;
-}
-
-.admin-brand {
-  margin-bottom: 24px;
-}
-
-.brand-title {
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.brand-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  opacity: 0.9;
+  padding: 16px 12px;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 60px;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
 }
 
 .admin-nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .admin-nav-item {
-  color: #fff;
+  color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s ease;
-}
-
-.admin-nav-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.admin-nav-item.active {
-  background: #fff;
-  color: #e5762b;
-  font-weight: 600;
-}
-
-.admin-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.admin-header {
-  height: 60px;
-  padding: 0 20px;
-  border-bottom: 1px solid #f1d7c2;
-  background: #fffdfb;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.admin-header-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #7a3a12;
-}
-
-.admin-header-right {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.admin-user-name {
-  font-size: 13px;
-  color: #a15b2f;
+.admin-nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.admin-nav-item.active {
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.35);
+}
+
+.nav-icon {
+  font-size: 18px;
+}
+
+.nav-label {
+  flex: 1;
 }
 
 .admin-content {
-  padding: 16px 18px;
+  flex: 1;
+  padding: 20px 24px;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
-@media (max-width: 900px) {
-  .admin-layout {
-    grid-template-columns: 1fr;
+@media (max-width: 768px) {
+  .admin-header {
+    padding: 0 16px;
   }
 
   .admin-sidebar {
-    padding: 12px 14px;
+    width: 60px;
+    padding: 12px 8px;
   }
 
-  .admin-brand {
-    margin-bottom: 10px;
-  }
-
-  .admin-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
+  .nav-label {
+    display: none;
   }
 
   .admin-nav-item {
-    text-align: center;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .admin-content {
+    padding: 16px;
   }
 }
 </style>

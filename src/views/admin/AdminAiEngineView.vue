@@ -5,7 +5,10 @@
         <h2 class="page-title">AI 引擎配置</h2>
         <p class="page-subtitle">维护 interview/resume 业务模型配置，支持启用切换和密钥脱敏展示</p>
       </div>
-      <el-button type="primary" @click="openCreateDialog">新增引擎配置</el-button>
+      <el-button type="primary" @click="openCreateDialog" class="btn-primary">
+        <el-icon><Edit /></el-icon>
+        新增引擎配置
+      </el-button>
     </div>
 
     <div class="filter-bar">
@@ -15,48 +18,120 @@
         class="filter-item keyword"
         placeholder="按编码/名称/模型搜索"
         clearable
-      />
-      <el-select v-model="businessTypeFilter" class="filter-item" placeholder="按业务类型筛选">
+      >
+        <template #prefix>
+          <el-icon class="filter-icon"><Search /></el-icon>
+        </template>
+      </el-input>
+      <el-select v-model="businessTypeFilter" class="filter-item" placeholder="按业务类型筛选" clearable>
         <el-option label="全部业务" value="all" />
         <el-option label="模拟面试" value="interview" />
         <el-option label="简历诊断" value="resume" />
       </el-select>
-      <el-select v-model="statusFilter" class="filter-item" placeholder="按状态筛选">
+      <el-select v-model="statusFilter" class="filter-item" placeholder="按状态筛选" clearable>
         <el-option label="全部状态" value="all" />
         <el-option label="仅启用" value="active" />
         <el-option label="仅禁用" value="inactive" />
       </el-select>
     </div>
 
-    <el-card shadow="never">
-      <el-table :data="filteredEngineList" v-loading="tableLoading" border empty-text="暂无 AI 引擎配置数据">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="engineCode" label="引擎编码" min-width="140" />
-        <el-table-column prop="engineName" label="引擎名称" min-width="140" />
-        <el-table-column prop="providerType" label="Provider" min-width="120" />
-        <el-table-column prop="businessTypeDesc" label="业务类型" min-width="120" />
-        <el-table-column prop="modelName" label="模型名" min-width="140" />
-        <el-table-column prop="baseUrl" label="基础地址" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="apiKey" label="API Key(脱敏)" min-width="140" />
-        <el-table-column prop="temperature" label="温度" width="90" />
-        <el-table-column prop="maxTokens" label="MaxTokens" width="110" />
-        <el-table-column prop="timeoutMs" label="超时(ms)" width="100" />
-        <el-table-column prop="sort" label="排序" width="80" />
-        <el-table-column label="状态" width="100">
+    <el-card shadow="never" class="table-card">
+      <el-table
+        :data="filteredEngineList"
+        v-loading="tableLoading"
+        border
+        stripe
+        empty-text="暂无 AI 引擎配置数据"
+        class="engine-table"
+      >
+        <el-table-column prop="id" label="ID" width="80" align="center">
+          <template #header>
+            <div class="table-header">ID</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="engineCode" label="引擎编码" min-width="140" align="center">
+          <template #header>
+            <div class="table-header">引擎编码</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="engineName" label="引擎名称" min-width="140" align="center">
+          <template #header>
+            <div class="table-header">引擎名称</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="providerType" label="Provider" min-width="120" align="center">
+          <template #header>
+            <div class="table-header">Provider</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="businessTypeDesc" label="业务类型" min-width="120" align="center">
+          <template #header>
+            <div class="table-header">业务类型</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="modelName" label="模型名" min-width="140" align="center">
+          <template #header>
+            <div class="table-header">模型名</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="baseUrl" label="基础地址" min-width="180" show-overflow-tooltip align="center">
+          <template #header>
+            <div class="table-header">基础地址</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="apiKey" label="API Key(脱敏)" min-width="140" align="center">
+          <template #header>
+            <div class="table-header">API Key(脱敏)</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="temperature" label="温度" width="90" align="center">
+          <template #header>
+            <div class="table-header">温度</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="maxTokens" label="MaxTokens" width="110" align="center">
+          <template #header>
+            <div class="table-header">MaxTokens</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="timeoutMs" label="超时(ms)" width="100" align="center">
+          <template #header>
+            <div class="table-header">超时(ms)</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sort" label="排序" width="80" align="center">
+          <template #header>
+            <div class="table-header">排序</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="100" align="center">
+          <template #header>
+            <div class="table-header">状态</div>
+          </template>
           <template #default="{ row }">
-            <el-tag :type="row.isActive === 1 ? 'success' : 'info'">
+            <el-tag
+              :type="row.isActive === 1 ? 'success' : 'info'"
+              effect="plain"
+              size="small"
+              class="status-tag"
+            >
               {{ row.isActive === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right" align="center">
+          <template #header>
+            <div class="table-header">操作</div>
+          </template>
           <template #default="{ row }">
             <div class="action-group">
-              <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
+              <el-button size="small" @click="openEditDialog(row)" class="action-btn">
+                编辑
+              </el-button>
               <el-button
-                link
-                :type="row.isActive === 1 ? 'warning' : 'success'"
+                size="small"
                 @click="handleToggleActive(row)"
+                class="action-btn"
               >
                 {{ row.isActive === 1 ? '禁用' : '启用' }}
               </el-button>
@@ -71,6 +146,7 @@
       :title="isEditMode ? '编辑 AI 引擎配置' : '新增 AI 引擎配置'"
       width="760px"
       destroy-on-close
+      class="engine-dialog"
     >
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-row :gutter="12">
@@ -94,7 +170,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="业务类型" prop="businessType">
-              <el-select v-model="formData.businessType" style="width: 100%" :disabled="submitLoading">
+              <el-select v-model="formData.businessType" style="width: 100%" :disabled="submitLoading" clearable>
                 <el-option value="interview" label="模拟面试(interview)" />
                 <el-option value="resume" label="简历诊断(resume)" />
               </el-select>
@@ -167,8 +243,8 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="submitForm">
+        <el-button @click="dialogVisible = false" class="dialog-btn">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="submitForm" class="dialog-btn primary">
           {{ isEditMode ? '保存修改' : '确认新增' }}
         </el-button>
       </template>
@@ -179,6 +255,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Edit, Search } from '@element-plus/icons-vue'
 import {
   createAdminAiEngine,
   getAdminAiEngines,
@@ -418,46 +495,150 @@ onMounted(() => {
 .admin-page {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
 }
 
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 18px;
-  color: #8f451b;
+  font-size: 22px;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .page-subtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #ad734f;
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.4);
 }
 
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 12px;
 }
 
 .filter-item {
   width: 180px;
 }
 
+.filter-item :deep(.el-input__wrapper),
+.filter-item :deep(.el-select__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #e0e0e0;
+}
+
+.filter-item :deep(.el-input__wrapper:hover),
+.filter-item :deep(.el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px #e67e22;
+}
+
 .filter-item.keyword {
   width: 320px;
+}
+
+.filter-icon {
+  color: #999;
+  font-size: 16px;
+}
+
+.table-card {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.engine-table :deep(.el-table__header-wrapper) {
+  background: #f8f9fa;
+}
+
+.table-header {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.engine-table :deep(.el-table__body tr:nth-child(even)) {
+  background: #fafafa;
+}
+
+.engine-table :deep(.el-table__body tr:hover > td) {
+  background: #fff5e6;
+}
+
+.status-tag {
+  border-radius: 4px;
+  font-weight: 500;
 }
 
 .action-group {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.action-btn {
+  color: #e67e22;
+  font-size: 16px;
+}
+
+.action-btn:hover {
+  color: #d35400;
+  background: #fff5e6;
+  border-radius: 6px;
+}
+
+.engine-dialog :deep(.el-dialog__header) {
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+}
+
+.engine-dialog :deep(.el-dialog__title) {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.engine-dialog :deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #34495e;
+}
+
+.dialog-btn {
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: 500;
+}
+
+.dialog-btn.primary {
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  border: none;
+}
+
+.dialog-btn.primary:hover {
+  background: linear-gradient(135deg, #d35400 0%, #c0392b 100%);
 }
 </style>

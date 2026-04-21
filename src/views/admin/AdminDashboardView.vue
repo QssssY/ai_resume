@@ -7,9 +7,10 @@
           支持日期范围和热门岗位数量筛选，统一刷新看板数据
         </p>
       </div>
-      <el-button :loading="loading" @click="loadDashboardData"
-        >刷新数据</el-button
-      >
+      <el-button :loading="loading" @click="loadDashboardData" class="refresh-btn">
+        <el-icon><Refresh /></el-icon>
+        刷新数据
+      </el-button>
     </section>
 
     <section class="filter-panel">
@@ -81,11 +82,11 @@
         <div class="value">{{ overview.activeAiEngineCount }}</div>
       </article>
       <article class="overview-card">
-        <div class="label">当日面试会话</div>
+        <div class="label">面试会话</div>
         <div class="value">{{ overview.todayInterviewSessionCount }}</div>
       </article>
       <article class="overview-card">
-        <div class="label">当日简历诊断</div>
+        <div class="label">简历诊断</div>
         <div class="value">{{ overview.todayResumeDiagnosisCount }}</div>
       </article>
     </section>
@@ -142,6 +143,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
+import { Refresh } from "@element-plus/icons-vue";
 import { Line, Bar, Doughnut } from "vue-chartjs";
 import {
   Chart as ChartJS,
@@ -537,49 +539,60 @@ onMounted(() => {
 }
 
 .dashboard-header {
-  background: #fff;
-  border: 1px solid #f4d8c5;
+  background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+  border: 1px solid #e8e8e8;
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .dashboard-title {
   margin: 0;
-  font-size: 20px;
-  color: #8f451b;
+  font-size: 22px;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .dashboard-subtitle {
   margin: 4px 0 0;
-  color: #a86a45;
-  font-size: 13px;
+  color: #7f8c8d;
+  font-size: 14px;
 }
 
 .filter-panel {
   background: #fff;
-  border: 1px solid #f4d8c5;
+  border: 1px solid #e8e8e8;
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.filter-panel :deep(.el-radio-button__inner) {
+  border-radius: 8px;
+}
+
+.filter-panel :deep(.el-input__wrapper) {
+  border-radius: 8px;
 }
 
 .filter-summary {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 20px;
   flex-wrap: wrap;
-  color: #9a633e;
-  font-size: 12px;
-  background: #fff6ee;
-  border: 1px solid #f4d8c5;
+  color: #7f8c8d;
+  font-size: 13px;
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
   border-radius: 10px;
-  padding: 8px 12px;
+  padding: 10px 16px;
 }
 
 .dashboard-error {
@@ -589,39 +602,49 @@ onMounted(() => {
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(180px, 1fr));
-  gap: 10px;
+  gap: 16px;
 }
 
 .overview-card {
   background: #fff;
-  border: 1px solid #f2d4be;
-  border-radius: 12px;
-  padding: 12px 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 14px;
+  padding: 20px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.overview-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: #e67e22;
 }
 
 .label {
-  font-size: 12px;
-  color: #ae7a55;
+  font-size: 13px;
+  color: #7f8c8d;
+  font-weight: 500;
 }
 
 .value {
-  margin-top: 6px;
-  font-size: 24px;
+  margin-top: 8px;
+  font-size: 28px;
   font-weight: 700;
-  color: #8f451b;
+  color: #2c3e50;
 }
 
 .panel-card {
   background: #fff;
-  border: 1px solid #f2d4be;
-  border-radius: 12px;
-  padding: 12px 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .middle-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 16px;
 }
 
 .trend-section {
@@ -629,16 +652,18 @@ onMounted(() => {
 }
 
 .panel-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  color: #8f451b;
-  margin-bottom: 8px;
+  color: #2c3e50;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .distribution-range {
-  color: #b47c55;
-  font-size: 12px;
-  margin-bottom: 10px;
+  color: #7f8c8d;
+  font-size: 13px;
+  margin-bottom: 12px;
 }
 
 .chart-box-wrap {
@@ -656,8 +681,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  color: #b38a6d;
+  font-size: 14px;
+  color: #bbb;
   pointer-events: none;
 }
 
@@ -680,10 +705,30 @@ onMounted(() => {
   .dashboard-header {
     align-items: flex-start;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
   }
   .overview-grid {
     grid-template-columns: 1fr;
   }
+  .filter-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.refresh-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.35);
 }
 </style>

@@ -79,12 +79,16 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEditMode ? '编辑岗位' : '新增岗位'"
-      width="760px"
+      width="720px"
+      :close-on-click-modal="false"
       destroy-on-close
+      :show-close="true"
+      class="fixed-dialog"
     >
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="108px">
         <el-form-item label="岗位编码" prop="roleCode">
           <el-input
+            id="roleCode"
             v-model.trim="formData.roleCode"
             placeholder="例如：frontend"
             :disabled="submitLoading"
@@ -92,6 +96,7 @@
         </el-form-item>
         <el-form-item label="岗位名称" prop="roleName">
           <el-input
+            id="roleName"
             v-model.trim="formData.roleName"
             placeholder="例如：前端开发工程师"
             :disabled="submitLoading"
@@ -101,6 +106,7 @@
         <el-form-item label="展示标签">
           <div class="tag-input-section">
             <el-select
+              id="interviewTagList"
               v-model="formData.interviewTagList"
               multiple
               allow-create
@@ -168,10 +174,10 @@
         </el-form-item>
 
         <el-form-item label="排序" prop="sort">
-          <el-input-number v-model="formData.sort" :min="0" :disabled="submitLoading" />
+          <el-input-number id="sort" v-model="formData.sort" :min="0" :disabled="submitLoading" />
         </el-form-item>
         <el-form-item v-if="isEditMode" label="状态">
-          <el-radio-group v-model="formData.isActive" :disabled="submitLoading">
+          <el-radio-group id="isActive" v-model="formData.isActive" :disabled="submitLoading">
             <el-radio :value="1">启用</el-radio>
             <el-radio :value="0">禁用</el-radio>
           </el-radio-group>
@@ -179,8 +185,8 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="submitForm">
+        <el-button @click="dialogVisible = false" class="dialog-btn">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="submitForm" class="dialog-btn primary">
           {{ isEditMode ? '保存修改' : '确认新增' }}
         </el-button>
       </template>
@@ -535,10 +541,10 @@ onMounted(() => {
 }
 
 .field-tip {
-  margin-top: 6px;
-  font-size: 12px;
+  margin-top: 4px;
+  font-size: 11px;
   color: #b07d59;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .tag-list {
@@ -555,7 +561,7 @@ onMounted(() => {
 .template-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -563,10 +569,10 @@ onMounted(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
+  gap: 4px;
+  padding: 10px;
   border: 2px solid #f0e6dc;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fdf9f6;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -592,24 +598,24 @@ onMounted(() => {
 }
 
 .template-item-title {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #8f451b;
 }
 
 .template-check-icon {
   color: #e67e22;
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .template-item-preview {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .template-item-label {
-  font-size: 12px;
+  font-size: 11px;
   color: #b89d8a;
 }
 
@@ -820,5 +826,63 @@ onMounted(() => {
   .filter-item.keyword {
     width: 100%;
   }
+}
+
+.fixed-dialog :deep(.el-overlay) {
+  position: fixed !important;
+  inset: 0;
+  overflow: hidden !important;
+}
+
+.fixed-dialog :deep(.el-dialog) {
+  position: relative !important;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.fixed-dialog :deep(.el-dialog__wrapper) {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fixed-dialog :deep(.el-dialog__header) {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  margin: 0;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+}
+
+.fixed-dialog :deep(.el-dialog__body) {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.fixed-dialog :deep(.el-dialog__footer) {
+  flex-shrink: 0;
+  padding: 12px 20px;
+  background: #fafafa;
+  border-top: 1px solid #eee;
+}
+
+.dialog-btn {
+  border-radius: 8px;
+  padding: 9px 20px;
+  font-weight: 500;
+}
+
+.dialog-btn.primary {
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  border: none;
+}
+
+.dialog-btn.primary:hover {
+  background: linear-gradient(135deg, #d35400 0%, #c0392b 100%);
 }
 </style>

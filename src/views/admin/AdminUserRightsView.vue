@@ -10,42 +10,86 @@
         class="search-input"
         placeholder="按用户名或用户ID搜索"
         clearable
-      />
+      >
+        <template #prefix>
+          <el-icon class="search-icon"><Search /></el-icon>
+        </template>
+      </el-input>
     </div>
 
-    <el-card shadow="never">
-      <el-table :data="filteredUsers" v-loading="tableLoading" border empty-text="暂无用户数据">
-        <el-table-column prop="_userId" label="用户ID" min-width="180" />
-        <el-table-column prop="username" label="用户名" min-width="150" />
-        <el-table-column prop="roleDesc" label="角色" width="120" />
-        <el-table-column label="状态" width="100">
+    <el-card shadow="never" class="table-card">
+      <el-table
+        :data="filteredUsers"
+        v-loading="tableLoading"
+        border
+        stripe
+        empty-text="暂无用户数据"
+        class="user-table"
+      >
+        <el-table-column prop="_userId" label="用户ID" min-width="180" align="center">
+          <template #header>
+            <div class="table-header">用户ID</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="username" label="用户名" min-width="150" align="center">
+          <template #header>
+            <div class="table-header">用户名</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="roleDesc" label="角色" width="120" align="center">
+          <template #header>
+            <div class="table-header">角色</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="100" align="center">
+          <template #header>
+            <div class="table-header">状态</div>
+          </template>
           <template #default="{ row }">
-            <el-tag :type="isEnabledUser(row) ? 'success' : 'danger'">
+            <el-tag
+              :type="isEnabledUser(row) ? 'success' : 'danger'"
+              effect="plain"
+              size="small"
+              class="status-tag"
+            >
               {{ isEnabledUser(row) ? '正常' : '封禁' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="会员到期时间" min-width="180">
+        <el-table-column label="会员到期时间" min-width="180" align="center">
+          <template #header>
+            <div class="table-header">会员到期时间</div>
+          </template>
           <template #default="{ row }">
             {{ formatDateTime(row.vipExpireTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" min-width="180">
+        <el-table-column label="创建时间" min-width="180" align="center">
+          <template #header>
+            <div class="table-header">创建时间</div>
+          </template>
           <template #default="{ row }">
             {{ formatDateTime(row.createTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column label="操作" width="320" fixed="right" align="center">
+          <template #header>
+            <div class="table-header">操作</div>
+          </template>
           <template #default="{ row }">
             <div class="action-group">
-              <el-button link type="primary" @click="openRightsDrawer(row)">查看权益</el-button>
-              <el-button link type="warning" @click="openEditDialog(row)">编辑权益</el-button>
+              <el-button size="small" @click="openRightsDrawer(row)" class="action-btn view">
+                查看权益
+              </el-button>
+              <el-button size="small" @click="openEditDialog(row)" class="action-btn edit">
+                编辑权益
+              </el-button>
               <el-button
-                link
-                :type="isEnabledUser(row) ? 'danger' : 'success'"
+                size="small"
                 @click="handleToggleStatus(row)"
+                class="action-btn"
               >
-                {{ isEnabledUser(row) ? '封禁' : '解封' }}
+                {{ isEnabledUser(row) ? '禁用' : '启用' }}
               </el-button>
             </div>
           </template>
@@ -53,9 +97,9 @@
       </el-table>
     </el-card>
 
-    <el-drawer v-model="rightsDrawerVisible" title="用户权益详情" size="480px">
+    <el-drawer v-model="rightsDrawerVisible" title="用户权益详情" size="480px" class="rights-drawer">
       <el-skeleton v-if="rightsLoading" :rows="8" animated />
-      <el-descriptions v-else :column="1" border>
+      <el-descriptions v-else :column="1" border class="rights-descriptions">
         <el-descriptions-item label="用户ID">{{ rightsData.userId }}</el-descriptions-item>
         <el-descriptions-item label="用户名">{{ rightsData.username }}</el-descriptions-item>
         <el-descriptions-item label="角色">{{ rightsData.roleDesc }}</el-descriptions-item>
@@ -79,6 +123,7 @@
       title="编辑用户权益"
       width="620px"
       destroy-on-close
+      class="edit-dialog"
     >
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="110px">
         <el-form-item label="目标角色" prop="role">
@@ -130,8 +175,8 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="editLoading" @click="submitEdit">
+        <el-button @click="editDialogVisible = false" class="dialog-btn">取消</el-button>
+        <el-button type="primary" :loading="editLoading" @click="submitEdit" class="dialog-btn primary">
           保存
         </el-button>
       </template>
@@ -142,6 +187,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import {
   getAdminUserRights,
   getAdminUsers,
@@ -421,35 +467,157 @@ onMounted(async () => {
 .admin-page {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
 }
 
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 18px;
-  color: #8f451b;
+  font-size: 22px;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .page-subtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #ad734f;
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #7f8c8d;
 }
 
 .search-input {
   width: 280px;
 }
 
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #e0e0e0;
+}
+
+.search-input :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #e67e22;
+}
+
+.search-icon {
+  color: #999;
+  font-size: 16px;
+}
+
+.table-card {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.user-table :deep(.el-table__header-wrapper) {
+  background: #f8f9fa;
+}
+
+.table-header {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.user-table :deep(.el-table__body tr:nth-child(even)) {
+  background: #fafafa;
+}
+
+.user-table :deep(.el-table__body tr:hover > td) {
+  background: #fff5e6;
+}
+
+.status-tag {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
 .action-group {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.action-btn.view {
+  color: #3498db;
+}
+
+.action-btn.view:hover {
+  color: #2980b9;
+  background: #ebf5fb;
+  border-radius: 6px;
+}
+
+.action-btn.edit {
+  color: #e67e22;
+}
+
+.action-btn.edit:hover {
+  color: #d35400;
+  background: #fff5e6;
+  border-radius: 6px;
+}
+
+.action-btn:hover {
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.rights-drawer :deep(.el-drawer__header) {
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 0;
+}
+
+.rights-drawer :deep(.el-drawer__title) {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.rights-descriptions :deep(.el-descriptions__label) {
+  font-weight: 500;
+  color: #34495e;
+  background: #fafafa;
+}
+
+.edit-dialog :deep(.el-dialog__header) {
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+}
+
+.edit-dialog :deep(.el-dialog__title) {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.edit-dialog :deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #34495e;
+}
+
+.dialog-btn {
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: 500;
+}
+
+.dialog-btn.primary {
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  border: none;
+}
+
+.dialog-btn.primary:hover {
+  background: linear-gradient(135deg, #d35400 0%, #c0392b 100%);
 }
 </style>
