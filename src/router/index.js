@@ -1,9 +1,64 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isLoggedIn } from '@/utils/auth'
+import { hasAdminRole, isAdminLoggedIn } from '@/utils/adminAuth'
 
-// Route table:
-// `/membership` is the new member center page and must require login.
+// 路由表说明：
+// 1. 用户端保持现有路由结构。
+// 2. 管理端独立走 /admin 前缀，不与用户端入口混用。
 const routes = [
+  {
+    path: '/admin/login',
+    name: 'AdminLogin',
+    component: () => import('@/views/admin/AdminLoginView.vue'),
+    meta: { useLayout: false, adminPublic: true }
+  },
+  {
+    path: '/admin',
+    component: () => import('@/layouts/AdminLayout.vue'),
+    meta: { useLayout: false, requiresAdminAuth: true },
+    children: [
+      {
+        path: '',
+        redirect: '/admin/dashboard'
+      },
+      {
+        path: 'dashboard',
+        name: 'AdminDashboard',
+        component: () => import('@/views/admin/AdminDashboardView.vue'),
+        meta: { useLayout: false, requiresAdminAuth: true }
+      },
+      {
+        path: 'job-roles',
+        name: 'AdminJobRoles',
+        component: () => import('@/views/admin/AdminJobRoleView.vue'),
+        meta: { useLayout: false, requiresAdminAuth: true }
+      },
+      {
+        path: 'prompts',
+        name: 'AdminPrompts',
+        component: () => import('@/views/admin/AdminPromptView.vue'),
+        meta: { useLayout: false, requiresAdminAuth: true }
+      },
+      {
+        path: 'ai-engines',
+        name: 'AdminAiEngines',
+        component: () => import('@/views/admin/AdminAiEngineView.vue'),
+        meta: { useLayout: false, requiresAdminAuth: true }
+      },
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('@/views/admin/AdminUserRightsView.vue'),
+        meta: { useLayout: false, requiresAdminAuth: true }
+      },
+      {
+        path: 'monitor',
+        name: 'AdminMonitor',
+        component: () => import('@/views/admin/AdminMonitorView.vue'),
+        meta: { useLayout: false, requiresAdminAuth: true }
+      }
+    ]
+  },
   {
     path: '/',
     name: 'HomePage',
@@ -81,22 +136,42 @@ const router = createRouter({
   routes
 })
 
-// Global auth guard:
-// protected pages depend on token-based auth status from the existing auth utility.
-// When a protected page is opened without login, the user is redirected to `/login`.
-router.beforeEach((to, from, next) => {
-  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth === true)
+// 全局路由守卫：
+// - 管理端路由和用户端路由分别鉴权，互不干扰。
+router.beforeEach((to) => {
+  const requiresAdminAuth = to.matched.some((record) => record.meta.requiresAdminAuth === true)
+  const adminPublic = to.matched.some((record) => record.meta.adminPublic === true)
+  const requiresUserAuth = to.matched.some((record) => record.meta.requiresAuth === true)
 
-  if (requiresAuth && !isLoggedIn()) {
-    next({
+  if (requiresAdminAuth) {
+    if (!isAdminLoggedIn() || !hasAdminRole()) {
+      return {
+        path: '/admin/login',
+        query: { redirect: to.fullPath }
+      }
+    }
+    return true
+  }
+
+  if (adminPublic) {
+    if (isAdminLoggedIn() && hasAdminRole()) {
+      return '/admin/dashboard'
+    }
+    return true
+  }
+
+  if (requiresUserAuth && !isLoggedIn()) {
+    return {
       path: '/login',
       query: { redirect: to.fullPath }
-    })
-  } else if (to.path === '/login' && isLoggedIn()) {
-    next('/')
-  } else {
-    next()
+    }
   }
+
+  if (to.path === '/login' && isLoggedIn()) {
+    return '/'
+  }
+
+  return true
 })
 
 export default router

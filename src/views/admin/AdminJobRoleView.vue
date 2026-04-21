@@ -1,0 +1,824 @@
+<template>
+  <div class="admin-page">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">岗位配置管理</h2>
+        <p class="page-subtitle">维护模拟面试岗位列表，供用户端岗位下拉与 Prompt 绑定使用</p>
+      </div>
+      <el-button type="primary" @click="openCreateDialog">新增岗位</el-button>
+    </div>
+
+    <div class="filter-bar">
+      <el-input
+        v-model.trim="keyword"
+        class="filter-item keyword"
+        placeholder="按岗位编码/名称搜索"
+        clearable
+        :prefix-icon="Search"
+      />
+      <el-select v-model="statusFilter" class="filter-item" placeholder="按状态筛选">
+        <el-option label="全部状态" value="all" />
+        <el-option label="仅启用" value="active" />
+        <el-option label="仅禁用" value="inactive" />
+      </el-select>
+    </div>
+
+    <el-card shadow="never" class="table-card">
+      <el-table :data="filteredJobRoleList" v-loading="tableLoading" border empty-text="暂无岗位配置数据">
+        <el-table-column prop="id" label="ID" width="100" />
+        <el-table-column prop="roleCode" label="岗位编码" min-width="140" />
+        <el-table-column prop="roleName" label="岗位名称" min-width="160" />
+        <el-table-column label="展示标签" min-width="220">
+          <template #default="{ row }">
+            <div class="tag-list">
+              <el-tag
+                v-for="tag in parseInterviewTags(row.interviewTag)"
+                :key="`${row.id}-${tag}`"
+                :effect="resolveTemplateConfig(row.tagType).effect"
+                :class="['custom-preview-tag', resolveTemplateConfig(row.tagType).className]"
+              >
+                {{ tag }}
+              </el-tag>
+              <span v-if="!parseInterviewTags(row.interviewTag).length" class="empty-tip">-</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="标签样式" min-width="150">
+          <template #default="{ row }">
+            {{ resolveTemplateConfig(row.tagType).label }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="sort" label="排序" width="100" />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.isActive === 1 ? 'success' : 'info'">
+              {{ row.isActive === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <div class="action-group">
+              <el-button type="primary" size="small" round @click="openEditDialog(row)">
+                <el-icon><Edit /></el-icon>编辑
+              </el-button>
+              <el-button
+                size="small"
+                :type="row.isActive === 1 ? 'warning' : 'success'"
+                round
+                @click="handleToggleActive(row)"
+              >
+                {{ row.isActive === 1 ? '禁用' : '启用' }}
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEditMode ? '编辑岗位' : '新增岗位'"
+      width="760px"
+      destroy-on-close
+    >
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="108px">
+        <el-form-item label="岗位编码" prop="roleCode">
+          <el-input
+            v-model.trim="formData.roleCode"
+            placeholder="例如：frontend"
+            :disabled="submitLoading"
+          />
+        </el-form-item>
+        <el-form-item label="岗位名称" prop="roleName">
+          <el-input
+            v-model.trim="formData.roleName"
+            placeholder="例如：前端开发工程师"
+            :disabled="submitLoading"
+          />
+        </el-form-item>
+
+        <el-form-item label="展示标签">
+          <div class="tag-input-section">
+            <el-select
+              v-model="formData.interviewTagList"
+              multiple
+              allow-create
+              filterable
+              default-first-option
+              collapse-tags
+              collapse-tags-tooltip
+              clearable
+              style="width: 100%"
+              placeholder="请选择或输入展示标签"
+              :disabled="submitLoading"
+            >
+              <el-option
+                v-for="tag in interviewTagOptions"
+                :key="tag.value"
+                :label="tag.label"
+                :value="tag.value"
+              />
+            </el-select>
+            <div class="field-tip">支持从默认标签库快速选择，也支持手动补充新标签</div>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="标签实时预览">
+          <div class="tag-list">
+            <el-tag
+              v-for="tag in normalizedFormInterviewTags"
+              :key="tag"
+              :effect="currentTemplateConfig.effect"
+              :class="['custom-preview-tag', currentTemplateConfig.className]"
+            >
+              {{ tag }}
+            </el-tag>
+            <span v-if="!normalizedFormInterviewTags.length" class="empty-tip">未选择展示标签</span>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="标签样式模板" prop="tagType">
+          <!-- 样式模板：只允许预设模板选择，避免自由文本导致展示异常 -->
+          <div class="template-grid">
+            <div
+              v-for="template in tagStyleTemplateOptions"
+              :key="template.value"
+              :class="['template-item', { 'is-active': formData.tagType === template.value }]"
+              @click="!submitLoading && (formData.tagType = template.value)"
+            >
+              <div class="template-item-header">
+                <span class="template-item-title">{{ template.label }}</span>
+                <el-icon v-if="formData.tagType === template.value" class="template-check-icon">
+                  <Check />
+                </el-icon>
+              </div>
+              <div class="template-item-preview">
+                <el-tag
+                  :effect="template.effect"
+                  :class="['custom-preview-tag', template.className]"
+                >
+                  {{ normalizedFormInterviewTags[0] || '示例' }}
+                </el-tag>
+                <span class="template-item-label">风格</span>
+              </div>
+            </div>
+          </div>
+          <div class="field-tip">请选择预设样式模板，用户端将按该模板统一展示岗位标签</div>
+        </el-form-item>
+
+        <el-form-item label="排序" prop="sort">
+          <el-input-number v-model="formData.sort" :min="0" :disabled="submitLoading" />
+        </el-form-item>
+        <el-form-item v-if="isEditMode" label="状态">
+          <el-radio-group v-model="formData.isActive" :disabled="submitLoading">
+            <el-radio :value="1">启用</el-radio>
+            <el-radio :value="0">禁用</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="submitForm">
+          {{ isEditMode ? '保存修改' : '确认新增' }}
+        </el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Check, Search, Edit } from '@element-plus/icons-vue'
+import {
+  createAdminJobRole,
+  getAdminJobRoles,
+  toggleAdminJobRoleActive,
+  updateAdminJobRole
+} from '@/api/admin/jobRoles'
+
+// 表格主数据：岗位配置列表。
+const jobRoleList = ref([])
+const tableLoading = ref(false)
+const keyword = ref('')
+const statusFilter = ref('all')
+
+// 展示标签候选库：覆盖常见招聘场景，并支持后续继续扩充。
+const interviewTagOptions = [
+  { label: '热门', value: '热门' },
+  { label: '推荐', value: '推荐' },
+  { label: '急招', value: '急招' },
+  { label: '高薪', value: '高薪' },
+  { label: '远程', value: '远程' },
+  { label: '校招', value: '校招' },
+  { label: '社招', value: '社招' },
+  { label: '实习', value: '实习' },
+  { label: '全职', value: '全职' },
+  { label: '兼职', value: '兼职' },
+  { label: '双休', value: '双休' },
+  { label: '五险一金', value: '五险一金' },
+  { label: '大厂', value: '大厂' },
+  { label: '初级', value: '初级' },
+  { label: '中级', value: '中级' },
+  { label: '高级', value: '高级' },
+  { label: '专家', value: '专家' },
+  { label: 'AI方向', value: 'AI方向' },
+  { label: '前端', value: '前端' },
+  { label: '后端', value: '后端' },
+  { label: 'Java', value: 'Java' },
+  { label: 'Python', value: 'Python' },
+  { label: '数据', value: '数据' },
+  { label: '算法', value: '算法' },
+  { label: '产品', value: '产品' },
+  { label: '运营', value: '运营' }
+]
+
+// 标签样式模板：前端建立“模板值 -> 展示效果”映射，避免自由文本造成样式失控。
+const tagStyleTemplateOptions = [
+  { value: 'default', label: '默认', effect: 'light', className: 'tag-style-default' },
+  { value: 'orange-highlight', label: '橙色高亮', effect: 'dark', className: 'tag-style-orange' },
+  { value: 'blue-info', label: '蓝色信息', effect: 'dark', className: 'tag-style-blue' },
+  { value: 'green-success', label: '绿色成功', effect: 'dark', className: 'tag-style-green' },
+  { value: 'red-alert', label: '红色提醒', effect: 'dark', className: 'tag-style-red' },
+  { value: 'purple-feature', label: '紫色特色', effect: 'dark', className: 'tag-style-purple' },
+  { value: 'gray-muted', label: '灰色弱化', effect: 'dark', className: 'tag-style-gray' },
+  { value: 'outline', label: '描边风格', effect: 'plain', className: 'tag-style-outline' },
+  { value: 'pill', label: '胶囊风格', effect: 'light', className: 'tag-style-pill' }
+]
+
+// 历史值兼容映射：兼容老数据中的 tagType 值，避免编辑旧数据时样式丢失。
+const legacyTagStyleAliasMap = {
+  hot: 'orange-highlight',
+  common: 'default',
+  info: 'blue-info',
+  success: 'green-success',
+  warning: 'orange-highlight',
+  danger: 'red-alert'
+}
+
+// 弹窗与提交状态：控制新增/编辑流程。
+const dialogVisible = ref(false)
+const submitLoading = ref(false)
+const isEditMode = ref(false)
+const formRef = ref(null)
+
+// 表单核心字段：与后端 DTO 字段一一对应，tagType 存模板值。
+const formData = reactive({
+  id: null,
+  roleCode: '',
+  roleName: '',
+  interviewTagList: [],
+  tagType: 'default',
+  sort: 0,
+  isActive: 1
+})
+
+// 表单校验：岗位编码、岗位名称、标签样式模板和排序为必填项。
+const formRules = {
+  roleCode: [{ required: true, message: '请输入岗位编码', trigger: 'blur' }],
+  roleName: [{ required: true, message: '请输入岗位名称', trigger: 'blur' }],
+  tagType: [{ required: true, message: '请选择标签样式模板', trigger: 'change' }],
+  sort: [{ required: true, message: '请设置排序值', trigger: 'change' }]
+}
+
+/**
+ * 标准化标签数组。
+ * 作用：去空值、去重、去首尾空格，避免提交无效标签。
+ */
+const normalizeTagList = (tags) => {
+  if (!Array.isArray(tags)) return []
+  return Array.from(new Set(tags.map((tag) => String(tag || '').trim()).filter(Boolean)))
+}
+
+/**
+ * 将后端存储的 interviewTag 字符串解析为标签数组。
+ * 说明：后端字段是字符串，本轮按“逗号分隔标签”做兼容扩展。
+ */
+const parseInterviewTags = (interviewTag) => {
+  if (!interviewTag) return []
+  return normalizeTagList(String(interviewTag).split(','))
+}
+
+/**
+ * 归一化样式模板值。
+ * 作用：兼容旧值并回落到 default，保证表单和预览可控。
+ */
+const normalizeTagTemplateValue = (rawTagType) => {
+  const value = String(rawTagType || '').trim()
+  const directHit = tagStyleTemplateOptions.find((item) => item.value === value)
+  if (directHit) return directHit.value
+  const alias = legacyTagStyleAliasMap[value]
+  if (alias) return alias
+  return 'default'
+}
+
+/**
+ * 根据模板值读取样式配置。
+ * 作用：列表展示、即时预览、用户端预览共用同一套样式逻辑。
+ */
+const resolveTemplateConfig = (tagTypeValue) => {
+  const normalized = normalizeTagTemplateValue(tagTypeValue)
+  const target = tagStyleTemplateOptions.find((item) => item.value === normalized)
+  return target || tagStyleTemplateOptions[0]
+}
+
+/**
+ * 表单中的标准化标签数组。
+ * 作用：统一预览与提交数据源，避免显示和提交不一致。
+ */
+const normalizedFormInterviewTags = computed(() => normalizeTagList(formData.interviewTagList))
+
+/**
+ * 当前选中模板配置。
+ * 作用：统一驱动“标签实时预览”和“用户端展示预览区”。
+ */
+const currentTemplateConfig = computed(() => resolveTemplateConfig(formData.tagType))
+
+/**
+ * 预览用岗位名称。
+ * 作用：名称为空时给出占位，避免预览区空白。
+ */
+const previewRoleName = computed(() => {
+  return formData.roleName?.trim() || '岗位名称未填写'
+})
+
+/**
+ * 预览用标签数组。
+ * 作用：将最终提交前的标签结果直接用于预览。
+ */
+const previewTags = computed(() => normalizedFormInterviewTags.value)
+
+/**
+ * 表格筛选结果。
+ * 作用：将关键词与状态筛选统一在前端计算，不改变后端接口契约。
+ */
+const filteredJobRoleList = computed(() => {
+  return jobRoleList.value.filter((item) => {
+    const matchesKeyword = !keyword.value
+      || item.roleCode?.includes(keyword.value)
+      || item.roleName?.includes(keyword.value)
+    const matchesStatus = statusFilter.value === 'all'
+      || (statusFilter.value === 'active' && item.isActive === 1)
+      || (statusFilter.value === 'inactive' && item.isActive !== 1)
+    return matchesKeyword && matchesStatus
+  })
+})
+
+/**
+ * 重置表单到默认状态。
+ * 作用：避免上一次编辑残留数据影响下一次新增。
+ */
+const resetFormData = () => {
+  formData.id = null
+  formData.roleCode = ''
+  formData.roleName = ''
+  formData.interviewTagList = []
+  formData.tagType = 'default'
+  formData.sort = 0
+  formData.isActive = 1
+}
+
+/**
+ * 加载岗位配置列表。
+ * 作用：作为页面初始数据和新增/编辑后的刷新入口。
+ */
+const fetchJobRoleList = async () => {
+  tableLoading.value = true
+  try {
+    const res = await getAdminJobRoles()
+    jobRoleList.value = Array.isArray(res?.data) ? res.data : []
+  } catch (error) {
+    ElMessage.error(error?.message || '加载岗位配置失败')
+  } finally {
+    tableLoading.value = false
+  }
+}
+
+/**
+ * 打开新增弹窗。
+ */
+const openCreateDialog = () => {
+  isEditMode.value = false
+  resetFormData()
+  dialogVisible.value = true
+}
+
+/**
+ * 打开编辑弹窗并回填当前行数据。
+ */
+const openEditDialog = (row) => {
+  isEditMode.value = true
+  formData.id = row.id
+  formData.roleCode = row.roleCode || ''
+  formData.roleName = row.roleName || ''
+  formData.interviewTagList = parseInterviewTags(row.interviewTag)
+  formData.tagType = normalizeTagTemplateValue(row.tagType)
+  formData.sort = Number(row.sort ?? 0)
+  formData.isActive = Number(row.isActive ?? 0)
+  dialogVisible.value = true
+}
+
+/**
+ * 提交新增/编辑表单。
+ * 关键点：
+ * 1. 展示标签按逗号拼接存储，兼容后端原有字符串字段。
+ * 2. 标签样式仅提交预设模板值，禁止自由文本导致不可控展示。
+ */
+const submitForm = async () => {
+  if (!formRef.value) return
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
+
+  submitLoading.value = true
+  try {
+    const payload = {
+      roleCode: formData.roleCode,
+      roleName: formData.roleName,
+      interviewTag: normalizedFormInterviewTags.value.join(',') || null,
+      tagType: normalizeTagTemplateValue(formData.tagType),
+      sort: Number(formData.sort)
+    }
+
+    if (isEditMode.value) {
+      await updateAdminJobRole({
+        id: formData.id,
+        ...payload,
+        isActive: formData.isActive
+      })
+      ElMessage.success('岗位修改成功')
+    } else {
+      await createAdminJobRole(payload)
+      ElMessage.success('岗位新增成功')
+    }
+
+    dialogVisible.value = false
+    await fetchJobRoleList()
+  } catch (error) {
+    ElMessage.error(error?.message || '保存岗位失败')
+  } finally {
+    submitLoading.value = false
+  }
+}
+
+/**
+ * 切换岗位启用状态。
+ * 关键点：明确二次确认，防止误操作导致用户端岗位列表变化。
+ */
+const handleToggleActive = async (row) => {
+  const nextActive = row.isActive === 1 ? 0 : 1
+  const actionText = nextActive === 1 ? '启用' : '禁用'
+
+  try {
+    await ElMessageBox.confirm(
+      `确认${actionText}岗位「${row.roleName}」吗？`,
+      `${actionText}确认`,
+      {
+        type: 'warning'
+      }
+    )
+    await toggleAdminJobRoleActive(row.id, nextActive)
+    ElMessage.success(`岗位已${actionText}`)
+    await fetchJobRoleList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error?.message || `${actionText}岗位失败`)
+    }
+  }
+}
+
+onMounted(() => {
+  fetchJobRoleList()
+})
+</script>
+
+<style scoped>
+.admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 18px;
+  color: #8f451b;
+}
+
+.page-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #ad734f;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-item {
+  width: 180px;
+}
+
+.filter-item.keyword {
+  width: 300px;
+}
+
+.field-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #b07d59;
+  line-height: 1.5;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.empty-tip {
+  color: #b38a6d;
+  font-size: 12px;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.template-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 2px solid #f0e6dc;
+  border-radius: 12px;
+  background: #fdf9f6;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.template-item:hover {
+  border-color: #e8cbb5;
+  background: #fff5ee;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(143, 69, 27, 0.1);
+}
+
+.template-item.is-active {
+  border-color: #e67e22;
+  background: linear-gradient(135deg, #fff8f3 0%, #fef3e8 100%);
+  box-shadow: 0 2px 8px rgba(230, 126, 34, 0.2);
+}
+
+.template-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.template-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #8f451b;
+}
+
+.template-check-icon {
+  color: #e67e22;
+  font-size: 18px;
+}
+
+.template-item-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.template-item-label {
+  font-size: 12px;
+  color: #b89d8a;
+}
+
+.custom-preview-tag {
+  border-radius: 8px;
+  transition: transform 0.2s ease;
+}
+
+.custom-preview-tag:hover {
+  transform: scale(1.05);
+}
+
+.tag-style-default {
+  --el-tag-bg-color: #fdf1e6;
+  --el-tag-border-color: #f6c89f;
+  --el-tag-text-color: #a05a2c;
+}
+
+.tag-style-orange {
+  --el-tag-bg-color: #ff8c42;
+  --el-tag-border-color: #ff8c42;
+  --el-tag-text-color: #fff;
+}
+
+.tag-style-blue {
+  --el-tag-bg-color: #2f7de1;
+  --el-tag-border-color: #2f7de1;
+  --el-tag-text-color: #fff;
+}
+
+.tag-style-green {
+  --el-tag-bg-color: #30b06f;
+  --el-tag-border-color: #30b06f;
+  --el-tag-text-color: #fff;
+}
+
+.tag-style-red {
+  --el-tag-bg-color: #e05454;
+  --el-tag-border-color: #e05454;
+  --el-tag-text-color: #fff;
+}
+
+.tag-style-purple {
+  --el-tag-bg-color: #7b5ad9;
+  --el-tag-border-color: #7b5ad9;
+  --el-tag-text-color: #fff;
+}
+
+.tag-style-gray {
+  --el-tag-bg-color: #8f99a7;
+  --el-tag-border-color: #8f99a7;
+  --el-tag-text-color: #fff;
+}
+
+.tag-style-outline {
+  --el-tag-bg-color: #fff;
+  --el-tag-border-color: #d9b49a;
+  --el-tag-text-color: #9a5c33;
+}
+
+.tag-style-pill {
+  --el-tag-bg-color: #ffe7d2;
+  --el-tag-border-color: #ffd3af;
+  --el-tag-text-color: #b35f2b;
+  border-radius: 999px;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-card {
+  border-radius: 12px;
+  border: 1px solid #f0e6dc;
+}
+
+:deep(.el-table) {
+  --el-table-border-color: #f0e6dc;
+  --el-table-header-bg-color: #fdf9f6;
+  --el-table-tr-bg-color: #fff;
+}
+
+:deep(.el-table th.el-table__cell) {
+  background: #fdf9f6;
+  color: #8f451b;
+  font-weight: 600;
+}
+
+:deep(.el-table td.el-table__cell) {
+  padding: 12px 0;
+}
+
+:deep(.el-table .el-table__empty-text) {
+  color: #b89d8a;
+}
+
+:deep(.el-tag) {
+  border-radius: 8px;
+}
+
+:deep(.el-dialog) {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+:deep(.el-dialog__header) {
+  background: linear-gradient(135deg, #fff8f3 0%, #fff3e8 100%);
+  padding: 20px 24px;
+  margin: 0;
+  border-bottom: 1px solid #f0e6dc;
+}
+
+:deep(.el-dialog__title) {
+  color: #8f451b;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:deep(.el-dialog__body) {
+  padding: 24px;
+}
+
+:deep(.el-dialog__footer) {
+  padding: 16px 24px;
+  border-top: 1px solid #f0e6dc;
+  background: #fdf9f6;
+}
+
+:deep(.el-form-item__label) {
+  color: #8f451b;
+  font-weight: 500;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
+:deep(.el-input__wrapper) {
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px #f0e6dc inset;
+  transition: all 0.2s ease;
+}
+
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #e8cbb5 inset;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #e67e22 inset;
+}
+
+:deep(.el-select .el-select__wrapper) {
+  border-radius: 10px;
+}
+
+:deep(.el-radio-group) {
+  display: flex;
+  gap: 12px;
+}
+
+:deep(.el-radio__label) {
+  color: #8f451b;
+}
+
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #e67e22 0%, #f5a623 100%);
+  border: none;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+:deep(.el-button--primary:hover) {
+  background: linear-gradient(135deg, #d56a15 0%, #e8910f 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.3);
+}
+
+:deep(.el-button--default) {
+  border-radius: 10px;
+  border-color: #e8cbb5;
+  color: #8f451b;
+}
+
+:deep(.el-button--default:hover) {
+  border-color: #e67e22;
+  color: #e67e22;
+}
+
+@media (max-width: 960px) {
+  .template-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-item,
+  .filter-item.keyword {
+    width: 100%;
+  }
+}
+</style>
