@@ -163,47 +163,50 @@ onMounted(() => {
 .admin-page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .page-header {
-  background: linear-gradient(135deg, #fff5e6 0%, #fff 100%);
-  border: 1px solid #f2d4be;
-  border-radius: 14px;
+  background: linear-gradient(135deg, #fffcf8 0%, #fff8f3 100%);
+  border: 1px solid rgba(230, 126, 34, 0.12);
+  border-radius: 16px;
   padding: 20px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 2px 8px rgba(230, 126, 34, 0.1);
+  box-shadow: 0 6px 20px rgba(143, 69, 27, 0.08);
 }
 
 .page-title {
   margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #8f451b 0%, #d35400 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .page-subtitle {
   margin: 6px 0 0;
-  color: #7f8c8d;
+  color: #a08060;
   font-size: 14px;
 }
 
 .refresh-btn {
   background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
   border: none;
-  border-radius: 8px;
-  padding: 10px 20px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 6px 20px rgba(230, 126, 34, 0.3);
   color: #fff;
 }
 
 .refresh-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.4);
+  box-shadow: 0 10px 28px rgba(230, 126, 34, 0.4);
 }
 
 .monitor-error {
@@ -222,30 +225,30 @@ onMounted(() => {
 
 .monitor-card {
   background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 16px;
-  padding: 20px;
+  border: 1px solid rgba(217, 196, 170, 0.25);
+  border-radius: 18px;
+  padding: 22px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  gap: 18px;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 6px 20px rgba(143, 69, 27, 0.06);
 }
 
 .monitor-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  border-color: #e67e22;
+  transform: translateY(-5px);
+  box-shadow: 0 12px 32px rgba(143, 69, 27, 0.12);
+  border-color: rgba(230, 126, 34, 0.35);
 }
 
 .card-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .card-icon.resume-pending {
@@ -284,15 +287,16 @@ onMounted(() => {
 
 .label {
   font-size: 14px;
-  color: #7f8c8d;
-  font-weight: 500;
+  color: #a08060;
+  font-weight: 600;
 }
 
 .value {
-  margin-top: 8px;
-  font-size: 28px;
+  margin-top: 10px;
+  font-size: 32px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #5a4030;
+  line-height: 1.1;
 }
 
 .value.danger {
@@ -317,17 +321,17 @@ onMounted(() => {
   }
 
   .monitor-card {
-    padding: 16px;
+    padding: 18px;
   }
 
   .card-icon {
-    width: 48px;
-    height: 48px;
-    font-size: 20px;
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
   }
 
   .value {
-    font-size: 24px;
+    font-size: 26px;
   }
 }
 </style>
