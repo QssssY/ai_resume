@@ -213,7 +213,22 @@
           </svg>
         </div>
         <div class="empty-title">暂无评价报告</div>
-        <div class="empty-desc">系统正在生成中，请稍后再来</div>
+        <div class="empty-desc">
+          {{
+            reportPolling
+              ? "系统正在生成中，页面将自动刷新..."
+              : "系统正在生成中，请稍后再来"
+          }}
+        </div>
+        <el-button
+          type="primary"
+          plain
+          size="small"
+          :loading="refreshingReport"
+          @click="refreshReportNow"
+        >
+          立即刷新
+        </el-button>
       </div>
 
       <template v-else>
@@ -809,10 +824,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ArrowLeft } from "@element-plus/icons-vue";
 import { getInterviewSession } from "@/api/interview";
+import { ElMessage } from "element-plus";
 
 const route = useRoute();
 const router = useRouter();
@@ -821,6 +837,12 @@ const sessionId = computed(() => route.params.sessionId);
 const loading = ref(true);
 const error = ref("");
 const sessionData = ref(null);
+const reportPolling = ref(false);
+const refreshingReport = ref(false);
+const reportPollRounds = ref(0);
+const REPORT_POLL_INTERVAL_MS = 3000;
+const REPORT_POLL_MAX_ROUNDS = 120;
+let reportPollingTimer = null;
 
 const isEnded = computed(() => sessionData.value?.status === 1);
 
@@ -856,7 +878,18 @@ const parsedReport = computed(() => {
   const report = sessionData.value?.evaluationReport;
   if (report === null || report === undefined) return null;
   if (typeof report === "string") {
-    const trimmed = report.trim();
+    // 兼容后端可能返回的 markdown 包裹格式，避免“报告已生成但前端解析失败”。
+    let trimmed = report.trim();
+    if (trimmed.startsWith("```json")) {
+      trimmed = trimmed.substring(7);
+    } else if (trimmed.startsWith("```")) {
+      trimmed = trimmed.substring(3);
+    }
+    const lastBacktick = trimmed.lastIndexOf("```");
+    if (lastBacktick > 0) {
+      trimmed = trimmed.substring(0, lastBacktick);
+    }
+    trimmed = trimmed.trim();
     if (!trimmed) return null;
     try {
       return JSON.parse(trimmed);
@@ -870,6 +903,7 @@ const parsedReport = computed(() => {
 const hasReport = computed(() => {
   return parsedReport.value !== null;
 });
+const shouldPollReport = computed(() => isEnded.value && !hasReport.value);
 
 const levelBadgeClass = computed(() => {
   const level = parsedReport.value?.level;
@@ -1013,23 +1047,86 @@ const getScoreColor = (score) => {
   return "#F56C6C";
 };
 
-const fetchSessionDetail = async () => {
+const fetchSessionDetail = async (options = {}) => {
+  const { showLoading = true, silentError = false } = options;
   if (!sessionId.value) {
-    error.value = "会话ID不存在";
-    loading.value = false;
+    if (!silentError) {
+      error.value = "会话ID不存在";
+    }
+    if (showLoading) {
+      loading.value = false;
+    }
     return;
   }
 
-  loading.value = true;
-  error.value = "";
+  if (showLoading) {
+    loading.value = true;
+  }
+  if (!silentError) {
+    error.value = "";
+  }
 
   try {
     const res = await getInterviewSession(sessionId.value);
     sessionData.value = res.data;
   } catch (err) {
-    error.value = err.message || "获取评价报告失败，请稍后重试";
+    if (!silentError) {
+      error.value = err.message || "获取评价报告失败，请稍后重试";
+    }
   } finally {
-    loading.value = false;
+    if (showLoading) {
+      loading.value = false;
+    }
+  }
+};
+
+/**
+ * 启动报告轮询。
+ * 作用：报告尚未落库时自动刷新，用户留在报告页即可看到最终结果。
+ */
+const startReportPolling = () => {
+  if (reportPollingTimer || !sessionId.value) return;
+  reportPolling.value = true;
+  reportPollRounds.value = 0;
+  reportPollingTimer = setInterval(async () => {
+    if (refreshingReport.value) return;
+    refreshingReport.value = true;
+    try {
+      await fetchSessionDetail({ showLoading: false, silentError: true });
+      reportPollRounds.value += 1;
+      if (hasReport.value) {
+        stopReportPolling();
+        ElMessage.success("评价报告已生成");
+        return;
+      }
+      if (reportPollRounds.value >= REPORT_POLL_MAX_ROUNDS) {
+        stopReportPolling();
+      }
+    } finally {
+      refreshingReport.value = false;
+    }
+  }, REPORT_POLL_INTERVAL_MS);
+};
+
+/**
+ * 停止报告轮询，避免页面离开后继续请求。
+ */
+const stopReportPolling = () => {
+  if (reportPollingTimer) {
+    clearInterval(reportPollingTimer);
+    reportPollingTimer = null;
+  }
+  reportPolling.value = false;
+  reportPollRounds.value = 0;
+};
+
+const refreshReportNow = async () => {
+  if (!sessionId.value) return;
+  refreshingReport.value = true;
+  try {
+    await fetchSessionDetail({ showLoading: false, silentError: true });
+  } finally {
+    refreshingReport.value = false;
   }
 };
 
@@ -1048,6 +1145,22 @@ const goToEntry = () => {
 
 onMounted(() => {
   fetchSessionDetail();
+});
+
+watch(
+  shouldPollReport,
+  (needPolling) => {
+    if (needPolling) {
+      startReportPolling();
+      return;
+    }
+    stopReportPolling();
+  },
+  { immediate: true }
+);
+
+onUnmounted(() => {
+  stopReportPolling();
 });
 </script>
 
