@@ -162,7 +162,7 @@
           </svg>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ resumeQuotaLeft }}</div>
+          <div class="stat-value">{{ isVipUser ? vipDailyResumeQuotaLeft : resumeQuotaLeft }}</div>
           <div class="stat-label">{{ resumeStatLabel }}</div>
         </div>
       </div>
@@ -180,7 +180,7 @@
           </svg>
         </div>
         <div class="stat-content">
-          <div class="stat-value">{{ interviewQuotaLeft }}</div>
+          <div class="stat-value">{{ isVipUser ? vipDailyInterviewQuotaLeft : interviewQuotaLeft }}</div>
           <div class="stat-label">{{ interviewStatLabel }}</div>
         </div>
       </div>
@@ -392,6 +392,14 @@ const interviewQuotaLeft = computed(() => {
   return userStore.userInfo?.interviewQuota ?? 0;
 });
 
+const vipDailyResumeQuotaLeft = computed(() => {
+  return userStore.userInfo?.vipDailyResumeQuota ?? 0;
+});
+
+const vipDailyInterviewQuotaLeft = computed(() => {
+  return userStore.userInfo?.vipDailyInterviewQuota ?? 0;
+});
+
 // 用户角色判定
 const isAdmin = computed(() => userStore.userInfo?.role === 9);
 const isVipUser = computed(() => {
@@ -412,11 +420,11 @@ const isNormalUser = computed(() => !isAdmin.value && !isVipUser.value);
  * 因此前端必须把 VIP 标成“今日剩余”，把普通用户标成“免费剩余”。
  */
 const resumeQuotaLabel = computed(() => {
-  return isVipUser.value ? "今日剩余简历诊断" : "免费简历诊断剩余";
+  return isVipUser.value ? "总剩余简历诊断" : "免费简历诊断剩余";
 });
 
 const interviewQuotaLabel = computed(() => {
-  return isVipUser.value ? "今日剩余模拟面试" : "免费模拟面试剩余";
+  return isVipUser.value ? "总剩余模拟面试" : "免费模拟面试剩余";
 });
 
 const resumeStatLabel = computed(() => {

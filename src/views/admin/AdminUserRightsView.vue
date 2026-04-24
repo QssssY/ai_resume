@@ -280,7 +280,7 @@
           />
         </el-form-item>
 
-        <el-form-item label="面试额度" prop="interviewQuota">
+        <el-form-item label="面试剩余额度" prop="interviewQuota">
           <el-input-number
             v-model="quotaForm.interviewQuota"
             :min="0"
@@ -293,7 +293,7 @@
           />
         </el-form-item>
 
-        <el-form-item label="简历额度" prop="resumeQuota">
+        <el-form-item label="简历剩余额度" prop="resumeQuota">
           <el-input-number
             v-model="quotaForm.resumeQuota"
             :min="0"

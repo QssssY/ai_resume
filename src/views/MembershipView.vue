@@ -217,11 +217,11 @@ const interviewQuotaText = computed(() => userInfo.value?.interviewQuota ?? 0);
    所以前端必须显式区分“今日剩余”和“免费剩余”。
    ======================== */
 const resumeQuotaLabel = computed(() => {
-  return isVipUser.value ? "今日剩余简历次数" : "剩余免费简历次数";
+  return isVipUser.value ? "总剩余简历次数" : "剩余免费简历次数";
 });
 
 const interviewQuotaLabel = computed(() => {
-  return isVipUser.value ? "今日剩余面试次数" : "剩余免费面试次数";
+  return isVipUser.value ? "总剩余面试次数" : "剩余免费面试次数";
 });
 
 /* ========================
