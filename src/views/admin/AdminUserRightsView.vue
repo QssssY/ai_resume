@@ -280,6 +280,32 @@
           />
         </el-form-item>
 
+        <el-form-item label="面试额度" prop="interviewQuota">
+          <el-input-number
+            v-model="quotaForm.interviewQuota"
+            :min="0"
+            :step="1"
+            step-strictly
+            :precision="0"
+            controls-position="right"
+            style="width: 100%"
+            :disabled="quotaSaving"
+          />
+        </el-form-item>
+
+        <el-form-item label="简历额度" prop="resumeQuota">
+          <el-input-number
+            v-model="quotaForm.resumeQuota"
+            :min="0"
+            :step="1"
+            step-strictly
+            :precision="0"
+            controls-position="right"
+            style="width: 100%"
+            :disabled="quotaSaving"
+          />
+        </el-form-item>
+
         <el-form-item label="最后刷新日期" prop="lastRefreshDate">
           <el-date-picker
             v-model="quotaForm.lastRefreshDate"
@@ -422,6 +448,8 @@ const rightsData = reactive({
   dailyInterviewUsed: 0,
   totalResumeUsed: 0,
   totalInterviewUsed: 0,
+  interviewQuota: 0,
+  resumeQuota: 0,
   lastRefreshDate: ''
 })
 
@@ -841,6 +869,8 @@ const openQuotaDialog = async (row) => {
     quotaForm.totalResumeUsed = toSafeNonNegativeInteger(data.totalResumeUsed)
     quotaForm.dailyInterviewUsed = toSafeNonNegativeInteger(data.dailyInterviewUsed)
     quotaForm.dailyResumeUsed = toSafeNonNegativeInteger(data.dailyResumeUsed)
+    quotaForm.interviewQuota = toSafeNonNegativeInteger(data.interviewQuota)
+    quotaForm.resumeQuota = toSafeNonNegativeInteger(data.resumeQuota)
     quotaForm.lastRefreshDate = data.lastRefreshDate || ''
   } catch (error) {
     showAdminError(error?.message || '加载用户额度失败')
@@ -932,6 +962,8 @@ const submitQuotaEdit = async () => {
       totalResumeUsed: toSafeNonNegativeInteger(quotaForm.totalResumeUsed),
       dailyInterviewUsed: toSafeNonNegativeInteger(quotaForm.dailyInterviewUsed),
       dailyResumeUsed: toSafeNonNegativeInteger(quotaForm.dailyResumeUsed),
+      interviewQuota: toSafeNonNegativeInteger(quotaForm.interviewQuota),
+      resumeQuota: toSafeNonNegativeInteger(quotaForm.resumeQuota),
       lastRefreshDate: quotaForm.lastRefreshDate || null
     }
 

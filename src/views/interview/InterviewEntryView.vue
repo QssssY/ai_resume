@@ -28,6 +28,7 @@
               class="job-select"
               :disabled="creating"
               popper-class="job-select-popper"
+              @change="onJobChange"
             >
               <template #empty>
                 <div class="empty-options">暂无岗位数据</div>
@@ -159,6 +160,7 @@ const difficultyMap = {
 
 // 选中状态
 const selectedJob = ref("");
+const selectedRoleCode = ref("");
 const selectedDifficulty = ref("primary");
 const selectedMode = ref("normal");
 const creating = ref(false);
@@ -177,6 +179,7 @@ const fetchJobOptions = async () => {
     jobOptions.value = rawList.map((item) => ({
       label: item.roleName,
       value: item.roleName,
+      roleCode: item.roleCode,
       tag: item.interviewTag || "常规",
       tagType: item.tagType || "normal",
     }));
@@ -187,6 +190,11 @@ const fetchJobOptions = async () => {
 };
 
 // 开始面试 - 先创建会话，再跳转
+const onJobChange = (jobName) => {
+  const job = jobOptions.value.find((j) => j.label === jobName);
+  selectedRoleCode.value = job?.roleCode || "";
+};
+
 const handleStart = async () => {
   if (!userStore.isLoggedIn()) {
     ElMessage.warning("请先登录");
@@ -205,6 +213,7 @@ const handleStart = async () => {
     // 调用创建会话接口
     const res = await createInterviewSession({
       jobRole: selectedJob.value,
+      jobRoleCode: selectedRoleCode.value,
       difficulty: difficultyMap[selectedDifficulty.value],
       interviewMode: selectedMode.value,
     });
