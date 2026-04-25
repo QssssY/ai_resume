@@ -444,12 +444,10 @@ const rightsData = reactive({
   isVipActive: false,
   resumeQuota: 0,
   interviewQuota: 0,
-  dailyResumeUsed: 0,
-  dailyInterviewUsed: 0,
-  totalResumeUsed: 0,
+dailyResumeUsed: 0,
   totalInterviewUsed: 0,
-  interviewQuota: 0,
   resumeQuota: 0,
+  interviewQuota: 0,
   lastRefreshDate: ''
 })
 

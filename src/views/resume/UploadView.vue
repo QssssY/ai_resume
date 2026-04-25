@@ -79,9 +79,11 @@
             size="large"
             :disabled="!selectedFile || fileError || submitting"
             :loading="submitting"
+            :class="{ 'btn-loading': submitting }"
             @click="handleSubmit"
           >
-            {{ buttonText }}
+            <span v-if="submitting" class="btn-text-loading">AI 正在分析中...</span>
+            <span v-else>{{ buttonText }}</span>
           </el-button>
         </div>
 
@@ -239,7 +241,13 @@ const handleSubmit = async () => {
   try {
     const res = await uploadResume(selectedFile.value)
     const taskId = String(res.data)
-    ElMessage.success('简历诊断任务已提交')
+
+    ElMessage({
+      message: '简历已提交，正在诊断...',
+      type: 'success',
+      duration: 2000,
+      showClose: true
+    })
 
     if (taskId) {
       await router.push(`/resume/result/${taskId}`)
@@ -427,6 +435,27 @@ const retrySubmit = () => {
   margin-bottom: 20px;
 }
 
+.submit-section :deep(.btn-loading) {
+  position: relative;
+  overflow: hidden;
+}
+
+.submit-section :deep(.btn-loading::after) {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #fff, transparent);
+  animation: loading-bar 1.5s ease-in-out infinite;
+}
+
+@keyframes loading-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 /* 失败反馈 */
 .submit-error {
   display: flex;
@@ -498,5 +527,36 @@ const retrySubmit = () => {
 .info-text {
   font-size: 14px;
   color: #555555;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 20px;
+  }
+  .upload-card {
+    padding: 24px 20px;
+  }
+  .info-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 18px;
+  }
+  .page-desc {
+    font-size: 13px;
+  }
+  .upload-card {
+    padding: 20px 16px;
+  }
+  .upload-area :deep(.el-upload-dragger) {
+    padding: 24px 16px;
+  }
+  .upload-title {
+    font-size: 14px;
+  }
 }
 </style>

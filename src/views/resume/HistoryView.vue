@@ -6,11 +6,17 @@
       <p class="page-desc">查看您所有的简历诊断记录</p>
     </div>
 
-    <!-- 加载状态 -->
+    <!-- 加载状态 - 骨架屏 -->
     <div v-if="loading" class="loading-section">
-      <div class="loading-content">
-        <el-icon class="loading-icon" :size="48"><Loading /></el-icon>
-        <div class="loading-text">加载中...</div>
+      <div class="skeleton-card">
+        <el-skeleton :rows="5" animated :loading="true">
+          <template #default>
+            <div class="skeleton-item" v-for="i in 5" :key="i">
+              <el-skeleton-item variant="rect" style="width: 200px; height: 16px;" />
+              <el-skeleton-item variant="rect" style="width: 80px; height: 24px; margin-left: 16px;" />
+            </div>
+          </template>
+        </el-skeleton>
       </div>
     </div>
 
@@ -33,12 +39,12 @@
     <!-- 空状态 -->
     <div v-else-if="total === 0" class="empty-section">
       <div class="empty-content">
-        <el-icon :size="64" color="#F3D8C7"><Document /></el-icon>
+        <ResumeEmpty :size="140" />
         <div class="empty-title">暂无诊断记录</div>
         <div class="empty-desc">
-          您还没有进行过简历诊断，上传简历开始您的第一次诊断吧
+          上传您的第一份简历，开启AI智能诊断，发现简历优化方向
         </div>
-        <el-button type="primary" @click="goToUpload">去上传简历</el-button>
+        <el-button type="primary" @click="goToUpload">上传简历</el-button>
       </div>
     </div>
 
@@ -121,6 +127,7 @@ import { useRouter } from "vue-router";
 import { Loading, CircleClose, Document } from "@element-plus/icons-vue";
 import { getResumeHistory, extractFileName } from "@/api/resume";
 import { ElMessage } from "element-plus";
+import ResumeEmpty from "@/components/empty/ResumeEmpty.vue";
 
 const router = useRouter();
 
@@ -254,38 +261,27 @@ onMounted(() => {
   color: #888888;
 }
 
-/* 加载状态 */
+/* 加载状态 - 骨架屏 */
 .loading-section {
+  padding: 20px 0;
+}
+
+.skeleton-card {
+  background: #ffffff;
+  border: 1px solid #f3d8c7;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.skeleton-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 80px 0;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
 }
 
-.loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.loading-icon {
-  color: #ff8c42;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-text {
-  font-size: 14px;
-  color: #888888;
+.skeleton-item:last-child {
+  border-bottom: none;
 }
 
 /* 错误状态 */
@@ -350,10 +346,10 @@ onMounted(() => {
 }
 
 .empty-title {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
   color: #2f2f2f;
-  margin: 16px 0 8px;
+  margin: 20px 0 8px;
 }
 
 .empty-desc {
@@ -361,6 +357,7 @@ onMounted(() => {
   color: #888888;
   margin-bottom: 24px;
   max-width: 400px;
+  line-height: 1.6;
 }
 
 /* 历史记录列表 */
@@ -401,5 +398,31 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding: 16px 0;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 20px;
+  }
+  .file-name {
+    max-width: 160px;
+  }
+  .create-time {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 18px;
+  }
+  .page-desc {
+    font-size: 13px;
+  }
+  .file-name {
+    max-width: 120px;
+    font-size: 13px;
+  }
 }
 </style>

@@ -27,4 +27,17 @@ import AppHeader from "@/components/AppHeader.vue";
 .layout-content {
   padding: 24px;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .layout-content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .layout-content {
+    padding: 12px;
+  }
+}
 </style>

@@ -6,11 +6,30 @@
       <p class="page-desc">查看您所有的模拟面试记录</p>
     </div>
 
-    <!-- 加载状态 -->
+    <!-- 加载状态 - 骨架屏 -->
     <div v-if="loading" class="loading-section">
-      <div class="loading-content">
-        <el-icon class="loading-icon" :size="48"><Loading /></el-icon>
-        <div class="loading-text">加载中...</div>
+      <div class="skeleton-list">
+        <div class="skeleton-card" v-for="i in 3" :key="i">
+          <el-skeleton :rows="0" animated :loading="true">
+            <template #default>
+              <div class="skeleton-header">
+                <el-skeleton-item variant="rect" style="width: 180px; height: 24px;" />
+                <el-skeleton-item variant="rect" style="width: 60px; height: 24px; margin-left: auto;" />
+              </div>
+              <div class="skeleton-info">
+                <el-skeleton-item variant="rect" style="width: 100px; height: 16px;" />
+                <el-skeleton-item variant="rect" style="width: 100px; height: 16px;" />
+              </div>
+              <div class="skeleton-footer">
+                <el-skeleton-item variant="rect" style="width: 120px; height: 16px;" />
+                <div class="skeleton-actions">
+                  <el-skeleton-item variant="rect" style="width: 80px; height: 32px;" />
+                  <el-skeleton-item variant="rect" style="width: 80px; height: 32px;" />
+                </div>
+              </div>
+            </template>
+          </el-skeleton>
+        </div>
       </div>
     </div>
 
@@ -33,10 +52,10 @@
     <!-- 空状态 -->
     <div v-else-if="total === 0" class="empty-section">
       <div class="empty-content">
-        <el-icon :size="64" color="#F3D8C7"><ChatDotRound /></el-icon>
+        <InterviewEmpty :size="140" />
         <div class="empty-title">暂无面试记录</div>
-        <div class="empty-desc">您还没有进行过模拟面试，选择岗位开始您的第一次面试吧</div>
-        <el-button type="primary" @click="goToEntry">去开始面试</el-button>
+        <div class="empty-desc">选择目标岗位，开始第一次模拟面试，提升您的面试技巧</div>
+        <el-button type="primary" @click="goToEntry">开始面试</el-button>
       </div>
     </div>
 
@@ -132,6 +151,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loading, CircleClose, ChatDotRound } from '@element-plus/icons-vue'
 import { getInterviewHistory } from '@/api/interview'
+import InterviewEmpty from '@/components/empty/InterviewEmpty.vue'
 
 const router = useRouter()
 
@@ -325,34 +345,49 @@ onMounted(() => {
   color: #888888;
 }
 
-/* 加载状态 */
+/* 加载状态 - 骨架屏 */
 .loading-section {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 0;
+  padding: 20px 0;
 }
 
-.loading-content {
+.skeleton-list {
   display: flex;
   flex-direction: column;
+  gap: 24px;
+}
+
+.skeleton-card {
+  background: #ffffff;
+  border: 1px solid #f3d8c7;
+  border-radius: 16px;
+  padding: 28px 32px;
+}
+
+.skeleton-header {
+  display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f5f5f5;
 }
 
-.loading-icon {
-  color: #FF8C42;
-  animation: spin 1s linear infinite;
+.skeleton-info {
+  display: flex;
+  gap: 48px;
+  margin-bottom: 20px;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.skeleton-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
 }
 
-.loading-text {
-  font-size: 14px;
-  color: #888888;
+.skeleton-actions {
+  display: flex;
+  gap: 12px;
 }
 
 /* 错误状态 */
@@ -417,10 +452,10 @@ onMounted(() => {
 }
 
 .empty-title {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
   color: #2F2F2F;
-  margin: 16px 0 8px;
+  margin: 20px 0 8px;
 }
 
 .empty-desc {
@@ -428,6 +463,7 @@ onMounted(() => {
   color: #888888;
   margin-bottom: 24px;
   max-width: 400px;
+  line-height: 1.6;
 }
 
 /* ============================================
@@ -543,5 +579,48 @@ onMounted(() => {
   justify-content: center;
   padding: 24px 0;
   margin-top: 16px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 20px;
+  }
+  .info-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .info-item {
+    min-width: auto;
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 18px;
+  }
+  .page-desc {
+    font-size: 13px;
+  }
+  .job-title {
+    font-size: 16px;
+  }
+  .history-card {
+    padding: 20px 16px;
+  }
+  .card-footer {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .card-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 </style>

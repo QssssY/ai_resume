@@ -27,10 +27,6 @@ onMounted(async () => {
 
   if (!token) return
 
-  if (!localStorage.getItem('token')) {
-    localStorage.setItem('token', token)
-  }
-
   try {
     await userStore.fetchUserInfo()
   } catch (err) {

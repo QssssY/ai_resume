@@ -91,9 +91,11 @@
             size="large"
             :disabled="!selectedJob || creating"
             :loading="creating"
+            :class="{ 'btn-creating': creating }"
             @click="handleStart"
           >
-            {{ creating ? "创建面试中..." : "开始面试" }}
+            <span v-if="creating" class="btn-text">正在创建面试...</span>
+            <span v-else>开始面试</span>
           </el-button>
         </div>
       </div>
@@ -574,6 +576,11 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+@keyframes creating-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 /* 面试说明区 */
 .info-section {
   margin-bottom: 24px;
@@ -623,5 +630,35 @@ onMounted(() => {
 .info-text {
   font-size: 14px;
   color: #555555;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 20px;
+  }
+  .job-selector-grid {
+    grid-template-columns: 1fr;
+  }
+  .info-list {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 18px;
+  }
+  .page-desc {
+    font-size: 13px;
+  }
+  .difficulty-section,
+  .mode-section {
+    padding: 20px 16px;
+  }
+  .start-section .el-button {
+    width: 100%;
+    padding: 14px 24px;
+  }
 }
 </style>
