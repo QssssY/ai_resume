@@ -204,7 +204,7 @@ const upgradingPlanCode = ref("");
    用户信息派生状态
    ======================== */
 const userInfo = computed(() => userStore.userInfo);
-const userName = computed(() => userInfo.value?.username || "用户");
+const userName = computed(() => userInfo.value?.nickname || userInfo.value?.username || "用户");
 const resumeQuotaText = computed(() => userInfo.value?.resumeQuota ?? 0);
 const interviewQuotaText = computed(() => userInfo.value?.interviewQuota ?? 0);
 

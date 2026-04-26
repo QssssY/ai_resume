@@ -15,7 +15,7 @@
             <div class="user-info">
               <div class="welcome-text">欢迎回来</div>
               <div class="user-name">
-                {{ userStore.userInfo?.username || "用户" }}
+                {{ userStore.userInfo?.nickname || userStore.userInfo?.username || "用户" }}
               </div>
               <div class="user-role-tag" :class="roleBadgeClass">
                 <span class="role-dot"></span>

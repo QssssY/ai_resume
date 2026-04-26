@@ -129,6 +129,14 @@
             <div class="table-header">用户名</div>
           </template>
         </el-table-column>
+        <el-table-column prop="nickname" label="昵称" min-width="150" align="center">
+          <template #header>
+            <div class="table-header">昵称</div>
+          </template>
+          <template #default="{ row }">
+            {{ row.nickname || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="roleDesc" label="角色" width="120" align="center">
           <template #header>
             <div class="table-header">角色</div>
@@ -211,6 +219,7 @@
       <el-descriptions v-else :column="1" border class="rights-descriptions">
         <el-descriptions-item label="用户ID">{{ rightsData.userId }}</el-descriptions-item>
         <el-descriptions-item label="用户名">{{ rightsData.username }}</el-descriptions-item>
+        <el-descriptions-item label="昵称">{{ rightsData.nickname || '-' }}</el-descriptions-item>
         <el-descriptions-item label="角色">{{ rightsData.roleDesc }}</el-descriptions-item>
         <el-descriptions-item label="套餐编码">{{ rightsData.membershipPlanCode || '-' }}</el-descriptions-item>
         <el-descriptions-item label="会员到期">

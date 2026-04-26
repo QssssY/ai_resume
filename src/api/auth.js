@@ -40,3 +40,17 @@ export function getCurrentUser() {
     method: 'get'
   })
 }
+
+/**
+ * 更新用户昵称
+ * @param {Object} data - 更新参数
+ * @param {string} data.nickname - 新昵称
+ * @returns {Promise}
+ */
+export function updateNickname(data) {
+  return request({
+    url: '/api/auth/nickname',
+    method: 'put',
+    data
+  })
+}

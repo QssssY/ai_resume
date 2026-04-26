@@ -147,6 +147,18 @@
                 </svg>
                 个人中心
               </el-dropdown-item>
+              <el-dropdown-item command="nickname">
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M17 3a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2-2V7a2 2 0 0 1 2-2 2 2 0 0 1-2-2V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2-2V7a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2" transform="scale(0.7) translate(4, 4)"/>
+                </svg>
+                修改昵称
+              </el-dropdown-item>
               <!-- 退出登录 -->
               <!-- 会员中心入口：
                    页面已经存在，这里只是在头像下拉菜单中补入口。
@@ -241,6 +253,28 @@
         >
       </nav>
     </el-drawer>
+
+    <el-dialog
+      v-model="nicknameDialogVisible"
+      title="修改昵称"
+      width="400px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-width="80px">
+        <el-form-item label="新昵称">
+          <el-input
+            v-model="nicknameForm.nickname"
+            placeholder="请输入新昵称(2-12个字符)"
+            maxlength="12"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="nicknameDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveNickname">保存</el-button>
+      </template>
+    </el-dialog>
   </header>
 </template>
 
@@ -250,14 +284,17 @@ import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
 import { ElMessage } from "element-plus";
 import { removeToken } from "@/utils/auth";
+import { updateNickname } from "@/api/auth";
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 
 const drawerVisible = ref(false);
+const nicknameDialogVisible = ref(false);
+const nicknameForm = ref({ nickname: "" });
 const isLoggedIn = computed(() => userStore.isLoggedIn());
-const username = computed(() => userStore.userInfo?.username || "用户");
+const username = computed(() => userStore.userInfo?.nickname || userStore.userInfo?.username || "用户");
 
 // 用户角色判定
 const isAdmin = computed(() => userStore.userInfo?.role === 9);
@@ -326,17 +363,34 @@ const handleCommand = (command) => {
   if (command === "profile") {
     router.push("/dashboard");
   } else if (command === "membership") {
-    // 点击“会员中心”后跳转到已经存在的 /membership 路由。
     router.push("/membership");
-  } else if (command === "logout") {
+  } else if (command === "nickname") {
+    nicknameForm.value.nickname = userStore.userInfo?.nickname || "";
+    nicknameDialogVisible.value = true;
+} else if (command === "logout") {
     // 原有退出登录逻辑不能被破坏：
-    // 这里仍然保持“清 token -> 清 Pinia 用户信息 -> 返回首页”的顺序，
+    // 这里仍然保持"清 token -> 清 Pinia 用户信息 -> 返回首页"的顺序，
     // 这样头部和页面登录态才能立即响应式更新。
     localStorage.removeItem("token");
     removeToken();
     userStore.clearUserInfo();
     ElMessage.success("已退出登录");
     router.push("/");
+  }
+};
+
+const saveNickname = async () => {
+  if (!nicknameForm.value.nickname || nicknameForm.value.nickname.trim().length < 2) {
+    ElMessage.warning("昵称长度至少2个字符");
+    return;
+  }
+  try {
+    await updateNickname({ nickname: nicknameForm.value.nickname.trim() });
+    ElMessage.success("昵称修改成功");
+    nicknameDialogVisible.value = false;
+    userStore.fetchUserInfo();
+  } catch (e) {
+    ElMessage.error(e.message || "修改失败");
   }
 };
 </script>
