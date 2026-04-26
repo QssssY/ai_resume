@@ -50,3 +50,42 @@ export function toggleAdminPromptActive(id, isActive) {
     params: { isActive }
   })
 }
+
+/**
+ * 删除 Prompt 模板（物理删除）
+ * @param {number} id Prompt模板ID
+ * @returns {Promise}
+ */
+export function deletePrompt(id) {
+  return adminRequest({
+    url: `/api/admin/prompts/${id}`,
+    method: 'delete'
+  })
+}
+
+/**
+ * 批量删除 Prompt 模板（物理删除）
+ * @param {number[]} ids Prompt模板ID数组
+ * @returns {Promise}
+ */
+export function deletePrompts(ids) {
+  return adminRequest({
+    url: '/api/admin/prompts/batch',
+    method: 'delete',
+    data: ids
+  })
+}
+
+/**
+ * 批量启用或禁用 Prompt 模板
+ * @param {number[]} ids Prompt模板ID数组
+ * @param {number} isActive - 1 启用，0 禁用
+ * @returns {Promise}
+ */
+export function togglePromptsBatchActive(ids, isActive) {
+  return adminRequest({
+    url: '/api/admin/prompts/batch/active',
+    method: 'put',
+    data: { ids, isActive }
+  })
+}

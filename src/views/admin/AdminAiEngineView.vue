@@ -7,6 +7,31 @@
       </div>
       <div class="header-actions">
         <el-button :loading="tableLoading" class="refresh-btn" @click="fetchEngineList">刷新列表</el-button>
+        <el-button
+          v-if="selectedEngines.length > 0"
+          type="danger"
+          :loading="batchDeleteLoading"
+          @click="handleBatchDelete"
+        >
+          批量删除 ({{ selectedEngines.length }})
+        </el-button>
+        <el-button
+          v-if="selectedEngines.length > 0"
+          type="warning"
+          @click="handleBatchDisable"
+        >
+          批量禁用
+        </el-button>
+        <el-button
+          v-if="selectedEngines.length > 0"
+          type="success"
+          @click="handleBatchEnable"
+        >
+          批量启用
+        </el-button>
+        <el-button @click="handleSelectAll">
+          全部勾选
+        </el-button>
         <el-button type="primary" @click="openCreateDialog" class="btn-primary">
           <el-icon><Edit /></el-icon>
           新增引擎配置
@@ -108,14 +133,16 @@
     />
 
     <el-card shadow="never" class="table-card">
-      <el-table
+      <el-table ref="engineTableRef"
         :data="pagedEngineList"
         v-loading="tableLoading"
         border
         stripe
         :empty-text="tableEmptyText"
         class="engine-table"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" align="center">
           <template #header>
             <div class="table-header">ID</div>
@@ -204,7 +231,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right" align="center">
+        <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #header>
             <div class="table-header">操作</div>
           </template>
@@ -220,6 +247,15 @@
                 :loading="toggleLoadingId === row.id"
               >
                 {{ row.isActive === 1 ? '禁用' : '启用' }}
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                plain
+                @click="handleDelete(row)"
+                class="action-btn"
+              >
+                删除
               </el-button>
             </div>
           </template>
@@ -382,8 +418,11 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Edit, Search } from '@element-plus/icons-vue'
 import {
   createAdminAiEngine,
+  deleteAiEngine,
+  deleteAiEngines,
   getAdminAiEngines,
   toggleAdminAiEngineActive,
+  toggleAiEnginesBatchActive,
   updateAdminAiEngine
 } from '@/api/admin/aiEngines'
 import {
@@ -397,6 +436,12 @@ import {
 // 表格数据：AI 引擎配置列表。
 const engineList = ref([])
 const tableLoading = ref(false)
+// 表格实例：用于全选操作
+const engineTableRef = ref(null)
+// 批量选择状态：用于批量删除操作
+const selectedEngines = ref([])
+// 批量删除加载状态
+const batchDeleteLoading = ref(false)
 const keyword = ref('')
 const businessTypeFilter = ref('all')
 const providerFilter = ref('all')
@@ -1039,6 +1084,133 @@ const handleToggleActive = async (row) => {
     }
   } finally {
     toggleLoadingId.value = null
+  }
+}
+
+/**
+ * 处理表格选择变化。
+ * @param {Array} selection 选中的行数据
+ */
+const handleSelectionChange = (selection) => {
+  selectedEngines.value = selection
+}
+
+/**
+ * 全部勾选当前筛选结果。
+ */
+const handleSelectAll = () => {
+  if (engineTableRef.value) {
+    engineTableRef.value.toggleAllSelection()
+  }
+}
+
+/**
+ * 删除单条 AI 引擎配置。
+ * @param {Object} row 引擎配置行数据
+ */
+const handleDelete = async (row) => {
+  try {
+    await confirmAdminRiskAction({
+      title: '删除确认',
+      actionText: '删除 AI 引擎配置',
+      targetName: row.engineName,
+      impactHint: '删除后数据无法恢复，请确认是否继续。',
+      type: 'error'
+    })
+    await deleteAiEngine(row.id)
+    showAdminSuccess('AI 引擎配置删除成功')
+    await fetchEngineList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '删除 AI 引擎配置失败')
+    }
+  }
+}
+
+/**
+ * 批量删除 AI 引擎配置。
+ */
+const handleBatchDelete = async () => {
+  if (selectedEngines.value.length === 0) {
+    showAdminWarning('请先选择要删除的引擎配置')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量删除确认',
+      actionText: '删除选中的 AI 引擎配置',
+      targetName: `${selectedEngines.value.length} 条数据`,
+      impactHint: '删除后数据无法恢复，请确认是否继续。',
+      type: 'error'
+    })
+    batchDeleteLoading.value = true
+    const ids = selectedEngines.value.map(item => item.id)
+    await deleteAiEngines(ids)
+    showAdminSuccess(`成功删除 ${ids.length} 条引擎配置`)
+    await fetchEngineList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量删除失败')
+    }
+  } finally {
+    batchDeleteLoading.value = false
+  }
+}
+
+/**
+ * 批量禁用 AI 引擎配置。
+ */
+const handleBatchDisable = async () => {
+  if (selectedEngines.value.length === 0) {
+    showAdminWarning('请先选择要禁用的引擎配置')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量禁用确认',
+      actionText: '禁用选中的 AI 引擎配置',
+      targetName: `${selectedEngines.value.length} 条数据`,
+      impactHint: '禁用后将影响对应业务的模型路由。',
+      type: 'warning'
+    })
+    const ids = selectedEngines.value.map(item => item.id)
+    await toggleAiEnginesBatchActive(ids, 0)
+    showAdminSuccess(`成功禁用 ${ids.length} 条引擎配置`)
+    await fetchEngineList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量禁用失败')
+    }
+  }
+}
+
+/**
+ * 批量启用 AI 引擎配置。
+ */
+const handleBatchEnable = async () => {
+  if (selectedEngines.value.length === 0) {
+    showAdminWarning('请先选择要启用的引擎配置')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量启用确认',
+      actionText: '启用选中的 AI 引擎配置',
+      targetName: `${selectedEngines.value.length} 条数据`,
+      impactHint: '启用后将作为对应业务的模型。',
+      type: 'warning'
+    })
+    const ids = selectedEngines.value.map(item => item.id)
+    await toggleAiEnginesBatchActive(ids, 1)
+    showAdminSuccess(`成功启用 ${ids.length} 条引擎配置`)
+    await fetchEngineList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量启用失败')
+    }
   }
 }
 

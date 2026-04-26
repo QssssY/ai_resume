@@ -17,6 +17,23 @@
           </template>
         </el-input>
         <el-button :loading="tableLoading" class="refresh-btn" @click="fetchUserList">刷新列表</el-button>
+        <el-button
+          v-if="hasSelectedUsers"
+          type="warning"
+          @click="handleBatchDisable"
+        >
+          批量封禁
+        </el-button>
+        <el-button
+          v-if="hasSelectedUsers"
+          type="success"
+          @click="handleBatchEnable"
+        >
+          批量解封
+        </el-button>
+        <el-button @click="handleSelectAll">
+          全部勾选
+        </el-button>
       </div>
     </div>
 
@@ -92,13 +109,16 @@
 
     <el-card shadow="never" class="table-card">
       <el-table
+        ref="userTableRef"
         :data="pagedUsers"
         v-loading="tableLoading"
         border
         stripe
         :empty-text="tableEmptyText"
         class="user-table"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="_userId" label="用户ID" min-width="180" align="center">
           <template #header>
             <div class="table-header">用户ID</div>
@@ -408,7 +428,8 @@ import {
   getMembershipPlansForAdmin,
   updateAdminUserRights,
   updateAdminUserQuota,
-  updateAdminUserStatus
+  updateAdminUserStatus,
+  updateUsersBatchStatus
 } from '@/api/admin/users'
 import {
   confirmAdminRiskAction,
@@ -421,6 +442,11 @@ import {
 // 用户列表基础状态：承载用户管理主表格。
 const userList = ref([])
 const tableLoading = ref(false)
+// 表格实例：用于全选操作
+const userTableRef = ref(null)
+// 批量选择状态：用于批量操作
+const selectedUsers = ref([])
+const hasSelectedUsers = computed(() => selectedUsers.value && selectedUsers.value.length > 0)
 const keyword = ref('')
 const filterForm = reactive({
   role: 'all',
@@ -1009,6 +1035,83 @@ const handleToggleStatus = async (row) => {
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
       showAdminError(error?.message || `${actionText}用户失败`)
+    }
+  }
+}
+
+/**
+ * 处理表格选择变化。
+ * @param {Array} selection 选中的行数据
+ */
+const handleSelectionChange = (selection) => {
+  selectedUsers.value = selection
+}
+
+/**
+ * 全部勾选当前筛选结果。
+ */
+const handleSelectAll = () => {
+  if (userTableRef.value) {
+    userTableRef.value.toggleAllSelection()
+  }
+}
+
+/**
+ * 批量封禁用户。
+ */
+const handleBatchDisable = async () => {
+  if (!selectedUsers.value || selectedUsers.value.length === 0) {
+    showAdminWarning('请先选择要封禁的用户')
+    return
+  }
+
+  console.log('批量封禁选中的用户:', selectedUsers.value)
+  console.log('提取的IDs:', selectedUsers.value.map(item => item.id))
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量封禁确认',
+      actionText: '封禁选中的用户',
+      targetName: `${selectedUsers.value.length} 个用户`,
+      impactHint: '封禁后这些用户将无法继续使用核心功能，请确认已完成风险评估。',
+      type: 'warning'
+    })
+    const ids = selectedUsers.value.map(item => item.id)
+    console.log('发送请求的IDs:', ids)
+    await updateUsersBatchStatus(ids, 0)
+    showAdminSuccess(`成功封禁 ${ids.length} 个用户`)
+    await fetchUserList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量封禁失败')
+    }
+  }
+}
+
+/**
+ * 批量解封用户。
+ */
+const handleBatchEnable = async () => {
+  if (selectedUsers.value.length === 0) {
+    showAdminWarning('请先选择要解封的用户')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量解封确认',
+      actionText: '解封选中的用户',
+      targetName: `${selectedUsers.value.length} 个用户`,
+      impactHint: '解封后这些用户将恢复访问能力。',
+      type: 'warning'
+    })
+    const ids = selectedUsers.value.map(item => item.id)
+    await updateUsersBatchStatus(ids, 1)
+    showAdminSuccess(`成功解封 ${ids.length} 个用户`)
+    await fetchUserList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量解封失败')
     }
   }
 }

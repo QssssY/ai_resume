@@ -50,3 +50,42 @@ export function toggleAdminAiEngineActive(id, isActive) {
     params: { isActive }
   })
 }
+
+/**
+ * 删除 AI 引擎配置（物理删除）
+ * @param {number} id AI引擎配置ID
+ * @returns {Promise}
+ */
+export function deleteAiEngine(id) {
+  return adminRequest({
+    url: `/api/admin/ai-engines/${id}`,
+    method: 'delete'
+  })
+}
+
+/**
+ * 批量删除 AI 引擎配置（物理删除）
+ * @param {number[]} ids AI引擎配置ID数组
+ * @returns {Promise}
+ */
+export function deleteAiEngines(ids) {
+  return adminRequest({
+    url: '/api/admin/ai-engines/batch',
+    method: 'delete',
+    data: ids
+  })
+}
+
+/**
+ * 批量启用或禁用 AI 引擎配置
+ * @param {number[]} ids AI引擎配置ID数组
+ * @param {number} isActive - 1 启用，0 禁用
+ * @returns {Promise}
+ */
+export function toggleAiEnginesBatchActive(ids, isActive) {
+  return adminRequest({
+    url: '/api/admin/ai-engines/batch/active',
+    method: 'put',
+    data: { ids, isActive }
+  })
+}

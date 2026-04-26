@@ -106,3 +106,17 @@ export function getMembershipPlansForAdmin() {
     method: 'get'
   })
 }
+
+/**
+ * 批量启用或禁用用户
+ * @param {number[]} ids 用户ID数组
+ * @param {number} status - 1 正常，0 封禁
+ * @returns {Promise}
+ */
+export function updateUsersBatchStatus(ids, status) {
+  return adminRequest({
+    url: '/api/admin/users/batch/status',
+    method: 'put',
+    data: { ids, isActive: status }
+  })
+}

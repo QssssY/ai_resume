@@ -7,6 +7,31 @@
       </div>
       <div class="header-actions">
         <el-button :loading="tableLoading" class="refresh-btn" @click="fetchJobRoleList">刷新列表</el-button>
+        <el-button
+          v-if="selectedJobRoles.length > 0"
+          type="danger"
+          :loading="batchDeleteLoading"
+          @click="handleBatchDelete"
+        >
+          批量删除 ({{ selectedJobRoles.length }})
+        </el-button>
+        <el-button
+          v-if="selectedJobRoles.length > 0"
+          type="warning"
+          @click="handleBatchDisable"
+        >
+          批量禁用
+        </el-button>
+        <el-button
+          v-if="selectedJobRoles.length > 0"
+          type="success"
+          @click="handleBatchEnable"
+        >
+          批量启用
+        </el-button>
+        <el-button @click="handleSelectAll">
+          全部勾选
+        </el-button>
         <el-button type="primary" @click="openCreateDialog">新增岗位</el-button>
       </div>
     </div>
@@ -32,7 +57,8 @@
     </div>
 
     <el-card shadow="never" class="table-card">
-      <el-table :data="pagedJobRoleList" v-loading="tableLoading" border :empty-text="tableEmptyText">
+      <el-table ref="jobRoleTableRef" :data="pagedJobRoleList" v-loading="tableLoading" border :empty-text="tableEmptyText" @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="100" />
         <el-table-column prop="roleCode" label="岗位编码" min-width="140" />
         <el-table-column prop="roleName" label="岗位名称" min-width="160" />
@@ -64,7 +90,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <div class="action-group">
               <el-button type="primary" size="small" round @click="openEditDialog(row)">
@@ -77,6 +103,14 @@
                 @click="handleToggleActive(row)"
               >
                 {{ row.isActive === 1 ? '禁用' : '启用' }}
+              </el-button>
+              <el-button
+                type="danger"
+                size="small"
+                round
+                @click="handleDelete(row)"
+              >
+                删除
               </el-button>
             </div>
           </template>
@@ -220,8 +254,11 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Check, Search, Edit } from '@element-plus/icons-vue'
 import {
   createAdminJobRole,
+  deleteJobRole,
+  deleteJobRoles,
   getAdminJobRoles,
   toggleAdminJobRoleActive,
+  toggleJobRolesBatchActive,
   updateAdminJobRole
 } from '@/api/admin/jobRoles'
 import {
@@ -234,6 +271,12 @@ import {
 // 表格主数据：岗位配置列表。
 const jobRoleList = ref([])
 const tableLoading = ref(false)
+// 表格实例：用于全选操作
+const jobRoleTableRef = ref(null)
+// 批量选择状态：用于批量删除操作
+const selectedJobRoles = ref([])
+// 批量删除加载状态
+const batchDeleteLoading = ref(false)
 const keyword = ref('')
 const statusFilter = ref('all')
 const pagination = reactive({
@@ -564,6 +607,133 @@ const handleToggleActive = async (row) => {
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
       showAdminError(error?.message || `${actionText}岗位失败`)
+    }
+  }
+}
+
+/**
+ * 处理表格选择变化。
+ * @param {Array} selection 选中的行数据
+ */
+const handleSelectionChange = (selection) => {
+  selectedJobRoles.value = selection
+}
+
+/**
+ * 全部勾选当前筛选结果。
+ */
+const handleSelectAll = () => {
+  if (jobRoleTableRef.value) {
+    jobRoleTableRef.value.toggleAllSelection()
+  }
+}
+
+/**
+ * 删除单条岗位配置。
+ * @param {Object} row 岗位配置行数据
+ */
+const handleDelete = async (row) => {
+  try {
+    await confirmAdminRiskAction({
+      title: '删除确认',
+      actionText: '删除岗位',
+      targetName: row.roleName,
+      impactHint: '删除后数据无法恢复，请确认是否继续。',
+      type: 'error'
+    })
+    await deleteJobRole(row.id)
+    showAdminSuccess('岗位删除成功')
+    await fetchJobRoleList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '删除岗位失败')
+    }
+  }
+}
+
+/**
+ * 批量删除岗位配置。
+ */
+const handleBatchDelete = async () => {
+  if (selectedJobRoles.value.length === 0) {
+    showAdminWarning('请先选择要删除的岗位')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量删除确认',
+      actionText: '删除选中的岗位',
+      targetName: `${selectedJobRoles.value.length} 条数据`,
+      impactHint: '删除后数据无法恢复，请确认是否继续。',
+      type: 'error'
+    })
+    batchDeleteLoading.value = true
+    const ids = selectedJobRoles.value.map(item => item.id)
+    await deleteJobRoles(ids)
+    showAdminSuccess(`成功删除 ${ids.length} 条岗位配置`)
+    await fetchJobRoleList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量删除失败')
+    }
+  } finally {
+    batchDeleteLoading.value = false
+  }
+}
+
+/**
+ * 批量禁用岗位配置。
+ */
+const handleBatchDisable = async () => {
+  if (selectedJobRoles.value.length === 0) {
+    showAdminWarning('请先选择要禁用的岗位')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量禁用确认',
+      actionText: '禁用选中的岗位',
+      targetName: `${selectedJobRoles.value.length} 条数据`,
+      impactHint: '禁用后用户端将无法看到这些岗位。',
+      type: 'warning'
+    })
+    const ids = selectedJobRoles.value.map(item => item.id)
+    await toggleJobRolesBatchActive(ids, 0)
+    showAdminSuccess(`成功禁用 ${ids.length} 条岗位配置`)
+    await fetchJobRoleList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量禁用失败')
+    }
+  }
+}
+
+/**
+ * 批量启用岗位配置。
+ */
+const handleBatchEnable = async () => {
+  if (selectedJobRoles.value.length === 0) {
+    showAdminWarning('请先选择要启用的岗位')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量启用确认',
+      actionText: '启用选中的岗位',
+      targetName: `${selectedJobRoles.value.length} 条数据`,
+      impactHint: '启用后用户端将可以看到这些岗位。',
+      type: 'warning'
+    })
+    const ids = selectedJobRoles.value.map(item => item.id)
+    await toggleJobRolesBatchActive(ids, 1)
+    showAdminSuccess(`成功启用 ${ids.length} 条岗位配置`)
+    await fetchJobRoleList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量启用失败')
     }
   }
 }

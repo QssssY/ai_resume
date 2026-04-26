@@ -51,3 +51,42 @@ export function toggleAdminJobRoleActive(id, isActive) {
     params: { isActive }
   })
 }
+
+/**
+ * 删除岗位配置（物理删除）
+ * @param {number} id 岗位配置ID
+ * @returns {Promise}
+ */
+export function deleteJobRole(id) {
+  return adminRequest({
+    url: `/api/admin/job-roles/${id}`,
+    method: 'delete'
+  })
+}
+
+/**
+ * 批量删除岗位配置（物理删除）
+ * @param {number[]} ids 岗位配置ID数组
+ * @returns {Promise}
+ */
+export function deleteJobRoles(ids) {
+  return adminRequest({
+    url: '/api/admin/job-roles/batch',
+    method: 'delete',
+    data: ids
+  })
+}
+
+/**
+ * 批量启用或禁用岗位配置
+ * @param {number[]} ids 岗位配置ID数组
+ * @param {number} isActive - 1 启用，0 禁用
+ * @returns {Promise}
+ */
+export function toggleJobRolesBatchActive(ids, isActive) {
+  return adminRequest({
+    url: '/api/admin/job-roles/batch/active',
+    method: 'put',
+    data: { ids, isActive }
+  })
+}

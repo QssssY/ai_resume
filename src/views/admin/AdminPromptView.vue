@@ -9,6 +9,31 @@
         <el-button :loading="tableLoading" class="refresh-btn" @click="fetchPromptList">
           刷新列表
         </el-button>
+        <el-button
+          v-if="selectedPrompts.length > 0"
+          type="danger"
+          :loading="batchDeleteLoading"
+          @click="handleBatchDelete"
+        >
+          批量删除 ({{ selectedPrompts.length }})
+        </el-button>
+        <el-button
+          v-if="selectedPrompts.length > 0"
+          type="warning"
+          @click="handleBatchDisable"
+        >
+          批量禁用
+        </el-button>
+        <el-button
+          v-if="selectedPrompts.length > 0"
+          type="success"
+          @click="handleBatchEnable"
+        >
+          批量启用
+        </el-button>
+        <el-button @click="handleSelectAll">
+          全部勾选
+        </el-button>
         <el-button type="primary" @click="openCreateDialog" class="btn-primary">
           <el-icon><Edit /></el-icon>
           新增 Prompt
@@ -108,14 +133,16 @@
     </div>
 
     <el-card shadow="never" class="table-card">
-      <el-table
+      <el-table ref="promptTableRef"
         :data="pagedPromptList"
         v-loading="tableLoading"
         border
         stripe
         :empty-text="tableEmptyText"
         class="prompt-table"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" align="center">
           <template #header>
             <div class="table-header">ID</div>
@@ -187,7 +214,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right" align="center">
+        <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #header>
             <div class="table-header">操作</div>
           </template>
@@ -206,6 +233,15 @@
                 class="action-btn"
               >
                 {{ row.isActive === 1 ? '禁用' : '启用' }}
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                plain
+                @click="handleDelete(row)"
+                class="action-btn"
+              >
+                删除
               </el-button>
             </div>
           </template>
@@ -326,8 +362,11 @@ import { Edit, Search } from '@element-plus/icons-vue'
 import { getAdminJobRoles } from '@/api/admin/jobRoles'
 import {
   createAdminPrompt,
+  deletePrompt,
+  deletePrompts,
   getAdminPrompts,
   toggleAdminPromptActive,
+  togglePromptsBatchActive,
   updateAdminPrompt
 } from '@/api/admin/prompts'
 import {
@@ -340,6 +379,12 @@ import {
 // 列表数据：Prompt 模板主表格。
 const promptList = ref([])
 const tableLoading = ref(false)
+// 表格实例：用于全选操作
+const promptTableRef = ref(null)
+// 批量选择状态：用于批量删除操作
+const selectedPrompts = ref([])
+// 批量删除加载状态
+const batchDeleteLoading = ref(false)
 const keyword = ref('')
 const scenarioFilter = ref('all')
 const jobRoleFilter = ref('all')
@@ -899,6 +944,133 @@ const handleToggleActive = async (row) => {
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
       showAdminError(error?.message || `${actionText} Prompt 失败`)
+    }
+  }
+}
+
+/**
+ * 处理表格选择变化。
+ * @param {Array} selection 选中的行数据
+ */
+const handleSelectionChange = (selection) => {
+  selectedPrompts.value = selection
+}
+
+/**
+ * 全部勾选当前筛选结果。
+ */
+const handleSelectAll = () => {
+  if (promptTableRef.value) {
+    promptTableRef.value.toggleAllSelection()
+  }
+}
+
+/**
+ * 删除单条 Prompt 模板。
+ * @param {Object} row Prompt 行数据
+ */
+const handleDelete = async (row) => {
+  try {
+    await confirmAdminRiskAction({
+      title: '删除确认',
+      actionText: '删除 Prompt',
+      targetName: row.jobRoleName || row.jobRoleCode || '目标模板',
+      impactHint: '删除后数据无法恢复，请确认是否继续。',
+      type: 'error'
+    })
+    await deletePrompt(row.id)
+    showAdminSuccess('Prompt 删除成功')
+    await fetchPromptList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '删除 Prompt 失败')
+    }
+  }
+}
+
+/**
+ * 批量删除 Prompt 模板。
+ */
+const handleBatchDelete = async () => {
+  if (selectedPrompts.value.length === 0) {
+    showAdminWarning('请先选择要删除的 Prompt')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量删除确认',
+      actionText: '删除选中的 Prompt',
+      targetName: `${selectedPrompts.value.length} 条数据`,
+      impactHint: '删除后数据无法恢复，请确认是否继续。',
+      type: 'error'
+    })
+    batchDeleteLoading.value = true
+    const ids = selectedPrompts.value.map(item => item.id)
+    await deletePrompts(ids)
+    showAdminSuccess(`成功删除 ${ids.length} 条 Prompt`)
+    await fetchPromptList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量删除失败')
+    }
+  } finally {
+    batchDeleteLoading.value = false
+  }
+}
+
+/**
+ * 批量禁用 Prompt 模板。
+ */
+const handleBatchDisable = async () => {
+  if (selectedPrompts.value.length === 0) {
+    showAdminWarning('请先选择要禁用的 Prompt')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量禁用确认',
+      actionText: '禁用选中的 Prompt',
+      targetName: `${selectedPrompts.value.length} 条数据`,
+      impactHint: '禁用后对应场景将使用其他启用的模板。',
+      type: 'warning'
+    })
+    const ids = selectedPrompts.value.map(item => item.id)
+    await togglePromptsBatchActive(ids, 0)
+    showAdminSuccess(`成功禁用 ${ids.length} 条 Prompt`)
+    await fetchPromptList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量禁用失败')
+    }
+  }
+}
+
+/**
+ * 批量启用 Prompt 模板。
+ */
+const handleBatchEnable = async () => {
+  if (selectedPrompts.value.length === 0) {
+    showAdminWarning('请先选择要启用的 Prompt')
+    return
+  }
+
+  try {
+    await confirmAdminRiskAction({
+      title: '批量启用确认',
+      actionText: '启用选中的 Prompt',
+      targetName: `${selectedPrompts.value.length} 条数据`,
+      impactHint: '启用后将作为对应场景的模板。',
+      type: 'warning'
+    })
+    const ids = selectedPrompts.value.map(item => item.id)
+    await togglePromptsBatchActive(ids, 1)
+    showAdminSuccess(`成功启用 ${ids.length} 条 Prompt`)
+    await fetchPromptList()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      showAdminError(error?.message || '批量启用失败')
     }
   }
 }
