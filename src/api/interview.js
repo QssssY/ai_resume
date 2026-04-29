@@ -10,7 +10,7 @@ import request from '@/utils/request'
  * @param {number} data.difficulty - 难度级别，1 初级 / 2 中级 / 3 高级
  * @param {string} [data.interviewMode] - 面试模式，normal / stress
  * @param {boolean} [data.jobTargeted] - 是否开启岗位定向模拟
- * @param {string|number} [data.resumeTaskId] - 关联的简历诊断任务 ID
+ * @param {string|number} [data.resumeTaskId] - 关联的简历诊断任务 ID，普通模拟面试和岗位定向模拟都可携带
  * @param {string} [data.jdText] - 手动输入的岗位 JD 文本
  * @param {boolean} [data.useLatestJobMatch] - 是否优先复用最近一次 JD 对比结果
  * @param {string|number} [data.jobMatchRecordId] - 指定复用的 JD 对比记录 ID
@@ -20,7 +20,9 @@ export function createInterviewSession(data) {
   return request({
     url: '/api/interview/session',
     method: 'post',
-    data
+    data,
+    timeout: 90000,
+    skipDefaultErrorHandler: true
   })
 }
 

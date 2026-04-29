@@ -311,6 +311,8 @@ const buildCreatePayload = () => {
     jobRoleCode: selectedRoleCode.value,
     difficulty: difficultyMap[selectedDifficulty.value],
     interviewMode: selectedMode.value,
+    // 普通模拟面试也允许携带关联简历任务，便于后端优先复用明确的简历上下文。
+    resumeTaskId: resumeTaskId.value || undefined,
   };
 
   if (!jobTargeted.value) {
@@ -320,7 +322,6 @@ const buildCreatePayload = () => {
   return {
     ...payload,
     jobTargeted: true,
-    resumeTaskId: resumeTaskId.value || undefined,
     jdText: jdText.value.trim() || undefined,
     useLatestJobMatch: useLatestJobMatch.value,
     jobMatchRecordId: latestJobMatchRecordId.value || undefined,
@@ -342,13 +343,24 @@ const handleStart = async () => {
   creating.value = true;
   try {
     const res = await createInterviewSession(buildCreatePayload());
-    const sessionId = res?.data?.sessionId || res?.data?.id || res?.sessionId || res;
+    const data = res?.data || res || {};
+    const sessionId = data.sessionId || data.id || res?.sessionId;
     if (!sessionId) {
       throw new Error("创建会话失败，未获取到会话 ID");
     }
     router.push(`/interview/session/${sessionId}`);
   } catch (err) {
-    ElMessage.error(err.message || "创建面试会话失败，请稍后重试");
+    // skipDefaultErrorHandler 跳过了拦截器的 401 处理，需手动兜底
+    if (err.response?.status === 401) {
+      ElMessage.error("登录已过期，请重新登录");
+      router.push({ path: "/login", query: { redirect: router.currentRoute.value.fullPath } });
+      return;
+    }
+    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      ElMessage.error("创建会话超时，请稍后刷新页面查看历史记录");
+    } else {
+      ElMessage.error(err.message || "创建面试会话失败，请稍后重试");
+    }
   } finally {
     creating.value = false;
   }

@@ -272,6 +272,9 @@ const difficultyFallback = computed(() => {
 });
 
 const modeFallback = computed(() => {
+  if (sessionData.value?.jobTargeted || sessionData.value?.interviewMode === "job_targeted") {
+    return "岗位定向模拟";
+  }
   return sessionData.value?.interviewMode === "stress" ? "压力面试" : "普通面试";
 });
 

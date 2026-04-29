@@ -63,8 +63,19 @@
       <div class="chat-stage">
         <div class="chat-container">
           <div class="chat-messages" ref="chatContainer">
-            <template v-if="groupedChatLogs.length > 0">
+            <!-- 开场白加载中 -->
+            <div v-if="openingPending" class="opening-pending">
+              <div class="opening-loading">
+                <el-icon class="loading-icon" :size="48"><Loading /></el-icon>
+                <div class="loading-text">AI 面试官正在准备中...</div>
+                <div class="loading-hint">首次生成可能需要 1-2 分钟，请稍候</div>
+              </div>
+            </div>
+
+            <template v-else-if="groupedChatLogs.length > 0">
+              <!-- 原有聊天记录代码 -->
               <template v-for="item in groupedChatLogs" :key="item.id || item.tempId || item.date">
+                <!-- 原有代码保持不变 -->
                 <div v-if="item.type === 'date-separator'" class="date-separator">
                   <span class="date-separator-line"></span>
                   <span class="date-separator-text">{{ formatDateSeparator(item.date) }}</span>
@@ -194,6 +205,8 @@ const inputMessage = ref("");
 const sending = ref(false);
 const ending = ref(false);
 const showEndDialog = ref(false);
+const openingPending = ref(false);
+let openingPollingTimer = null;
 
 const assistantAvatar = assistantAvatarImg;
 const userAvatar = userAvatarImg;
@@ -214,6 +227,9 @@ const difficultyText = computed(() => {
 const modeText = computed(() => {
   if (sessionData.value?.interviewModeDesc) {
     return sessionData.value.interviewModeDesc;
+  }
+  if (sessionData.value?.jobTargeted || sessionData.value?.interviewMode === "job_targeted") {
+    return "岗位定向模拟";
   }
   return sessionData.value?.interviewMode === "stress" ? "压力面试" : "普通面试";
 });
@@ -278,16 +294,67 @@ const fetchSessionDetail = async () => {
   error.value = "";
   try {
     const res = await getInterviewSession(sessionId.value);
+    const data = res.data || {};
     sessionData.value = {
-      ...(res.data || {}),
-      chatLogs: normalizeChatLogs(res.data?.chatLogs),
+      ...data,
+      chatLogs: normalizeChatLogs(data.chatLogs),
     };
+    
+    // 处理开场白待生成状态
+    if (data.openingPending) {
+      openingPending.value = true;
+      startOpeningPolling();
+    } else {
+      openingPending.value = false;
+    }
+    
     await nextTick();
     scrollToBottom();
   } catch (err) {
     error.value = err.message || "获取会话详情失败，请稍后重试";
   } finally {
     loading.value = false;
+  }
+};
+
+const OPENING_POLL_MAX_ROUNDS = 60; // 最多轮询 60 次，约 3 分钟超时
+let openingPollRounds = 0;
+
+const startOpeningPolling = () => {
+  stopOpeningPolling();
+  openingPollRounds = 0;
+  openingPollingTimer = setInterval(async () => {
+    openingPollRounds++;
+    // 超过最大轮询次数后停止，提示用户刷新页面
+    if (openingPollRounds > OPENING_POLL_MAX_ROUNDS) {
+      stopOpeningPolling();
+      openingPending.value = false;
+      ElMessage.warning("开场白生成超时，请刷新页面重试");
+      return;
+    }
+    try {
+      const res = await getInterviewSession(sessionId.value);
+      const data = res.data || {};
+      if (!data.openingPending && data.chatLogs?.length > 0) {
+        openingPending.value = false;
+        stopOpeningPolling();
+        sessionData.value = {
+          ...data,
+          chatLogs: normalizeChatLogs(data.chatLogs),
+        };
+        await nextTick();
+        scrollToBottom();
+      }
+    } catch (err) {
+      console.warn("轮询开场白状态失败:", err.message);
+    }
+  }, 3000);
+};
+
+const stopOpeningPolling = () => {
+  if (openingPollingTimer) {
+    clearInterval(openingPollingTimer);
+    openingPollingTimer = null;
   }
 };
 
@@ -546,6 +613,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopTypingMachine();
+  stopOpeningPolling();
 });
 </script>
 
@@ -659,10 +727,49 @@ onBeforeUnmount(() => {
 
 .loading-section,
 .error-section {
-  flex: 1;
+  flex:1;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.opening-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+}
+
+.opening-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.opening-loading .loading-icon {
+  color: #ff8c42;
+  animation: spin 1s linear infinite;
+}
+
+.opening-loading .loading-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #2f2f2f;
+}
+
+.opening-loading .loading-hint {
+  font-size: 13px;
+  color: #999999;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-content {

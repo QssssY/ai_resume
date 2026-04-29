@@ -161,6 +161,7 @@ const difficultyMap = {
 const interviewModeMap = {
   normal: "普通面试",
   stress: "压力面试",
+  job_targeted: "岗位定向模拟",
 };
 
 const statusMap = {
@@ -183,7 +184,12 @@ const normalizeHistoryList = (list) => {
 
 const getDifficultyText = (item) => item.difficultyDesc || difficultyMap[item.difficulty]?.text || "未知";
 const getDifficultyType = (item) => difficultyMap[item.difficulty]?.type || "info";
-const getModeText = (item) => item.interviewModeDesc || interviewModeMap[item.interviewMode] || "普通面试";
+const getModeText = (item) => {
+  if (item?.jobTargeted) {
+    return item.interviewModeDesc || interviewModeMap.job_targeted;
+  }
+  return item.interviewModeDesc || interviewModeMap[item.interviewMode] || "普通面试";
+};
 const getStatusText = (item) => item.statusDesc || statusMap[item.status]?.text || "未知";
 const getStatusType = (item) => statusMap[item.status]?.type || "info";
 
