@@ -184,7 +184,7 @@
         </div>
       </div>
 
-      <!-- 五维能力雷达图（仅完成时显示） -->
+      <!-- 五维能力雷达图 + 得分明细（仅完成时显示） -->
       <div v-if="isCompleted && parsedResult" class="section-card">
         <div class="section-header">
           <div class="section-icon radar">
@@ -192,10 +192,15 @@
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
           </div>
-          <h3 class="section-title">五维能力雷达图</h3>
+          <h3 class="section-title">五维能力分析</h3>
         </div>
-        <div class="section-body">
-          <RadarChart :scores="radarScores" />
+        <div class="section-body radar-layout">
+          <div class="radar-left">
+            <RadarChart :scores="radarScores" />
+          </div>
+          <div class="radar-right">
+            <RadarScorePanel :details="radarScoreDetails" />
+          </div>
         </div>
       </div>
 
@@ -551,6 +556,7 @@ import HighlightsSection from '@/components/resume/HighlightsSection.vue'
 import SkillsSection from '@/components/resume/SkillsSection.vue'
 import WorkExperienceSection from '@/components/resume/WorkExperienceSection.vue'
 import RadarChart from '@/components/resume/RadarChart.vue'
+import RadarScorePanel from '@/components/resume/RadarScorePanel.vue'
 import ResumeTemplate from '@/components/resume/ResumeTemplate.vue'
 
 const router = useRouter()
@@ -686,6 +692,26 @@ const computeEducationFallback = (result) => {
   const eduScore = Math.round((totalScore - weightedSum) / 0.1)
   return Math.max(0, Math.min(100, eduScore))
 }
+
+// 雷达图得分明细：直接使用 AI 返回的 strengths（加分项）和 weaknesses（扣分项）
+const radarScoreDetails = computed(() => {
+  const r = parsedDiagnosisResult.value
+  if (!r) return {}
+
+  const extract = (evalObj, scoreKey) => ({
+    score: radarScores.value[scoreKey],
+    plus: evalObj?.strengths || [],
+    minus: evalObj?.weaknesses || [],
+  })
+
+  return {
+    basicInfo: extract(r.basicInfoEvaluation, 'basicInfo'),
+    skill: extract(r.skillEvaluation, 'skill'),
+    work: extract(r.workExperienceEvaluation, 'work'),
+    project: extract(r.projectExperienceEvaluation, 'project'),
+    education: extract(r.educationEvaluation, 'education'),
+  }
+})
 
 const workExperienceData = computed(() => {
   if (!parsedResult.value) return {}
@@ -1505,6 +1531,33 @@ onUnmounted(() => {
   padding: 20px;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+/* 雷达图左右布局：左侧图表居中，右侧得分明细 */
+.radar-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: center;
+  padding: 12px 20px;
+}
+
+.radar-left {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radar-right {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .radar-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    align-items: start;
+  }
 }
 
 /* ============================================
