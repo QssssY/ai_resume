@@ -184,6 +184,21 @@
         </div>
       </div>
 
+      <!-- 五维能力雷达图（仅完成时显示） -->
+      <div v-if="isCompleted && parsedResult" class="section-card">
+        <div class="section-header">
+          <div class="section-icon radar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </div>
+          <h3 class="section-title">五维能力雷达图</h3>
+        </div>
+        <div class="section-body">
+          <RadarChart :scores="radarScores" />
+        </div>
+      </div>
+
       <!-- 诊断结果结构化展示（仅完成时显示） -->
       <template v-if="isCompleted && parsedResult">
         <!-- 技能情况 -->
@@ -471,9 +486,17 @@
             <div class="polish-content-block">
               <div class="polish-block-header">
                 <div class="job-match-block-title">润色后的简历内容</div>
-                <el-button size="small" @click="copyPolishedResume">复制内容</el-button>
+                <div class="polish-actions">
+                  <el-button size="small" @click="copyPolishedResume">复制内容</el-button>
+                  <el-button size="small" type="primary" :loading="pdfExporting" @click="exportResumePdf">导出 PDF</el-button>
+                </div>
               </div>
-              <pre class="polish-content-pre">{{ polishResult.polishedResumeText }}</pre>
+              <div class="polish-edit-hint">
+                当前模板支持直接修改文案，右上角已预留照片空位；导出时会按当前编辑状态打开打印保存 PDF。
+              </div>
+              <div v-if="polishResult?.polishedResumeText" class="polish-preview-shell">
+                <ResumeTemplate ref="resumeTemplateRef" :text="polishResult.polishedResumeText" mode="preview" />
+              </div>
             </div>
 
             <div class="polish-content-block">
@@ -525,9 +548,9 @@ import { ElMessage } from 'element-plus'
 import OverallEvaluation from '@/components/resume/OverallEvaluation.vue'
 import HighlightsSection from '@/components/resume/HighlightsSection.vue'
 import SkillsSection from '@/components/resume/SkillsSection.vue'
-import BasicInfoSection from '@/components/resume/BasicInfoSection.vue'
 import WorkExperienceSection from '@/components/resume/WorkExperienceSection.vue'
-import OptimizationSection from '@/components/resume/OptimizationSection.vue'
+import RadarChart from '@/components/resume/RadarChart.vue'
+import ResumeTemplate from '@/components/resume/ResumeTemplate.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -546,6 +569,8 @@ const jobMatchResult = ref(null)
 const polishLoading = ref(false)
 const polishResult = ref(null)
 const polishSectionRef = ref(null)
+const pdfExporting = ref(false)
+const resumeTemplateRef = ref(null)
 
 const taskId = computed(() => route.params.taskId)
 
@@ -627,12 +652,38 @@ const parsedResult = computed(() => {
       basicInfoDetails: basicInfoDetails.value,
       workExperienceEvaluation: result.workExperienceEvaluation || result.experience || {},
       projectExperienceEvaluation: result.projectExperienceEvaluation || result.projects || {},
+      educationEvaluation: result.educationEvaluation || {},
       optimizationSuggestions: result.optimizationSuggestions || result.suggestions || []
     }
   } catch (e) {
     return null
   }
 })
+
+// 五维雷达图数据：基本信息、岗位能力、工作经验、项目经历、教育背景
+const radarScores = computed(() => {
+  const result = parsedDiagnosisResult.value
+  if (!result) return {}
+  return {
+    basicInfo: result.basicInfoEvaluation?.score || 0,
+    skill: result.skillEvaluation?.score || 0,
+    work: result.workExperienceEvaluation?.score || 0,
+    project: result.projectExperienceEvaluation?.score || 0,
+    education: result.educationEvaluation?.score || computeEducationFallback(result),
+  }
+})
+
+// 教育评分兜底：当AI未返回educationEvaluation时，按权重反推
+const computeEducationFallback = (result) => {
+  const totalScore = result.overallEvaluation?.totalScore || 0
+  const basic = result.basicInfoEvaluation?.score || 0
+  const skill = result.skillEvaluation?.score || 0
+  const work = result.workExperienceEvaluation?.score || 0
+  const project = result.projectExperienceEvaluation?.score || 0
+  const weightedSum = basic * 0.1 + skill * 0.15 + work * 0.25 + project * 0.4
+  const eduScore = Math.round((totalScore - weightedSum) / 0.1)
+  return Math.max(0, Math.min(100, eduScore))
+}
 
 const workExperienceData = computed(() => {
   if (!parsedResult.value) return {}
@@ -875,16 +926,76 @@ watch(task, (newTask) => {
 }, { deep: true })
 
 const copyPolishedResume = async () => {
-  if (!polishResult.value?.polishedResumeText) {
+  const editedText = resumeTemplateRef.value?.getResumePlainText?.() || polishResult.value?.polishedResumeText || ''
+  if (!editedText) {
     ElMessage.warning('暂无可复制的润色内容')
     return
   }
   try {
-    await navigator.clipboard.writeText(polishResult.value.polishedResumeText)
+    await navigator.clipboard.writeText(editedText)
     ElMessage.success('润色内容已复制')
   } catch (err) {
     console.error('[AI 简历润色] 复制失败:', err)
     ElMessage.error('复制失败，请稍后重试')
+  }
+}
+
+// 改为前端直接生成并下载 PDF，避免再弹出浏览器打印窗口，同时保留当前编辑内容和头像。
+const exportResumePdf = async () => {
+  const pdfSource = resumeTemplateRef.value?.buildPdfSourceElement?.()
+  if (!pdfSource) {
+    ElMessage.warning('暂无可导出的润色内容')
+    return
+  }
+
+  pdfExporting.value = true
+  const mountNode = document.createElement('div')
+  mountNode.style.position = 'fixed'
+  mountNode.style.left = '-10000px'
+  mountNode.style.top = '0'
+  mountNode.style.width = '210mm'
+  mountNode.style.background = '#ffffff'
+  mountNode.style.zIndex = '-1'
+  mountNode.appendChild(pdfSource)
+  document.body.appendChild(mountNode)
+
+  try {
+    const { default: html2pdf } = await import('html2pdf.js')
+    const resumeName = resumeTemplateRef.value?.resumeRef
+      ?.querySelector?.('[data-role="profile-name"]')
+      ?.textContent
+      ?.trim()
+    const filename = `${resumeName || 'resume'}.pdf`
+
+    await html2pdf()
+      .set({
+        margin: [8, 8, 8, 8],
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+        },
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait',
+        },
+        pagebreak: {
+          mode: ['css', 'legacy'],
+        },
+      })
+      .from(pdfSource)
+      .save()
+
+    ElMessage.success('PDF 已提交到浏览器下载')
+  } catch (err) {
+    console.error('[PDF导出] 失败:', err)
+    ElMessage.error('PDF 导出失败，请稍后重试')
+  } finally {
+    document.body.removeChild(mountNode)
+    pdfExporting.value = false
   }
 }
 
@@ -1288,6 +1399,11 @@ onUnmounted(() => {
   color: #22c55e;
 }
 
+.section-icon.radar {
+  background: #fff7ed;
+  color: #f97316;
+}
+
 .section-title {
   margin: 0;
   font-size: 15px;
@@ -1609,6 +1725,23 @@ onUnmounted(() => {
   gap: 12px;
   margin-bottom: 12px;
   flex-wrap: wrap;
+}
+
+.polish-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.polish-preview-shell {
+  margin-top: 6px;
+}
+
+.polish-edit-hint {
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #64748b;
 }
 
 .polish-content-pre {

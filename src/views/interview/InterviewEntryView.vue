@@ -37,7 +37,7 @@
               >
                 <div class="job-option-content">
                   <span class="job-name">{{ job.label }}</span>
-                  <span class="job-tag" :class="'tag-' + job.tagType">{{ job.tag }}</span>
+                  <span class="job-tag" :class="job.tagClassName">{{ job.tag }}</span>
                 </div>
               </el-option>
             </el-select>
@@ -258,6 +258,42 @@ const hasLatestJobMatch = computed(() => Boolean(latestJobMatchAnalysis.value));
 const matchedKeywords = computed(() => latestJobMatchAnalysis.value?.matchedKeywords || []);
 const missingKeywords = computed(() => latestJobMatchAnalysis.value?.missingKeywords || []);
 
+// 标签样式模板映射（与管理端 AdminJobRoleView.vue 保持一致）
+const tagStyleTemplateOptions = [
+  { value: 'default', className: 'tag-style-default' },
+  { value: 'orange-highlight', className: 'tag-style-orange' },
+  { value: 'blue-info', className: 'tag-style-blue' },
+  { value: 'green-success', className: 'tag-style-green' },
+  { value: 'red-alert', className: 'tag-style-red' },
+  { value: 'purple-feature', className: 'tag-style-purple' },
+  { value: 'gray-muted', className: 'tag-style-gray' },
+  { value: 'outline', className: 'tag-style-outline' },
+  { value: 'pill', className: 'tag-style-pill' },
+]
+
+// 历史值兼容映射（与管理端保持一致）
+const legacyTagStyleAliasMap = {
+  hot: 'orange-highlight',
+  common: 'default',
+  info: 'blue-info',
+  success: 'green-success',
+  warning: 'orange-highlight',
+  danger: 'red-alert',
+}
+
+// 解析标签样式类名：直接匹配 → 别名匹配 → 默认值
+const resolveTagClassName = (tagType) => {
+  const value = String(tagType || '').trim()
+  const directHit = tagStyleTemplateOptions.find((item) => item.value === value)
+  if (directHit) return directHit.className
+  const alias = legacyTagStyleAliasMap[value]
+  if (alias) {
+    const aliasHit = tagStyleTemplateOptions.find((item) => item.value === alias)
+    if (aliasHit) return aliasHit.className
+  }
+  return 'tag-style-default'
+}
+
 const fetchJobOptions = async () => {
   try {
     const res = await getInterviewJobRoles();
@@ -268,6 +304,7 @@ const fetchJobOptions = async () => {
       roleCode: item.roleCode,
       tag: item.interviewTag || "常规",
       tagType: item.tagType || "normal",
+      tagClassName: resolveTagClassName(item.tagType),
     }));
   } catch (err) {
     jobOptions.value = [];
@@ -516,24 +553,52 @@ onMounted(async () => {
   margin-left: 16px;
 }
 
-.tag-hot {
-  background-color: #fff3e8;
-  color: #ff8c42;
+/* 标签样式模板（与管理端保持一致） */
+.tag-style-default {
+  background-color: #fdf1e6;
+  color: #a05a2c;
 }
 
-.tag-common {
-  background-color: #f0f9eb;
-  color: #67c23a;
+.tag-style-orange {
+  background-color: rgba(255, 140, 66, 0.15);
+  color: #e67a35;
 }
 
-.tag-competitive {
-  background-color: #fdf6ec;
-  color: #e6a23c;
+.tag-style-blue {
+  background-color: rgba(47, 125, 225, 0.12);
+  color: #2f7de1;
 }
 
-.tag-normal {
-  background-color: #f5f7fa;
-  color: #909399;
+.tag-style-green {
+  background-color: rgba(48, 176, 111, 0.12);
+  color: #2a9658;
+}
+
+.tag-style-red {
+  background-color: rgba(224, 84, 84, 0.12);
+  color: #d64545;
+}
+
+.tag-style-purple {
+  background-color: rgba(123, 90, 217, 0.12);
+  color: #6b4dc9;
+}
+
+.tag-style-gray {
+  background-color: rgba(143, 153, 167, 0.15);
+  color: #6b7280;
+}
+
+.tag-style-outline {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(217, 180, 154, 0.6);
+  color: #9a5c33;
+}
+
+.tag-style-pill {
+  background-color: rgba(255, 140, 66, 0.12);
+  color: #b35f2b;
+  border-radius: 999px;
 }
 
 .empty-options {
