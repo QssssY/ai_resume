@@ -21,7 +21,7 @@ export function createInterviewSession(data) {
     url: '/api/interview/session',
     method: 'post',
     data,
-    timeout: 90000,
+    timeout: 30000,
     skipDefaultErrorHandler: true
   })
 }

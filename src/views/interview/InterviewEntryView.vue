@@ -344,7 +344,7 @@ const handleStart = async () => {
   try {
     const res = await createInterviewSession(buildCreatePayload());
     const data = res?.data || res || {};
-    const sessionId = data.sessionId || data.id || res?.sessionId;
+    const sessionId = data.sessionId || data.id;
     if (!sessionId) {
       throw new Error("创建会话失败，未获取到会话 ID");
     }

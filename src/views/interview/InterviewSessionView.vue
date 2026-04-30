@@ -323,11 +323,9 @@ let openingPollRounds = 0;
 const startOpeningPolling = () => {
   stopOpeningPolling();
   openingPollRounds = 0;
-  openingPollingTimer = setInterval(async () => {
+  const poll = async () => {
     openingPollRounds++;
-    // 超过最大轮询次数后停止，提示用户刷新页面
     if (openingPollRounds > OPENING_POLL_MAX_ROUNDS) {
-      stopOpeningPolling();
       openingPending.value = false;
       ElMessage.warning("开场白生成超时，请刷新页面重试");
       return;
@@ -337,23 +335,25 @@ const startOpeningPolling = () => {
       const data = res.data || {};
       if (!data.openingPending && data.chatLogs?.length > 0) {
         openingPending.value = false;
-        stopOpeningPolling();
         sessionData.value = {
           ...data,
           chatLogs: normalizeChatLogs(data.chatLogs),
         };
         await nextTick();
         scrollToBottom();
+        return;
       }
     } catch (err) {
       console.warn("轮询开场白状态失败:", err.message);
     }
-  }, 3000);
+    openingPollingTimer = setTimeout(poll, 3000);
+  };
+  openingPollingTimer = setTimeout(poll, 3000);
 };
 
 const stopOpeningPolling = () => {
   if (openingPollingTimer) {
-    clearInterval(openingPollingTimer);
+    clearTimeout(openingPollingTimer);
     openingPollingTimer = null;
   }
 };
