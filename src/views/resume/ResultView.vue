@@ -498,7 +498,7 @@
                 </div>
               </div>
               <div class="polish-edit-hint">
-                当前模板支持直接修改文案，右上角已预留照片空位；可导出为 PDF 或图片格式。
+                支持直接编辑文案、切换标题样式、调整段落顺序；可导出为 PDF 或图片格式。
               </div>
               <div v-if="polishResult?.polishedResumeText" class="polish-preview-shell">
                 <ResumeTemplate ref="resumeTemplateRef" :text="polishResult.polishedResumeText" mode="preview" />
@@ -617,6 +617,7 @@ const polishSectionRef = ref(null)
 const pdfExporting = ref(false)
 const imageExporting = ref(false)
 const resumeTemplateRef = ref(null)
+
 const editablePolishedText = ref('')
 const templateReferenceText = ref(`姓名
 求职方向
@@ -1027,27 +1028,28 @@ watch(task, (newTask) => {
 }, { deep: true })
 
 const copyPolishedResume = async () => {
-  // ?????????????????????????????????
+  // 复制当前页面上已编辑后的真实文本，避免继续使用 AI 原始文本造成内容回退
   const editedText =
     resumeTemplateRef.value?.getResumePlainText?.() ||
     editablePolishedText.value ||
     polishResult.value?.polishedResumeText ||
     ''
   if (!editedText) {
-    ElMessage.warning('??????????')
+    ElMessage.warning('暂无可复制的内容')
     return
   }
   try {
     await navigator.clipboard.writeText(editedText)
-    ElMessage.success('???????')
+    ElMessage.success('已复制到剪贴板')
   } catch (err) {
-    console.error('[AI ????] ????:', err)
-    ElMessage.error('??????????')
+    console.error('[AI 润色] 复制失败:', err)
+    ElMessage.error('复制失败，请手动选择复制')
   }
 }
 
+
 const getExportFilename = () => {
-  // ??????????????????????????????????????????
+  // 优先使用简历中的姓名作为文件名，否则取第一行文本
   const resumeName = resumeTemplateRef.value?.getResumeName?.()?.trim()
   if (resumeName) {
     return resumeName
@@ -1071,18 +1073,18 @@ const downloadTextFile = (filename, content) => {
 }
 
 const downloadPolishedResumeText = () => {
-  // ????????????????????????????????????
+  // 以当前页面上已编辑后的真实文本为准下载
   const content =
     resumeTemplateRef.value?.getResumePlainText?.() ||
     editablePolishedText.value ||
     polishResult.value?.polishedResumeText ||
     ''
   if (!content) {
-    ElMessage.warning('??????????')
+    ElMessage.warning('暂无可下载的内容')
     return
   }
-  downloadTextFile(`${getExportFilename()}-ai??.txt`, content)
-  ElMessage.success('???????')
+  downloadTextFile(`${getExportFilename()}-ai润色.txt`, content)
+  ElMessage.success('文本已下载')
 }
 
 const copyTemplateReference = async () => {

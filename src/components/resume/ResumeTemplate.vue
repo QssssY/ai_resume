@@ -6,12 +6,20 @@
     @click="syncActiveEditable"
   >
     <div v-if="mode === 'preview'" class="editor-toolbar">
-      <button type="button" class="editor-tool" @mousedown.prevent @click="toggleBold">B</button>
-      <button type="button" class="editor-tool" @mousedown.prevent @click="decreaseFontSize">A-</button>
-      <button type="button" class="editor-tool" @mousedown.prevent @click="increaseFontSize">A+</button>
-      <button type="button" class="editor-tool" @mousedown.prevent @click="resetCurrentStyle">重置</button>
-      <button type="button" class="editor-tool" @mousedown.prevent @click="insertSubsectionBlock">标签样式</button>
-      <button type="button" class="editor-tool" @mousedown.prevent @click="insertTextBlock">新增段落</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="undo" :disabled="!canUndo">撤销</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="redo" :disabled="!canRedo">重做</button>
+      <span class="toolbar-separator"></span>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="toggleBold" :disabled="!selectedBlockId">B</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="decreaseFontSize" :disabled="!selectedBlockId">A-</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="increaseFontSize" :disabled="!selectedBlockId">A+</button>
+      <span class="toolbar-separator"></span>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="insertTextBlockAfter">新增段落</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="deleteCurrentBlock" :disabled="!selectedBlockId">删除段落</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="moveCurrentBlockUp" :disabled="!selectedBlockId || isFirstBlock">上移</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="moveCurrentBlockDown" :disabled="!selectedBlockId || isLastBlock">下移</button>
+      <span class="toolbar-separator"></span>
+      <button type="button" class="editor-tool" :class="{ 'editor-tool--active': currentBlockType === 'section_title' }" @mousedown.prevent @click="toggleSectionTitle" :disabled="!selectedBlockId">章节标题</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="resetCurrentStyle" :disabled="!selectedBlockId">重置</button>
     </div>
     <article class="resume-paper">
       <section data-role="section" class="resume-section resume-section--profile">
@@ -108,7 +116,7 @@
 
       <main class="resume-main">
         <section
-          v-for="(section, sectionIndex) in orderedSections"
+          v-for="(section, sectionIndex) in mergedSections"
           :key="`${section.key}-${sectionIndex}`"
           data-role="section"
           :class="['resume-section', `resume-section--${section.key}`]"
@@ -131,11 +139,27 @@
           <div class="resume-section-body">
             <div
               v-for="(block, blockIndex) in section.blocks"
-              :key="`${block.type}-${blockIndex}`"
-              :data-block-type="block.type"
-              class="resume-block"
+              :key="block.id"
+              :data-block-type="getEffectiveType(block)"
+              :data-block-id="block.id"
+              :class="['resume-block', { 'is-selected': selectedBlockId === block.id }]"
             >
-              <div v-if="block.type === 'row'" class="entry-row">
+              <div v-if="getEffectiveType(block) === 'section_title'" class="resume-section-head" style="margin-bottom:0;">
+                <div class="section-tab">
+                  <span class="section-tab-mark"></span>
+                  <h2
+                    data-role="section-title"
+                    class="section-title"
+                    contenteditable="true"
+                    spellcheck="false"
+                    @focus="selectBlock(block.id)"
+                    @blur="block.content = $event.target.textContent"
+                  >{{ block.content }}</h2>
+                </div>
+                <div class="section-line"></div>
+              </div>
+
+              <div v-else-if="getEffectiveType(block) === 'row'" class="entry-row">
                 <span
                   v-for="(item, itemIndex) in block.items"
                   :key="`${item}-${itemIndex}`"
@@ -144,17 +168,19 @@
                   :class="`entry-cell--${resolveCellRole(itemIndex, block.items.length)}`"
                   contenteditable="true"
                   spellcheck="false"
+                  @focus="selectBlock(block.id)"
                 >
                   {{ item }}
                 </span>
               </div>
 
-              <p v-else-if="block.type === 'label'" class="label-line">
+              <p v-else-if="getEffectiveType(block) === 'label'" class="label-line">
                 <span
                   data-role="label-key"
                   class="label-key"
                   contenteditable="true"
                   spellcheck="false"
+                  @focus="selectBlock(block.id)"
                 >
                   {{ block.label }}
                 </span>
@@ -163,22 +189,25 @@
                   class="label-value"
                   contenteditable="true"
                   spellcheck="false"
+                  @focus="selectBlock(block.id)"
                 >
                   {{ block.content }}
                 </span>
               </p>
 
               <p
-                v-else-if="block.type === 'text'"
+                v-else-if="getEffectiveType(block) === 'text'"
                 data-role="text-block"
                 :class="['text-line', block.variant ? `text-line--${block.variant}` : '']"
                 contenteditable="true"
                 spellcheck="false"
+                @focus="selectBlock(block.id)"
+                @blur="block.content = $event.target.textContent"
               >
                 {{ block.content }}
               </p>
 
-              <ul v-else-if="block.type === 'list'" class="bullet-list">
+              <ul v-else-if="getEffectiveType(block) === 'list'" class="bullet-list">
                 <li
                   v-for="(item, itemIndex) in block.items"
                   :key="`${item}-${itemIndex}`"
@@ -199,7 +228,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps({
@@ -351,6 +380,10 @@ const shouldEmphasizeProjectLine = (sectionKey, line) => {
   return line.length <= 32 || /\d{4}[./-]\d{1,2}/.test(line)
 }
 
+// 生成唯一 block ID
+let _blockIdSeq = 0
+const generateBlockId = () => `blk_${++_blockIdSeq}`
+
 const buildBlocksFromLines = (sectionKey, lines) => {
   const blocks = []
   let currentListItems = []
@@ -360,6 +393,7 @@ const buildBlocksFromLines = (sectionKey, lines) => {
       return
     }
     blocks.push({
+      id: generateBlockId(),
       type: 'list',
       items: [...currentListItems],
     })
@@ -379,6 +413,7 @@ const buildBlocksFromLines = (sectionKey, lines) => {
 
     if (isInlineRow(line)) {
       blocks.push({
+        id: generateBlockId(),
         type: 'row',
         items: splitInlineItems(line),
       })
@@ -387,6 +422,7 @@ const buildBlocksFromLines = (sectionKey, lines) => {
 
     if (isLabelLine(line)) {
       blocks.push({
+        id: generateBlockId(),
         type: 'label',
         ...parseLabelLine(line),
       })
@@ -394,6 +430,7 @@ const buildBlocksFromLines = (sectionKey, lines) => {
     }
 
     blocks.push({
+      id: generateBlockId(),
       type: 'text',
       content: line,
       variant: shouldEmphasizeProjectLine(sectionKey, line) ? 'heading' : '',
@@ -614,6 +651,350 @@ const resolveCellRole = (index, total) => {
   return 'middle'
 }
 
+// ─── 块选中机制 ────────────────────────────────────────────────
+
+const selectedBlockId = ref(null)
+// 类型覆盖表：blockId → 覆盖后的类型（ref 对象，赋值触发 Vue 重渲染）
+const blockTypeOverrides = ref({})
+// 用户新增的 block（不在原始解析数据中）
+const extraBlocks = ref([])
+
+const getEffectiveType = (block) => blockTypeOverrides.value[block.id] || block.type
+
+// 合并原始 sections 和用户新增的 block
+const mergedSections = computed(() => {
+  if (!extraBlocks.value.length) return orderedSections.value
+
+  const result = orderedSections.value.map((s) => ({
+    ...s,
+    blocks: [...s.blocks],
+  }))
+
+  extraBlocks.value.forEach((eb) => {
+    const target = result.find((s) => s.key === eb.sectionKey)
+    if (target) {
+      if (eb.block === null) {
+        // 删除操作：移除指定位置的 block
+        target.blocks.splice(eb.insertIndex, 1)
+      } else {
+        target.blocks.splice(eb.insertIndex, 0, eb.block)
+      }
+    } else if (eb.block !== null) {
+      result.push({
+        key: eb.sectionKey,
+        title: eb.sectionKey,
+        blocks: [eb.block],
+      })
+    }
+  })
+
+  // 过滤掉可能残留的 null blocks
+  result.forEach((s) => {
+    s.blocks = s.blocks.filter(Boolean)
+  })
+
+  return result
+})
+
+// 选中某个 block
+const selectBlock = (blockId) => {
+  selectedBlockId.value = blockId
+}
+
+// 查找 block 所属的 section 和在 blocks 数组中的索引（搜索合并后的 sections）
+const findBlockLocation = (blockId) => {
+  for (const section of mergedSections.value) {
+    const idx = section.blocks.findIndex((b) => b.id === blockId)
+    if (idx !== -1) {
+      return { section, index: idx }
+    }
+  }
+  return null
+}
+
+// 获取当前选中 block 的类型（考虑覆盖表）
+const currentBlockType = computed(() => {
+  if (!selectedBlockId.value) return null
+  const loc = findBlockLocation(selectedBlockId.value)
+  if (!loc) return null
+  return getEffectiveType(loc.section.blocks[loc.index])
+})
+
+// 是否为第一个/最后一个 block
+const isFirstBlock = computed(() => {
+  if (!selectedBlockId.value) return true
+  const allBlocks = mergedSections.value.flatMap((s) => s.blocks)
+  return allBlocks.findIndex((b) => b.id === selectedBlockId.value) === 0
+})
+
+const isLastBlock = computed(() => {
+  if (!selectedBlockId.value) return true
+  const allBlocks = mergedSections.value.flatMap((s) => s.blocks)
+  const idx = allBlocks.findIndex((b) => b.id === selectedBlockId.value)
+  return idx === allBlocks.length - 1
+})
+
+// ─── 撤销/重做 ─────────────────────────────────────────────────
+
+const undoStack = ref([])
+const redoStack = ref([])
+const canUndo = computed(() => undoStack.value.length > 0)
+const canRedo = computed(() => redoStack.value.length > 0)
+
+// 同步所有 contenteditable 元素的文本到响应式数据
+const syncAllContentFromDOM = () => {
+  if (!resumeRef.value) return
+  resumeRef.value.querySelectorAll('.resume-block[data-block-id]').forEach((blockEl) => {
+    const blockId = blockEl.getAttribute('data-block-id')
+    const editable = blockEl.querySelector('[contenteditable="true"]')
+    if (!editable || !blockId) return
+    const text = editable.textContent || ''
+    const loc = findBlockLocation(blockId)
+    if (loc) {
+      const block = loc.section.blocks[loc.index]
+      block.content = text
+      if (block.items) block.items = [text]
+    }
+  })
+}
+
+// 保存响应式状态快照（extraBlocks + blockTypeOverrides）
+const pushUndoSnapshot = () => {
+  syncAllContentFromDOM()
+  undoStack.value.push(JSON.stringify({
+    extraBlocks: extraBlocks.value,
+    blockTypeOverrides: blockTypeOverrides.value,
+  }))
+  redoStack.value = []
+  if (undoStack.value.length > 50) undoStack.value.shift()
+}
+
+const undo = () => {
+  if (!canUndo.value) return
+  syncAllContentFromDOM()
+  redoStack.value.push(JSON.stringify({
+    extraBlocks: extraBlocks.value,
+    blockTypeOverrides: blockTypeOverrides.value,
+  }))
+  const snapshot = JSON.parse(undoStack.value.pop())
+  extraBlocks.value = snapshot.extraBlocks
+  blockTypeOverrides.value = snapshot.blockTypeOverrides
+  selectedBlockId.value = null
+}
+
+const redo = () => {
+  if (!canRedo.value) return
+  syncAllContentFromDOM()
+  undoStack.value.push(JSON.stringify({
+    extraBlocks: extraBlocks.value,
+    blockTypeOverrides: blockTypeOverrides.value,
+  }))
+  const snapshot = JSON.parse(redoStack.value.pop())
+  extraBlocks.value = snapshot.extraBlocks
+  blockTypeOverrides.value = snapshot.blockTypeOverrides
+  selectedBlockId.value = null
+}
+
+// ─── 工具栏操作函数 ────────────────────────────────────────────
+
+// 查找选中 block 的 DOM 元素
+const findSelectedBlockEl = () => {
+  if (!selectedBlockId.value || !resumeRef.value) return null
+  return resumeRef.value.querySelector(`.resume-block[data-block-id="${selectedBlockId.value}"]`)
+}
+
+// 获取选中 block 内的文本内容
+const getBlockText = (blockEl) => {
+  if (!blockEl) return ''
+  const editable = blockEl.querySelector('[contenteditable="true"]')
+  if (editable) return editable.textContent || ''
+  return blockEl.textContent || ''
+}
+
+// 在 mergedSections 中查找 block（同时搜索 extraBlocks 的 sectionKey）
+const findBlockInSections = (blockId) => {
+  for (const section of mergedSections.value) {
+    const idx = section.blocks.findIndex((b) => b.id === blockId)
+    if (idx !== -1) return { section, index: idx }
+  }
+  return null
+}
+
+// 切换 block 类型
+const setBlockType = (newType) => {
+  const blockId = selectedBlockId.value
+  if (!blockId) {
+    ElMessage.warning('请先点击要操作的内容')
+    return
+  }
+  const loc = findBlockInSections(blockId)
+  const currentType = blockTypeOverrides.value[blockId] || loc?.section.blocks[loc.index]?.type
+
+  if (newType === currentType) return
+
+  pushUndoSnapshot()
+
+  // 同步当前 DOM 文本到 block 数据
+  const blockEl = findSelectedBlockEl()
+  if (blockEl && loc) {
+    const text = getBlockText(blockEl)
+    const block = loc.section.blocks[loc.index]
+    block.content = text
+    if (block.items) block.items = [text]
+  }
+
+  // 切换类型
+  if (blockTypeOverrides.value[blockId]) {
+    const { [blockId]: _, ...rest } = blockTypeOverrides.value
+    blockTypeOverrides.value = rest
+  } else {
+    blockTypeOverrides.value = { ...blockTypeOverrides.value, [blockId]: newType }
+  }
+}
+
+const toggleSectionTitle = () => {
+  const blockId = selectedBlockId.value
+  if (!blockId) {
+    ElMessage.warning('请先点击要操作的内容')
+    return
+  }
+  const currentType = blockTypeOverrides.value[blockId] || findBlockInSections(blockId)?.section.blocks[findBlockInSections(blockId).index]?.type
+  setBlockType(currentType === 'section_title' ? 'text' : 'section_title')
+}
+
+// 删除当前选中的 block（操作响应式数据）
+const deleteCurrentBlock = () => {
+  const blockId = selectedBlockId.value
+  if (!blockId) {
+    ElMessage.warning('请先点击要删除的内容')
+    return
+  }
+
+  const loc = findBlockInSections(blockId)
+  if (!loc) return
+
+  if (loc.section.blocks.length <= 1) {
+    ElMessage.warning('章节中至少保留一个内容块')
+    return
+  }
+
+  pushUndoSnapshot()
+
+  // 从 extraBlocks 或原始 blocks 中删除
+  const extraIdx = extraBlocks.value.findIndex(
+    (eb) => eb.sectionKey === loc.section.key && eb.block.id === blockId
+  )
+  if (extraIdx !== -1) {
+    extraBlocks.value = extraBlocks.value.filter((_, i) => i !== extraIdx)
+  } else {
+    // 原始 block：通过添加一个负向 extraBlock 来删除（标记删除）
+    extraBlocks.value = [
+      ...extraBlocks.value,
+      { sectionKey: loc.section.key, insertIndex: loc.index, block: null },
+    ]
+  }
+
+  selectedBlockId.value = null
+}
+
+// 上移当前 block（操作响应式数据）
+const moveCurrentBlockUp = () => {
+  const blockId = selectedBlockId.value
+  if (!blockId) return
+
+  const loc = findBlockInSections(blockId)
+  if (!loc || loc.index <= 0) return
+
+  pushUndoSnapshot()
+
+  const blocks = [...loc.section.blocks]
+  const temp = blocks[loc.index - 1]
+  blocks[loc.index - 1] = blocks[loc.index]
+  blocks[loc.index] = temp
+
+  // 更新 extraBlocks 中的顺序
+  updateBlocksForSection(loc.section.key, blocks)
+}
+
+// 下移当前 block（操作响应式数据）
+const moveCurrentBlockDown = () => {
+  const blockId = selectedBlockId.value
+  if (!blockId) return
+
+  const loc = findBlockInSections(blockId)
+  if (!loc || loc.index >= loc.section.blocks.length - 1) return
+
+  pushUndoSnapshot()
+
+  const blocks = [...loc.section.blocks]
+  const temp = blocks[loc.index + 1]
+  blocks[loc.index + 1] = blocks[loc.index]
+  blocks[loc.index] = temp
+
+  updateBlocksForSection(loc.section.key, blocks)
+}
+
+// 更新某个 section 的 blocks 顺序（通过 extraBlocks 重排）
+const updateBlocksForSection = (sectionKey, newBlocks) => {
+  // 重建 extraBlocks：保留其他 section 的，替换当前 section 的
+  const otherExtras = extraBlocks.value.filter((eb) => eb.sectionKey !== sectionKey)
+  const originalBlocks = orderedSections.value.find((s) => s.key === sectionKey)?.blocks || []
+  const newExtras = []
+
+  newBlocks.forEach((block, idx) => {
+    const isOriginal = originalBlocks.some((ob) => ob.id === block.id)
+    if (!isOriginal) {
+      newExtras.push({ sectionKey, insertIndex: idx, block })
+    }
+  })
+
+  extraBlocks.value = [...otherExtras, ...newExtras]
+}
+
+// 在当前 block 后新增段落
+const insertTextBlockAfter = () => {
+  const blockId = selectedBlockId.value
+  let sectionKey = null
+  let insertIndex = 0
+
+  if (blockId) {
+    const loc = findBlockInSections(blockId)
+    if (loc) {
+      sectionKey = loc.section.key
+      insertIndex = loc.index + 1
+    }
+  }
+
+  if (!sectionKey) {
+    const firstSection = mergedSections.value[0]
+    if (firstSection) {
+      sectionKey = firstSection.key
+      insertIndex = firstSection.blocks.length
+    }
+  }
+
+  if (!sectionKey) return
+
+  pushUndoSnapshot()
+
+  const id = generateBlockId()
+  const newBlock = { id, type: 'text', content: '请输入补充内容' }
+
+  extraBlocks.value = [
+    ...extraBlocks.value,
+    { sectionKey, insertIndex, block: newBlock },
+  ]
+
+  nextTick(() => {
+    const el = resumeRef.value?.querySelector(`.resume-block[data-block-id="${id}"]`)
+    if (el) {
+      const editable = el.querySelector('[contenteditable="true"]')
+      if (editable) editable.focus()
+    }
+    selectedBlockId.value = id
+  })
+}
+
 const syncActiveEditable = (event) => {
   const target = event?.target
   if (target instanceof HTMLElement && target.getAttribute('contenteditable') === 'true') {
@@ -695,21 +1076,27 @@ const increaseFontSize = () => updateFontSize(1)
 
 const decreaseFontSize = () => updateFontSize(-1)
 
-// 重置只清除用户通过工具栏写入的内联样式，不破坏模板原有类名样式。
+// 重置：清除内联样式 + 恢复原始 block 类型
 const resetCurrentStyle = () => {
-  const context = resolveEditingContext()
-  if (!context) {
-    return
+  const blockId = selectedBlockId.value
+  if (!blockId) return
+
+  pushUndoSnapshot()
+
+  // 清除类型覆盖
+  if (blockTypeOverrides.value[blockId]) {
+    const { [blockId]: _, ...rest } = blockTypeOverrides.value
+    blockTypeOverrides.value = rest
   }
 
-  const wrapper = getSelectionWrapper(context.selection)
-  if (wrapper) {
-    wrapper.removeAttribute('style')
-    return
+  // 清除内联样式
+  const blockEl = findSelectedBlockEl()
+  if (blockEl) {
+    blockEl.querySelectorAll('[contenteditable="true"]').forEach((el) => {
+      el.style.fontWeight = ''
+      el.style.fontSize = ''
+    })
   }
-
-  context.editableElement.style.fontWeight = ''
-  context.editableElement.style.fontSize = ''
 }
 
 const focusEditableNode = (node) => {
@@ -731,59 +1118,49 @@ const focusEditableNode = (node) => {
   activeEditableEl.value = node
 }
 
-const createResumeBlock = (blockType, innerHtml) => {
-  const block = document.createElement('div')
-  block.className = 'resume-block'
-  block.setAttribute('data-block-type', blockType)
-  block.innerHTML = innerHtml
-  return block
-}
 
-const insertBlockAfterCurrent = (block) => {
-  const context = resolveEditingContext()
-  if (!context) {
+// 键盘快捷键处理
+const handleKeydown = (e) => {
+  // Ctrl+Z 撤销
+  if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault()
+    undo()
     return
   }
-
-  const sectionBody = context.editableElement.closest('.resume-section-body')
-  if (!sectionBody) {
-    ElMessage.warning('当前区域不支持新增内容，请在具体模块内容中操作')
+  // Ctrl+Y 或 Ctrl+Shift+Z 重做
+  if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
+    e.preventDefault()
+    redo()
     return
   }
-
-  const currentBlock = context.editableElement.closest('.resume-block')
-  if (currentBlock?.parentNode === sectionBody) {
-    currentBlock.insertAdjacentElement('afterend', block)
-  } else {
-    sectionBody.appendChild(block)
+  // Ctrl+Delete 删除当前 block
+  if (e.ctrlKey && e.key === 'Delete') {
+    e.preventDefault()
+    deleteCurrentBlock()
+    return
   }
-
-  const firstEditable = block.querySelector('[contenteditable="true"]')
-  focusEditableNode(firstEditable)
+  // Ctrl+ArrowUp 上移
+  if (e.ctrlKey && e.key === 'ArrowUp') {
+    e.preventDefault()
+    moveCurrentBlockUp()
+    return
+  }
+  // Ctrl+ArrowDown 下移
+  if (e.ctrlKey && e.key === 'ArrowDown') {
+    e.preventDefault()
+    moveCurrentBlockDown()
+    return
+  }
 }
 
-// 标签样式与正文段落都复用现有模板结构，确保新增内容能被复制与导出链路完整识别。
-const insertSubsectionBlock = () => {
-  const block = createResumeBlock(
-    'subsection',
-    `
-      <div class="subsection-line">
-        <span data-role="subsection-title" class="subsection-title" contenteditable="true" spellcheck="false">新增标签</span>
-      </div>
-    `,
-  )
-  insertBlockAfterCurrent(block)
-}
+// 初始化：绑定键盘事件
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+})
 
-const insertTextBlock = () => {
-  const block = createResumeBlock(
-    'text',
-    `
-      <p data-role="text-block" class="text-line" contenteditable="true" spellcheck="false">请输入补充内容</p>
-    `,
-  )
-  insertBlockAfterCurrent(block)
-}
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 
 const removeEditableAttributes = (rootNode) => {
   rootNode.querySelectorAll('[contenteditable]').forEach((node) => {
@@ -931,10 +1308,11 @@ const getResumePlainText = () => {
         return
       }
 
-      if (blockType === 'subsection') {
-        const subsectionTitle = blockNode.querySelector('[data-role="subsection-title"]')?.textContent?.trim()
-        if (subsectionTitle) {
-          lines.push(subsectionTitle)
+      if (blockType === 'section_title') {
+        const sectionTitle = blockNode.querySelector('[data-role="section-title"]')?.textContent?.trim()
+        if (sectionTitle) {
+          lines.push('')
+          lines.push(sectionTitle)
         }
         return
       }
@@ -963,6 +1341,7 @@ const getResumeName = () => {
   return resumeRef.value?.querySelector('[data-role="profile-name"]')?.textContent?.trim() || ''
 }
 
+// 导出结构化文档 JSON（仅保存最终合并后的 sections，不单独存 extraBlocks/blockTypeOverrides）
 // PDF 导出继续使用浏览器打印流，保留真实文字和空白头像位，方便后续补图或二次调整。
 const buildPrintHtml = () => {
   if (!resumeRef.value) {
@@ -1082,6 +1461,41 @@ defineExpose({
   border-color: rgba(27, 91, 87, 0.52);
   box-shadow: 0 6px 14px rgba(27, 91, 87, 0.1);
   transform: translateY(-1px);
+}
+
+.editor-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.editor-tool--active {
+  background: var(--resume-accent, #1b5b57);
+  color: #fff;
+  border-color: var(--resume-accent, #1b5b57);
+}
+
+.resume-block.is-selected {
+  outline: 2px dashed var(--resume-accent, #1b5b57);
+  outline-offset: 2px;
+  border-radius: 4px;
+  background: rgba(27, 91, 87, 0.04);
+}
+
+.resume-block .resume-section-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 0;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 24px;
+  background: rgba(27, 91, 87, 0.2);
+  margin: 0 4px;
+  align-self: center;
 }
 
 .resume-template--print {
