@@ -118,8 +118,99 @@
     </button>
 
     <div class="header-right">
-      <!-- 已登录状态：显示头像和下拉菜单 -->
+      <!-- 已登录状态：显示通知铃铛和头像下拉菜单 -->
       <template v-if="isLoggedIn">
+        <!-- 消息通知铃铛 -->
+        <el-popover
+          placement="bottom-end"
+          :width="360"
+          trigger="click"
+          :show-arrow="false"
+          :offset="8"
+          popper-class="notification-popover"
+          @before-enter="handleNotificationOpen"
+        >
+          <template #reference>
+            <div class="notification-bell">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span v-if="unreadCount > 0" class="bell-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+            </div>
+          </template>
+
+          <!-- 通知下拉面板 -->
+          <div class="notification-panel">
+            <div class="panel-header">
+              <span class="panel-title">消息通知</span>
+              <el-button
+                v-if="unreadCount > 0"
+                type="primary"
+                link
+                size="small"
+                :loading="markAllReadLoading"
+                @click="handleMarkAllRead"
+              >
+                全部已读
+              </el-button>
+            </div>
+
+            <div v-if="notificationLoading" class="panel-loading">
+              <span class="loading-spinner"></span>
+              <span>加载中...</span>
+            </div>
+
+            <div v-else-if="notificationList.length === 0" class="panel-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-bell-icon">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <p>暂无消息</p>
+            </div>
+
+            <div v-else class="panel-list">
+              <div
+                v-for="item in notificationList"
+                :key="item.id"
+                class="panel-item"
+                :class="{ unread: item.readStatus === 0 }"
+                @click="handleNotificationRead(item)"
+              >
+                <div class="panel-item-icon" :class="`type-${item.type}`">
+                  <svg v-if="item.type === 'resume'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <svg v-else-if="item.type === 'polish'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <svg v-else-if="item.type === 'interview'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                <div class="panel-item-content">
+                  <div class="panel-item-title">{{ item.title }}</div>
+                  <div class="panel-item-text">{{ item.content }}</div>
+                  <div class="panel-item-time">{{ formatNotifTime(item.createTime) }}</div>
+                </div>
+                <div v-if="item.readStatus === 0" class="panel-item-dot"></div>
+              </div>
+            </div>
+
+            <div class="panel-footer" @click="goToNotificationPage">
+              查看全部消息
+            </div>
+          </div>
+        </el-popover>
+
         <el-dropdown trigger="click" @command="handleCommand">
           <div class="avatar-wrapper avatar-sm">
             <div class="avatar-ring avatar-sm">
@@ -268,6 +359,16 @@
           @click="drawerVisible = false"
           >个人中心</router-link
         >
+        <router-link
+          v-if="isLoggedIn"
+          to="/notifications"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+        >
+          消息通知
+          <span v-if="unreadCount > 0" class="mobile-unread-badge">{{ unreadCount }}</span>
+        </router-link
+        >
       </nav>
     </el-drawer>
 
@@ -333,12 +434,13 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
 import { ElMessage } from "element-plus";
 import { removeToken } from "@/utils/auth";
 import { updateNickname } from "@/api/auth";
+import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from "@/api/notification";
 
 const router = useRouter();
 const route = useRoute();
@@ -354,6 +456,131 @@ const nicknameDialogVisible = ref(false);
  */
 const nicknameForm = ref({ nickname: "" });
 const isLoggedIn = computed(() => userStore.isLoggedIn());
+
+// ===== 消息通知相关状态 =====
+/** 未读通知数量 */
+const unreadCount = ref(0);
+/** 通知列表（最近10条） */
+const notificationList = ref([]);
+/** 通知面板是否展开 */
+const notificationPopoverVisible = ref(false);
+/** 通知加载状态 */
+const notificationLoading = ref(false);
+/** 全部已读加载状态 */
+const markAllReadLoading = ref(false);
+/** 轮询定时器 */
+let notificationTimer = null;
+
+/**
+ * 获取未读通知数量
+ */
+const fetchUnreadCount = async () => {
+  try {
+    const res = await getUnreadCount();
+    if (res.code === 200) {
+      unreadCount.value = res.data.unreadCount || 0;
+    }
+  } catch (e) {
+    console.error("获取未读数量失败", e);
+  }
+};
+
+/**
+ * 获取最近通知列表（面板展开时调用）
+ */
+const fetchNotificationList = async () => {
+  notificationLoading.value = true;
+  try {
+    const res = await getNotifications({ page: 1, size: 10 });
+    if (res.code === 200) {
+      notificationList.value = res.data.records || [];
+      unreadCount.value = res.data.unreadCount || 0;
+    }
+  } catch (e) {
+    console.error("获取通知列表失败", e);
+  } finally {
+    notificationLoading.value = false;
+  }
+};
+
+/**
+ * 打开通知面板
+ */
+const handleNotificationOpen = () => {
+  notificationPopoverVisible.value = true;
+  fetchNotificationList();
+};
+
+/**
+ * 单条通知标记已读
+ */
+const handleNotificationRead = async (item) => {
+  if (item.readStatus === 0) {
+    try {
+      await markAsRead(item.id);
+      item.readStatus = 1;
+      item.readTime = new Date().toISOString();
+      unreadCount.value = Math.max(0, unreadCount.value - 1);
+    } catch (e) {
+      console.error("标记已读失败", e);
+    }
+  }
+  // 关闭面板并跳转
+  notificationPopoverVisible.value = false;
+  if (item.bizType === "resume_diagnosis" && item.bizId) {
+    router.push(`/resume/result/${item.bizId}`);
+  } else if (item.bizType === "resume_polish" && item.bizId) {
+    router.push(`/resume/result/${item.bizId}`);
+  } else if (item.bizType === "mock_interview" && item.bizId) {
+    router.push(`/interview/report/${item.bizId}`);
+  }
+};
+
+/**
+ * 全部标记已读
+ */
+const handleMarkAllRead = async () => {
+  markAllReadLoading.value = true;
+  try {
+    await markAllAsRead();
+    unreadCount.value = 0;
+    notificationList.value.forEach((item) => {
+      item.readStatus = 1;
+      item.readTime = new Date().toISOString();
+    });
+    ElMessage.success("已全部标记为已读");
+  } catch (e) {
+    ElMessage.error("操作失败");
+  } finally {
+    markAllReadLoading.value = false;
+  }
+};
+
+/**
+ * 跳转到通知完整页面
+ */
+const goToNotificationPage = () => {
+  notificationPopoverVisible.value = false;
+  router.push("/notifications");
+};
+
+/**
+ * 格式化通知时间
+ */
+const formatNotifTime = (time) => {
+  if (!time) return "";
+  const date = new Date(time);
+  const now = new Date();
+  const diff = now - date;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  if (minutes < 1) return "刚刚";
+  if (minutes < 60) return `${minutes}分钟前`;
+  if (hours < 24) return `${hours}小时前`;
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${month}-${day}`;
+};
 const username = computed(() => userStore.userInfo?.nickname || userStore.userInfo?.username || "用户");
 
 // 用户角色判定
@@ -464,6 +691,28 @@ const saveNickname = async () => {
     ElMessage.error(e.message || "修改失败");
   }
 };
+
+// 监听登录状态变化，启动或停止通知轮询
+watch(isLoggedIn, (loggedIn) => {
+  if (loggedIn) {
+    fetchUnreadCount();
+    notificationTimer = setInterval(fetchUnreadCount, 60000);
+  } else {
+    if (notificationTimer) {
+      clearInterval(notificationTimer);
+      notificationTimer = null;
+    }
+    unreadCount.value = 0;
+    notificationList.value = [];
+  }
+}, { immediate: true });
+
+onUnmounted(() => {
+  if (notificationTimer) {
+    clearInterval(notificationTimer);
+    notificationTimer = null;
+  }
+});
 </script>
 
 <style scoped>
@@ -908,5 +1157,245 @@ const saveNickname = async () => {
 .dialog-footer .el-button--primary:disabled {
   background: #c8c9cc;
   border-color: #c8c9cc;
+}
+
+/* ===== 消息通知铃铛 ===== */
+.notification-bell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-right: 8px;
+}
+
+.notification-bell:hover {
+  background-color: #fff8f3;
+}
+
+.notification-bell svg {
+  width: 20px;
+  height: 20px;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.notification-bell:hover svg {
+  color: #ff8c42;
+}
+
+.bell-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: #ff4d4f;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* ===== 通知下拉面板 ===== */
+.notification-panel {
+  margin: -12px -16px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.panel-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 0;
+  color: #999;
+  font-size: 13px;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e0e0e0;
+  border-top-color: #ff8c42;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+}
+
+.empty-bell-icon {
+  width: 40px;
+  height: 40px;
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+.panel-empty p {
+  font-size: 13px;
+  color: #999;
+  margin: 0;
+}
+
+.panel-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.panel-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  position: relative;
+}
+
+.panel-item:hover {
+  background-color: #fafafa;
+}
+
+.panel-item.unread {
+  background-color: #fffbf8;
+}
+
+.panel-item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.panel-item-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.panel-item-icon.type-resume {
+  background: rgba(255, 140, 66, 0.1);
+  color: #ff8c42;
+}
+
+.panel-item-icon.type-polish {
+  background: rgba(64, 158, 255, 0.1);
+  color: #409eff;
+}
+
+.panel-item-icon.type-interview {
+  background: rgba(103, 194, 58, 0.1);
+  color: #67c23a;
+}
+
+.panel-item-icon.type-quota {
+  background: rgba(245, 108, 108, 0.1);
+  color: #f56c6c;
+}
+
+.panel-item-icon.type-system {
+  background: rgba(144, 147, 153, 0.1);
+  color: #909399;
+}
+
+.panel-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-item-text {
+  font-size: 12px;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 2px;
+}
+
+.panel-item-time {
+  font-size: 11px;
+  color: #bbb;
+}
+
+.panel-item-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff8c42;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.panel-footer {
+  text-align: center;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #ff8c42;
+  border-top: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.panel-footer:hover {
+  background-color: #fff8f3;
+}
+
+/* 移动端未读角标 */
+.mobile-unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: #ff4d4f;
+  border-radius: 9px;
+  margin-left: 6px;
 }
 </style>

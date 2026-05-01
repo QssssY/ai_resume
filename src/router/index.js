@@ -90,6 +90,12 @@ const routes = [
     meta: { requiresAuth: true, useLayout: true }
   },
   {
+    path: '/notifications',
+    name: 'Notifications',
+    component: () => import('@/views/notification/NotificationView.vue'),
+    meta: { requiresAuth: true, useLayout: true }
+  },
+  {
     path: '/resume/upload',
     name: 'ResumeUpload',
     component: () => import('@/views/resume/UploadView.vue'),
