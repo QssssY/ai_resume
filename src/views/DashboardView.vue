@@ -186,6 +186,22 @@
       </div>
     </div>
 
+    <!-- 成长中心入口 -->
+    <div class="growth-entry-card" @click="router.push('/growth')">
+      <div class="growth-entry-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+      </div>
+      <div class="growth-entry-content">
+        <div class="growth-entry-title">个人成长中心</div>
+        <div class="growth-entry-desc">查看你的成长轨迹与个性化建议</div>
+      </div>
+      <svg class="growth-entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </div>
+
     <!-- 最近记录区 -->
     <div class="records-section">
       <div class="record-column">
@@ -950,6 +966,65 @@ const viewAllInterview = () => {
 .stat-label {
   font-size: 13px;
   color: #909399;
+}
+
+/* 成长中心入口卡片 */
+.growth-entry-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #ff9a5c 0%, #ff8c42 40%, #e67a35 100%);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(255, 140, 66, 0.2);
+}
+
+.growth-entry-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(255, 140, 66, 0.3);
+}
+
+.growth-entry-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.growth-entry-icon svg {
+  width: 22px;
+  height: 22px;
+  color: #ffffff;
+}
+
+.growth-entry-content {
+  flex: 1;
+}
+
+.growth-entry-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+.growth-entry-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.growth-entry-arrow {
+  width: 20px;
+  height: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
 }
 
 .records-section {

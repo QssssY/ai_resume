@@ -84,6 +84,12 @@ const routes = [
     meta: { requiresAuth: true, useLayout: true }
   },
   {
+    path: '/growth',
+    name: 'GrowthCenter',
+    component: () => import('@/views/growth/GrowthCenterView.vue'),
+    meta: { requiresAuth: true, useLayout: true }
+  },
+  {
     path: '/resume/upload',
     name: 'ResumeUpload',
     component: () => import('@/views/resume/UploadView.vue'),

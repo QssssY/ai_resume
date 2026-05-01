@@ -31,6 +31,16 @@
         模拟面试
       </router-link>
 
+      <!-- 已登录才显示成长中心 -->
+      <router-link
+        v-if="isLoggedIn"
+        to="/growth"
+        class="nav-link"
+        :class="{ active: isGrowthActive }"
+      >
+        成长中心
+      </router-link>
+
       <!-- 已登录才显示历史记录下拉菜单 -->
       <div v-if="isLoggedIn" class="history-dropdown-wrapper">
         <el-dropdown trigger="click" @command="handleHistoryCommand">
@@ -232,6 +242,13 @@
         >
         <router-link
           v-if="isLoggedIn"
+          to="/growth"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >成长中心</router-link
+        >
+        <router-link
+          v-if="isLoggedIn"
           to="/resume/history"
           class="mobile-nav-link"
           @click="drawerVisible = false"
@@ -375,6 +392,9 @@ const isInterviewActive = computed(() => {
     path.startsWith("/interview") && !path.startsWith("/interview/history")
   );
 });
+
+// 成长中心激活状态
+const isGrowthActive = computed(() => route.path === "/growth");
 
 // 历史记录父级激活状态
 const isHistoryActive = computed(() => {

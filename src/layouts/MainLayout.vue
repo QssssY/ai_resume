@@ -6,11 +6,37 @@
         <router-view />
       </section>
     </main>
+    <!-- 新手引导弹窗：登录用户首次进入时展示 -->
+    <OnboardingGuide v-model:visible="showGuide" />
   </div>
 </template>
 
 <script setup>
-import AppHeader from "@/components/AppHeader.vue";
+import { ref, onMounted } from 'vue'
+import AppHeader from '@/components/AppHeader.vue'
+import OnboardingGuide from '@/components/OnboardingGuide.vue'
+import { getOnboardingStatus } from '@/api/onboarding'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+// 控制新手引导弹窗的显示/隐藏
+const showGuide = ref(false)
+
+onMounted(async () => {
+  // 检查登录状态：同时验证 token 和 userInfo，兼容 fetchUserInfo 尚未完成的时序
+  const token = localStorage.getItem('token')
+  if (!token && !userStore.isLoggedIn()) return
+
+  try {
+    const res = await getOnboardingStatus()
+    if (res.data?.showGuide) {
+      showGuide.value = true
+    }
+  } catch (err) {
+    // 引导状态查询失败时静默处理，不阻塞页面正常使用
+    console.warn('[Onboarding] 查询引导状态失败:', err)
+  }
+})
 </script>
 
 <style scoped>
