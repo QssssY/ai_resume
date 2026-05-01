@@ -503,6 +503,44 @@
               <div v-if="polishResult?.polishedResumeText" class="polish-preview-shell">
                 <ResumeTemplate ref="resumeTemplateRef" :text="polishResult.polishedResumeText" mode="preview" />
               </div>
+              <div v-if="false && polishResult?.polishedResumeText" class="polish-text-shell">
+                <div class="polish-block-header polish-block-header--text">
+                  <div class="job-match-block-title">AI 润色文本</div>
+                  <div class="polish-actions">
+                    <el-button size="small" @click="copyPolishedResume">复制文本</el-button>
+                    <el-button size="small" type="primary" @click="downloadPolishedResumeText">下载文本</el-button>
+                  </div>
+                </div>
+                <div class="polish-edit-hint">
+                  当前主交付改为标准化文本，不再依赖自动排版直接生成最终成品简历。
+                </div>
+                <el-input
+                  v-model="editablePolishedText"
+                  type="textarea"
+                  :rows="18"
+                  resize="vertical"
+                  class="polish-textarea"
+                />
+              </div>
+              <div v-if="false" class="polish-text-shell polish-text-shell--template">
+                <div class="polish-block-header polish-block-header--text">
+                  <div class="job-match-block-title">标准模板参考</div>
+                  <div class="polish-actions">
+                    <el-button size="small" @click="copyTemplateReference">复制模板</el-button>
+                    <el-button size="small" type="primary" @click="downloadTemplateReference">下载模板</el-button>
+                  </div>
+                </div>
+                <div class="polish-edit-hint">
+                  你可以把上方 AI 文本按章节粘贴到下方模板中，再自行微调。
+                </div>
+                <el-input
+                  v-model="templateReferenceText"
+                  type="textarea"
+                  :rows="20"
+                  resize="vertical"
+                  class="polish-textarea polish-textarea--template"
+                />
+              </div>
             </div>
 
             <div class="polish-content-block">
@@ -579,6 +617,39 @@ const polishSectionRef = ref(null)
 const pdfExporting = ref(false)
 const imageExporting = ref(false)
 const resumeTemplateRef = ref(null)
+const editablePolishedText = ref('')
+const templateReferenceText = ref(`姓名
+求职方向
+电话 | 邮箱 | 城市 | 微信
+
+教育背景
+[学校] | [专业] | [学历] | [时间]
+- [教育亮点，强校/高匹配专业可展开，普通院校保持简洁]
+
+实习经历
+[公司/单位] | [岗位] | [时间]
+- [动作 + 方法 + 结果]
+- [动作 + 方法 + 结果]
+
+项目经历
+[项目名称] | [角色] | [时间]
+- [动作 + 方法 + 结果]
+- [动作 + 方法 + 结果]
+
+专业技能
+- [与岗位直接相关的技能 1]
+- [与岗位直接相关的技能 2]
+- [工具 / 语言 / 框架 / 方法]
+
+校园经历
+[经历名称] | [角色] | [时间]
+- [动作 + 方法 + 结果]
+
+荣誉证书
+- [奖项 / 证书 / 资质]
+
+个人评价
+- [与目标岗位强相关的 3-4 点总结]`)
 
 const taskId = computed(() => route.params.taskId)
 
@@ -832,6 +903,7 @@ const applyLatestPolishResult = async (latestPolishResult) => {
     return
   }
   polishResult.value = latestPolishResult
+  editablePolishedText.value = latestPolishResult.polishedResumeText || ''
   if (task.value) {
     task.value = {
       ...task.value,
@@ -950,31 +1022,90 @@ watch(task, (newTask) => {
   }
   if (newTask?.latestPolishResult) {
     polishResult.value = newTask.latestPolishResult
+    editablePolishedText.value = newTask.latestPolishResult.polishedResumeText || ''
   }
 }, { deep: true })
 
 const copyPolishedResume = async () => {
-  const editedText = resumeTemplateRef.value?.getResumePlainText?.() || polishResult.value?.polishedResumeText || ''
+  // ?????????????????????????????????
+  const editedText =
+    resumeTemplateRef.value?.getResumePlainText?.() ||
+    editablePolishedText.value ||
+    polishResult.value?.polishedResumeText ||
+    ''
   if (!editedText) {
-    ElMessage.warning('暂无可复制的润色内容')
+    ElMessage.warning('??????????')
     return
   }
   try {
     await navigator.clipboard.writeText(editedText)
-    ElMessage.success('润色内容已复制')
+    ElMessage.success('???????')
   } catch (err) {
-    console.error('[AI 简历润色] 复制失败:', err)
-    ElMessage.error('复制失败，请稍后重试')
+    console.error('[AI ????] ????:', err)
+    ElMessage.error('??????????')
   }
 }
 
-// 获取简历导出文件名（从 DOM 中提取姓名）
 const getExportFilename = () => {
-  const name = resumeTemplateRef.value?.resumeRef
-    ?.querySelector?.('[data-role="profile-name"]')
-    ?.textContent
-    ?.trim()
-  return name || 'resume'
+  // ??????????????????????????????????????????
+  const resumeName = resumeTemplateRef.value?.getResumeName?.()?.trim()
+  if (resumeName) {
+    return resumeName
+  }
+
+  const firstLine = (resumeTemplateRef.value?.getResumePlainText?.() || editablePolishedText.value || polishResult.value?.polishedResumeText || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean)
+  return firstLine || 'resume'
+}
+
+const downloadTextFile = (filename, content) => {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const downloadPolishedResumeText = () => {
+  // ????????????????????????????????????
+  const content =
+    resumeTemplateRef.value?.getResumePlainText?.() ||
+    editablePolishedText.value ||
+    polishResult.value?.polishedResumeText ||
+    ''
+  if (!content) {
+    ElMessage.warning('??????????')
+    return
+  }
+  downloadTextFile(`${getExportFilename()}-ai??.txt`, content)
+  ElMessage.success('???????')
+}
+
+const copyTemplateReference = async () => {
+  if (!templateReferenceText.value) {
+    ElMessage.warning('暂无可复制的模板')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(templateReferenceText.value)
+    ElMessage.success('模板已复制')
+  } catch (err) {
+    console.error('[简历模板] 复制失败:', err)
+    ElMessage.error('模板复制失败，请稍后重试')
+  }
+}
+
+const downloadTemplateReference = () => {
+  if (!templateReferenceText.value) {
+    ElMessage.warning('暂无可下载的模板')
+    return
+  }
+  downloadTextFile('简历模板参考.txt', templateReferenceText.value)
+  ElMessage.success('模板已下载')
 }
 
 // 公共截图函数：将简历模板克隆到离屏容器，用 html2canvas 截图为高分辨率 canvas。
@@ -1878,6 +2009,37 @@ onUnmounted(() => {
 
 .polish-preview-shell {
   margin-top: 6px;
+}
+
+.polish-result > .polish-content-block:first-of-type > .polish-block-header,
+.polish-result > .polish-content-block:first-of-type > .polish-edit-hint {
+  display: none;
+}
+
+.polish-text-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.polish-text-shell + .polish-text-shell {
+  margin-top: 18px;
+}
+
+.polish-block-header--text {
+  margin-bottom: 0;
+}
+
+.polish-textarea :deep(.el-textarea__inner) {
+  min-height: 320px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #2f2f2f;
+  background: #fff;
+}
+
+.polish-textarea--template :deep(.el-textarea__inner) {
+  background: #fffaf5;
 }
 
 .polish-edit-hint {

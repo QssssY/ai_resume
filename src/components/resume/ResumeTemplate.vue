@@ -1,5 +1,18 @@
 <template>
-  <div ref="resumeRef" :class="['resume-template', `resume-template--${mode}`]">
+  <div
+    ref="resumeRef"
+    :class="['resume-template', `resume-template--${mode}`]"
+    @focusin="syncActiveEditable"
+    @click="syncActiveEditable"
+  >
+    <div v-if="mode === 'preview'" class="editor-toolbar">
+      <button type="button" class="editor-tool" @mousedown.prevent @click="toggleBold">B</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="decreaseFontSize">A-</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="increaseFontSize">A+</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="resetCurrentStyle">重置</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="insertSubsectionBlock">标签样式</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="insertTextBlock">新增段落</button>
+    </div>
     <article class="resume-paper">
       <section data-role="section" class="resume-section resume-section--profile">
         <div class="resume-section-head">
@@ -204,6 +217,7 @@ const props = defineProps({
 const resumeRef = ref(null)
 const photoInputRef = ref(null)
 const photoDataUrl = ref('')
+const activeEditableEl = ref(null)
 
 const SECTION_SPECS = [
   {
@@ -600,6 +614,177 @@ const resolveCellRole = (index, total) => {
   return 'middle'
 }
 
+const syncActiveEditable = (event) => {
+  const target = event?.target
+  if (target instanceof HTMLElement && target.getAttribute('contenteditable') === 'true') {
+    activeEditableEl.value = target
+  }
+}
+
+// 编辑工具栏始终作用于当前聚焦的可编辑节点；如果用户选中了局部文本，则优先只修改选区。
+const resolveEditingContext = () => {
+  const selection = window.getSelection()
+  const currentNode = selection?.anchorNode
+  const currentElement =
+    currentNode instanceof HTMLElement
+      ? currentNode
+      : currentNode?.parentElement || activeEditableEl.value
+  const editableElement = currentElement?.closest?.('[contenteditable="true"]') || activeEditableEl.value
+
+  if (!editableElement) {
+    ElMessage.warning('请先点击简历中的可编辑内容')
+    return null
+  }
+
+  return {
+    selection,
+    editableElement,
+  }
+}
+
+const getSelectionWrapper = (selection) => {
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    return null
+  }
+
+  const range = selection.getRangeAt(0)
+  const wrapper = document.createElement('span')
+  const fragment = range.extractContents()
+  wrapper.appendChild(fragment)
+  range.insertNode(wrapper)
+
+  selection.removeAllRanges()
+  const newRange = document.createRange()
+  newRange.selectNodeContents(wrapper)
+  selection.addRange(newRange)
+  return wrapper
+}
+
+// 加粗能力兼容两种编辑方式：选中局部文本时只包裹选区，否则直接切换当前节点粗细。
+const toggleBold = () => {
+  const context = resolveEditingContext()
+  if (!context) {
+    return
+  }
+
+  const wrapper = getSelectionWrapper(context.selection)
+  if (wrapper) {
+    wrapper.style.fontWeight = wrapper.style.fontWeight === '700' ? '400' : '700'
+    return
+  }
+
+  const currentWeight = window.getComputedStyle(context.editableElement).fontWeight
+  context.editableElement.style.fontWeight =
+    currentWeight === '700' || Number(currentWeight) >= 600 ? '400' : '700'
+}
+
+const updateFontSize = (delta) => {
+  const context = resolveEditingContext()
+  if (!context) {
+    return
+  }
+
+  const wrapper = getSelectionWrapper(context.selection)
+  const target = wrapper || context.editableElement
+  const currentSize = Number.parseFloat(window.getComputedStyle(target).fontSize) || 14
+  const nextSize = Math.min(28, Math.max(12, currentSize + delta))
+  target.style.fontSize = `${nextSize}px`
+}
+
+const increaseFontSize = () => updateFontSize(1)
+
+const decreaseFontSize = () => updateFontSize(-1)
+
+// 重置只清除用户通过工具栏写入的内联样式，不破坏模板原有类名样式。
+const resetCurrentStyle = () => {
+  const context = resolveEditingContext()
+  if (!context) {
+    return
+  }
+
+  const wrapper = getSelectionWrapper(context.selection)
+  if (wrapper) {
+    wrapper.removeAttribute('style')
+    return
+  }
+
+  context.editableElement.style.fontWeight = ''
+  context.editableElement.style.fontSize = ''
+}
+
+const focusEditableNode = (node) => {
+  if (!(node instanceof HTMLElement)) {
+    return
+  }
+
+  node.focus()
+  const selection = window.getSelection()
+  if (!selection) {
+    return
+  }
+
+  const range = document.createRange()
+  range.selectNodeContents(node)
+  range.collapse(false)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  activeEditableEl.value = node
+}
+
+const createResumeBlock = (blockType, innerHtml) => {
+  const block = document.createElement('div')
+  block.className = 'resume-block'
+  block.setAttribute('data-block-type', blockType)
+  block.innerHTML = innerHtml
+  return block
+}
+
+const insertBlockAfterCurrent = (block) => {
+  const context = resolveEditingContext()
+  if (!context) {
+    return
+  }
+
+  const sectionBody = context.editableElement.closest('.resume-section-body')
+  if (!sectionBody) {
+    ElMessage.warning('当前区域不支持新增内容，请在具体模块内容中操作')
+    return
+  }
+
+  const currentBlock = context.editableElement.closest('.resume-block')
+  if (currentBlock?.parentNode === sectionBody) {
+    currentBlock.insertAdjacentElement('afterend', block)
+  } else {
+    sectionBody.appendChild(block)
+  }
+
+  const firstEditable = block.querySelector('[contenteditable="true"]')
+  focusEditableNode(firstEditable)
+}
+
+// 标签样式与正文段落都复用现有模板结构，确保新增内容能被复制与导出链路完整识别。
+const insertSubsectionBlock = () => {
+  const block = createResumeBlock(
+    'subsection',
+    `
+      <div class="subsection-line">
+        <span data-role="subsection-title" class="subsection-title" contenteditable="true" spellcheck="false">新增标签</span>
+      </div>
+    `,
+  )
+  insertBlockAfterCurrent(block)
+}
+
+const insertTextBlock = () => {
+  const block = createResumeBlock(
+    'text',
+    `
+      <p data-role="text-block" class="text-line" contenteditable="true" spellcheck="false">请输入补充内容</p>
+    `,
+  )
+  insertBlockAfterCurrent(block)
+}
+
 const removeEditableAttributes = (rootNode) => {
   rootNode.querySelectorAll('[contenteditable]').forEach((node) => {
     node.removeAttribute('contenteditable')
@@ -618,6 +803,7 @@ const buildPdfSourceElement = () => {
   clone.classList.remove('resume-template--preview')
   clone.classList.add('resume-template--print')
   removeEditableAttributes(clone)
+  clone.querySelector('.editor-toolbar')?.remove()
 
   // 移除头像提示文字，避免"导出时将保留当前照片"出现在 PDF 中
   const photoTip = clone.querySelector('[data-role="photo-tip"]')
@@ -638,6 +824,7 @@ const buildExportElement = () => {
   clone.classList.remove('resume-template--preview')
   clone.classList.add('resume-template--print')
   removeEditableAttributes(clone)
+  clone.querySelector('.editor-toolbar')?.remove()
 
   // 移除所有不需要出现在导出结果中的元素
   clone.querySelectorAll('[data-role="photo-tip"], .photo-input, .photo-actions').forEach((el) => {
@@ -744,6 +931,14 @@ const getResumePlainText = () => {
         return
       }
 
+      if (blockType === 'subsection') {
+        const subsectionTitle = blockNode.querySelector('[data-role="subsection-title"]')?.textContent?.trim()
+        if (subsectionTitle) {
+          lines.push(subsectionTitle)
+        }
+        return
+      }
+
       if (blockType === 'list') {
         Array.from(blockNode.querySelectorAll('[data-role="list-item"]')).forEach((itemNode) => {
           const itemText = itemNode.textContent?.trim()
@@ -762,6 +957,10 @@ const getResumePlainText = () => {
   })
 
   return lines.join('\n').trim()
+}
+
+const getResumeName = () => {
+  return resumeRef.value?.querySelector('[data-role="profile-name"]')?.textContent?.trim() || ''
 }
 
 // PDF 导出继续使用浏览器打印流，保留真实文字和空白头像位，方便后续补图或二次调整。
@@ -823,6 +1022,7 @@ const buildPrintHtml = () => {
 defineExpose({
   resumeRef,
   getResumePlainText,
+  getResumeName,
   buildPdfSourceElement,
   buildExportElement,
   buildPrintHtml,
@@ -844,6 +1044,44 @@ defineExpose({
 .resume-template--preview {
   max-width: 980px;
   margin: 0 auto;
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 248, 243, 0.96);
+  border: 1px solid rgba(243, 216, 199, 0.92);
+  border-radius: 14px;
+  position: sticky;
+  top: 12px;
+  z-index: 8;
+  backdrop-filter: blur(10px);
+}
+
+.editor-tool {
+  min-width: 44px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(27, 91, 87, 0.2);
+  border-radius: 999px;
+  background: #fff;
+  color: #214e56;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.editor-tool:hover {
+  border-color: rgba(27, 91, 87, 0.52);
+  box-shadow: 0 6px 14px rgba(27, 91, 87, 0.1);
+  transform: translateY(-1px);
 }
 
 .resume-template--print {
@@ -1244,7 +1482,8 @@ defineExpose({
 
 .resume-template--print .photo-input,
 .resume-template--print .photo-actions,
-.resume-template--print .photo-tip {
+.resume-template--print .photo-tip,
+.resume-template--print .editor-toolbar {
   display: none;
 }
 
@@ -1260,6 +1499,10 @@ defineExpose({
 }
 
 @media (max-width: 767px) {
+  .editor-toolbar {
+    position: static;
+  }
+
   .resume-template--preview .resume-paper {
     padding: 20px 16px 24px;
   }
