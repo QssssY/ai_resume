@@ -274,7 +274,7 @@ const handleLogin = async () => {
 
 .login-form :deep(.el-input__wrapper.is-focus) {
   box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.2), 0 0 0 1px #e67e22;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .login-form :deep(.el-input__inner) {

@@ -1416,6 +1416,15 @@ defineExpose({
   --resume-text: #1f2933;
   --resume-muted: #52606d;
   --resume-line: #d6ddd8;
+}
+
+[data-theme="dark"] .resume-template {
+  --resume-accent: #5fb5a7;
+  --resume-accent-soft: #1a2e2c;
+  --resume-gold: #d4a574;
+  --resume-text: #e2e8f0;
+  --resume-muted: #94a3b8;
+  --resume-line: #3a4a48;
   width: 100%;
   box-sizing: border-box;
 }
@@ -1431,8 +1440,8 @@ defineExpose({
   gap: 8px;
   margin-bottom: 14px;
   padding: 10px 12px;
-  background: rgba(255, 248, 243, 0.96);
-  border: 1px solid rgba(243, 216, 199, 0.92);
+  background: var(--bg-page, rgba(255, 248, 243, 0.96));
+  border: 1px solid var(--border-card, rgba(243, 216, 199, 0.92));
   border-radius: 14px;
   position: sticky;
   top: 12px;
@@ -1446,7 +1455,7 @@ defineExpose({
   padding: 0 12px;
   border: 1px solid rgba(27, 91, 87, 0.2);
   border-radius: 999px;
-  background: #fff;
+  background: var(--bg-card, #fff);
   color: #214e56;
   font-size: 13px;
   font-weight: 700;
@@ -1472,7 +1481,7 @@ defineExpose({
 
 .editor-tool--active {
   background: var(--resume-accent, #1b5b57);
-  color: #fff;
+  color: var(--bg-card, #fff);
   border-color: var(--resume-accent, #1b5b57);
 }
 
@@ -1505,9 +1514,9 @@ defineExpose({
 
 .resume-paper {
   box-sizing: border-box;
-  background: #fff;
+  background: var(--bg-card, #fff);
   color: var(--resume-text);
-  border: 1px solid #d7dfda;
+  border: 1px solid var(--resume-line, #d7dfda);
 }
 
 .resume-template--preview .resume-paper {
@@ -1649,7 +1658,7 @@ defineExpose({
   font-size: 38px;
   line-height: 1.06;
   font-weight: 800;
-  color: #143f45;
+  color: var(--resume-text, #143f45);
   letter-spacing: 0.06em;
 }
 
@@ -1779,14 +1788,14 @@ defineExpose({
   border: 1px solid rgba(27, 91, 87, 0.24);
   border-radius: 999px;
   background: rgba(232, 240, 238, 0.62);
-  color: #1b5b57;
+  color: var(--resume-accent, #1b5b57);
   font-size: 12px;
   line-height: 1.2;
   cursor: pointer;
 }
 
 .photo-action--ghost {
-  background: #fff;
+  background: var(--bg-card, #fff);
   color: #6b7280;
 }
 
@@ -1904,12 +1913,12 @@ defineExpose({
 /* 打印/导出模式下移除头像描边，保持干净外观 */
 .resume-template--print .photo-frame {
   border: none;
-  background: #f3f6f5;
+  background: var(--bg-elevated, #f3f6f5);
 }
 
 /* 无照片时也用纯色背景，不显示斜纹占位 */
 .resume-template--print .photo-placeholder {
-  background: #f3f6f5;
+  background: var(--bg-elevated, #f3f6f5);
 }
 
 @media (max-width: 767px) {

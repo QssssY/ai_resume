@@ -316,7 +316,7 @@ async function completeGuide() {
   position: relative;
   width: 100%;
   max-width: 520px;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--bg-card, rgba(255, 255, 255, 0.85));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.6);
@@ -378,17 +378,17 @@ async function completeGuide() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: var(--bg-card, rgba(255, 255, 255, 0.6));
+  border: 1px solid var(--border-card, rgba(255, 255, 255, 0.8));
   border-radius: 10px;
-  color: #666;
+  color: var(--text-body, #666);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.9);
-  color: #333;
+  background: var(--bg-card, rgba(255, 255, 255, 0.9));
+  color: var(--text-title, #333);
   transform: scale(1.05);
 }
 
@@ -411,7 +411,7 @@ async function completeGuide() {
   width: 32px;
   height: 6px;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--border-divider, rgba(0, 0, 0, 0.08));
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
@@ -474,11 +474,11 @@ async function completeGuide() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: var(--bg-card, rgba(255, 255, 255, 0.8));
+  border: 1px solid var(--border-card, rgba(255, 255, 255, 0.9));
   border-radius: 20px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  color: #FF8C42;
+  color: var(--orange-main, #FF8C42);
 }
 
 .step-icon :deep(svg) {
@@ -494,7 +494,7 @@ async function completeGuide() {
 .step-title {
   font-size: 24px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text-title, #1a1a2e);
   margin: 0 0 12px;
   line-height: 1.4;
   letter-spacing: -0.02em;
@@ -502,7 +502,7 @@ async function completeGuide() {
 
 .step-desc {
   font-size: 15px;
-  color: #64748b;
+  color: var(--text-body, #64748b);
   margin: 0;
   line-height: 1.7;
 }
@@ -514,8 +514,8 @@ async function completeGuide() {
   align-items: center;
   justify-content: space-between;
   padding: 20px 32px 24px;
-  background: rgba(255, 255, 255, 0.5);
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  background: var(--bg-card, rgba(255, 255, 255, 0.5));
+  border-top: 1px solid var(--border-divider, rgba(0, 0, 0, 0.04));
 }
 
 .footer-placeholder {
@@ -550,22 +550,22 @@ async function completeGuide() {
 
 .btn-ghost {
   background: transparent;
-  color: #64748b;
+  color: var(--text-body, #64748b);
 }
 
 .btn-ghost:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.04);
-  color: #334155;
+  color: var(--text-title, #334155);
 }
 
 .btn-skip {
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
   font-size: 13px;
   padding: 8px 12px;
 }
 
 .btn-skip:hover:not(:disabled) {
-  color: #64748b;
+  color: var(--text-body, #64748b);
   background: transparent;
 }
 
@@ -704,64 +704,7 @@ async function completeGuide() {
   }
 }
 
-/* 暗色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .onboarding-modal {
-    background: rgba(30, 30, 46, 0.9);
-    border-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .close-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: #94a3b8;
-  }
-
-  .close-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #e2e8f0;
-  }
-
-  .step-dot {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .step-icon {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.12);
-    color: #FFB07A;
-  }
-
-  .step-title {
-    color: #e2e8f0;
-  }
-
-  .step-desc {
-    color: #94a3b8;
-  }
-
-  .onboarding-footer {
-    background: rgba(0, 0, 0, 0.2);
-    border-top-color: rgba(255, 255, 255, 0.05);
-  }
-
-  .btn-ghost {
-    color: #94a3b8;
-  }
-
-  .btn-ghost:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.06);
-    color: #e2e8f0;
-  }
-
-  .btn-skip {
-    color: #64748b;
-  }
-
-  .btn-skip:hover:not(:disabled) {
-    color: #94a3b8;
-  }
-}
+/* Dark mode is handled by CSS variables defined in styles/index.css */
 
 /* 尊重用户减少动画偏好 */
 @media (prefers-reduced-motion: reduce) {

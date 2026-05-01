@@ -9,10 +9,12 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useUserStore } from '@/stores/user'
+import { useThemeStore } from '@/stores/theme'
 import { getToken, removeToken } from '@/utils/auth'
 
 const route = useRoute()
 const userStore = useUserStore()
+const themeStore = useThemeStore()
 
 const layoutComponent = computed(() => {
   if (route.meta.useLayout) {

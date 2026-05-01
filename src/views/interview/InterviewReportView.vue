@@ -406,7 +406,7 @@ onUnmounted(() => {
 <style scoped>
 .interview-report-view {
   min-height: 100%;
-  background: #f8f6f3;
+  background: var(--bg-page, #f8f6f3);
   padding: 24px;
 }
 
@@ -415,7 +415,7 @@ onUnmounted(() => {
 }
 
 .back-btn {
-  color: #909399;
+  color: var(--text-muted, #909399);
 }
 
 .loading-section,
@@ -432,12 +432,12 @@ onUnmounted(() => {
 .error-card,
 .empty-card,
 .generating-card {
-  background: #ffffff;
+  background: var(--bg-card, #ffffff);
   border-radius: 20px;
   padding: 40px;
   text-align: center;
   max-width: 480px;
-  border: 1px solid rgba(243, 216, 199, 0.5);
+  border: 1px solid var(--border-card, rgba(243, 216, 199, 0.5));
 }
 
 .loading-ring,
@@ -445,8 +445,8 @@ onUnmounted(() => {
   width: 56px;
   height: 56px;
   margin: 0 auto 20px;
-  border: 4px solid #f3d8c7;
-  border-top-color: #ff8c42;
+  border: 4px solid var(--orange-border, #f3d8c7);
+  border-top-color: var(--orange-main, #ff8c42);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -462,7 +462,7 @@ onUnmounted(() => {
 .progress-text {
   font-size: 14px;
   line-height: 1.7;
-  color: #666666;
+  color: var(--text-body, #666666);
 }
 
 .error-title,
@@ -470,7 +470,7 @@ onUnmounted(() => {
 .generating-title {
   font-size: 20px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   margin-bottom: 10px;
 }
 
@@ -486,7 +486,7 @@ onUnmounted(() => {
 
 .progress-bar {
   height: 6px;
-  background: #f3d8c7;
+  background: var(--orange-border, #f3d8c7);
   border-radius: 3px;
   overflow: hidden;
   margin: 20px 0 8px;
@@ -505,9 +505,9 @@ onUnmounted(() => {
 
 .hero-section,
 .section-card {
-  background: #ffffff;
+  background: var(--bg-card, #ffffff);
   border-radius: 18px;
-  border: 1px solid rgba(243, 216, 199, 0.5);
+  border: 1px solid var(--border-card, rgba(243, 216, 199, 0.5));
   box-shadow: 0 4px 20px rgba(255, 140, 66, 0.06);
 }
 
@@ -521,7 +521,7 @@ onUnmounted(() => {
 .job-name {
   font-size: 18px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   margin-bottom: 14px;
 }
 
@@ -534,13 +534,13 @@ onUnmounted(() => {
 .score-number {
   font-size: 56px;
   font-weight: 700;
-  color: #ff8c42;
+  color: var(--orange-main, #ff8c42);
   line-height: 1;
 }
 
 .score-unit {
   font-size: 18px;
-  color: #ff8c42;
+  color: var(--orange-main, #ff8c42);
 }
 
 .hero-meta-row {
@@ -553,7 +553,7 @@ onUnmounted(() => {
 .summary-title {
   font-size: 14px;
   font-weight: 600;
-  color: #ff8c42;
+  color: var(--orange-main, #ff8c42);
   margin-bottom: 10px;
 }
 
@@ -561,20 +561,20 @@ onUnmounted(() => {
   margin: 0;
   font-size: 14px;
   line-height: 1.8;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .section-header {
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(243, 216, 199, 0.3);
-  background: linear-gradient(135deg, #fff8f3 0%, #fff 100%);
+  border-bottom: 1px solid var(--border-divider, rgba(243, 216, 199, 0.3));
+  background: linear-gradient(135deg, var(--orange-light-bg, #fff8f3) 0%, var(--bg-card, #fff) 100%);
 }
 
 .section-title {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .section-body {
@@ -594,8 +594,8 @@ onUnmounted(() => {
 .job-feedback-item,
 .dimension-card,
 .question-card {
-  background: #fffaf7;
-  border: 1px solid rgba(243, 216, 199, 0.35);
+  background: var(--orange-light-bg, #fffaf7);
+  border: 1px solid var(--border-card, rgba(243, 216, 199, 0.35));
   border-radius: 12px;
   padding: 14px 16px;
 }
@@ -614,20 +614,20 @@ onUnmounted(() => {
 .question-comment {
   font-size: 13px;
   line-height: 1.7;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .dimension-score {
   font-size: 28px;
   font-weight: 700;
-  color: #ff8c42;
+  color: var(--orange-main, #ff8c42);
   margin-bottom: 6px;
 }
 
 .simple-list {
   margin: 0;
   padding-left: 18px;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .simple-list li {
@@ -650,7 +650,7 @@ onUnmounted(() => {
 .question-title {
   font-size: 14px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   margin-bottom: 10px;
 }
 
@@ -665,7 +665,7 @@ onUnmounted(() => {
 
 .question-score {
   font-size: 13px;
-  color: #ff8c42;
+  color: var(--orange-main, #ff8c42);
   font-weight: 600;
 }
 
@@ -685,9 +685,9 @@ onUnmounted(() => {
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, #ff8c42 0%, #ff7a30 100%);
+  background: linear-gradient(135deg, var(--orange-main, #ff8c42) 0%, #ff7a30 100%);
   border: none;
-  color: #ffffff;
+  color: var(--bg-card, #ffffff);
 }
 
 @media (max-width: 900px) {

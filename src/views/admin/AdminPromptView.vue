@@ -1206,7 +1206,7 @@ onMounted(async () => {
 .stats-card {
   border: 1px solid rgba(217, 196, 170, 0.25);
   border-radius: 14px;
-  background: #fff;
+  background: var(--bg-card);
   padding: 16px;
   text-align: left;
   cursor: pointer;
@@ -1308,7 +1308,7 @@ onMounted(async () => {
 }
 
 .prompt-table :deep(.el-table__header-wrapper) {
-  background: #f8f9fa;
+  background: var(--bg-elevated);
 }
 
 .table-header {
@@ -1317,7 +1317,7 @@ onMounted(async () => {
 }
 
 .prompt-table :deep(.el-table__body tr:nth-child(even)) {
-  background: #fafafa;
+  background: var(--bg-elevated);
 }
 
 .prompt-table :deep(.el-table__body tr:hover > td) {
@@ -1368,8 +1368,8 @@ onMounted(async () => {
 }
 
 .prompt-dialog :deep(.el-dialog__header) {
-  background: #f8f9fa;
-  border-bottom: 1px solid #eee;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-divider);
 }
 
 .prompt-dialog :deep(.el-dialog__title) {

@@ -201,7 +201,7 @@ onMounted(() => {
   font-weight: 600;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 6px 20px rgba(230, 126, 34, 0.3);
-  color: #fff;
+  color: var(--bg-card);
 }
 
 .refresh-btn:hover {
@@ -224,7 +224,7 @@ onMounted(() => {
 }
 
 .monitor-card {
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid rgba(217, 196, 170, 0.25);
   border-radius: 18px;
   padding: 22px;
@@ -258,27 +258,27 @@ onMounted(() => {
 
 .card-icon.resume-processing {
   background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
-  color: #fff;
+  color: var(--bg-card);
 }
 
 .card-icon.resume-failed {
   background: linear-gradient(135deg, #ff7675 0%, #d63031 100%);
-  color: #fff;
+  color: var(--bg-card);
 }
 
 .card-icon.interview-active {
   background: linear-gradient(135deg, #55efc4 0%, #00b894 100%);
-  color: #fff;
+  color: var(--bg-card);
 }
 
 .card-icon.interview-today {
   background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
-  color: #fff;
+  color: var(--bg-card);
 }
 
 .card-icon.resume-today {
   background: linear-gradient(135deg, #81ecec 0%, #00cec9 100%);
-  color: #fff;
+  color: var(--bg-card);
 }
 
 .card-content {

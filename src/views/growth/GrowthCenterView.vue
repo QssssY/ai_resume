@@ -340,7 +340,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ff8c42;
+  color: var(--orange-main);
   flex-shrink: 0;
 }
 
@@ -353,13 +353,13 @@ onMounted(async () => {
   margin: 0;
   font-size: 22px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .page-desc {
   margin: 4px 0 0;
   font-size: 14px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 /* 加载状态 */
@@ -370,15 +370,15 @@ onMounted(async () => {
   justify-content: center;
   padding: 80px 0;
   gap: 16px;
-  color: #909399;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
 .loading-spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid #f0f0f0;
-  border-top-color: #ff8c42;
+  border: 3px solid var(--border-divider);
+  border-top-color: var(--orange-main);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -421,20 +421,20 @@ onMounted(async () => {
 .error-icon-wrapper svg {
   width: 40px;
   height: 40px;
-  color: #f56c6c;
+  color: var(--color-danger);
 }
 
 .error-title {
   margin: 0 0 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .error-desc {
   margin: 0 0 24px;
   font-size: 14px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .empty-icon-wrapper {
@@ -451,20 +451,20 @@ onMounted(async () => {
 .empty-icon-wrapper svg {
   width: 40px;
   height: 40px;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .empty-title {
   margin: 0 0 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .empty-desc {
   margin: 0 0 24px;
   font-size: 14px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .empty-actions {
@@ -481,7 +481,7 @@ onMounted(async () => {
 }
 
 .summary-card {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 20px 22px;
   display: flex;
@@ -514,12 +514,12 @@ onMounted(async () => {
 
 .resume-icon {
   background: linear-gradient(135deg, #fff3e8 0%, #ffe0c8 100%);
-  color: #e67a35;
+  color: var(--orange-deep);
 }
 
 .interview-icon {
   background: linear-gradient(135deg, #fff8f3 0%, #ffe8d6 100%);
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .count-icon {
@@ -530,13 +530,13 @@ onMounted(async () => {
 .summary-value {
   font-size: 28px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title);
   line-height: 1;
 }
 
 .summary-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 /* 折线图区域 */
@@ -548,7 +548,7 @@ onMounted(async () => {
 }
 
 .chart-card {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 2px 16px rgba(255, 140, 66, 0.06);
@@ -565,14 +565,14 @@ onMounted(async () => {
   justify-content: center;
   padding: 40px 0;
   gap: 12px;
-  color: #c0c4cc;
+  color: var(--text-placeholder);
   font-size: 13px;
 }
 
 .chart-empty svg {
   width: 36px;
   height: 36px;
-  color: #f3d8c7;
+  color: var(--border-card);
 }
 
 /* 通用卡片标题 */
@@ -580,7 +580,7 @@ onMounted(async () => {
   margin: 0 0 16px;
   font-size: 15px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
   align-self: flex-start;
 }
 
@@ -593,7 +593,7 @@ onMounted(async () => {
 }
 
 .detail-card {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 2px 16px rgba(255, 140, 66, 0.06);
@@ -609,7 +609,7 @@ onMounted(async () => {
   justify-content: center;
   padding: 32px 0;
   gap: 12px;
-  color: #c0c4cc;
+  color: var(--text-placeholder);
   font-size: 13px;
 }
 
@@ -624,12 +624,12 @@ onMounted(async () => {
 .match-score-value {
   font-size: 32px;
   font-weight: 700;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .match-score-unit {
   font-size: 14px;
-  color: #e67a35;
+  color: var(--orange-deep);
 }
 
 .keyword-section {
@@ -638,7 +638,7 @@ onMounted(async () => {
 
 .keyword-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-bottom: 6px;
   display: block;
 }
@@ -662,13 +662,13 @@ onMounted(async () => {
 
 .keyword-tag.missing {
   background: #fef0f0;
-  color: #f56c6c;
+  color: var(--color-danger);
 }
 
 /* 润色记录 */
 .polish-source {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body);
   margin-bottom: 12px;
 }
 
@@ -684,7 +684,7 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 8px;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body);
   line-height: 1.5;
 }
 
@@ -692,7 +692,7 @@ onMounted(async () => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #ff8c42;
+  background: var(--orange-main);
   flex-shrink: 0;
   margin-top: 6px;
 }
@@ -708,15 +708,15 @@ onMounted(async () => {
 .feedback-job {
   font-size: 14px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .feedback-mode {
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 10px;
-  background: #fff3e8;
-  color: #e67a35;
+  background: var(--orange-light-bg);
+  color: var(--orange-deep);
 }
 
 .feedback-score {
@@ -729,17 +729,17 @@ onMounted(async () => {
 .feedback-score-value {
   font-size: 28px;
   font-weight: 700;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .feedback-score-unit {
   font-size: 14px;
-  color: #e67a35;
+  color: var(--orange-deep);
 }
 
 .feedback-summary {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body);
   line-height: 1.6;
   margin-bottom: 8px;
   display: -webkit-box;
@@ -750,14 +750,14 @@ onMounted(async () => {
 
 .detail-time {
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--text-placeholder);
   margin-top: auto;
   padding-top: 8px;
 }
 
 /* 短板与建议 */
 .weakness-section {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 2px 16px rgba(255, 140, 66, 0.06);
@@ -777,33 +777,33 @@ onMounted(async () => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
   margin-bottom: 10px;
 }
 
 .weakness-block-title svg {
   width: 16px;
   height: 16px;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .weakness-list {
   margin: 0;
   padding: 0 0 0 20px;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body);
   line-height: 1.8;
 }
 
 .suggestions-block {
-  border-top: 1px solid #fff8f3;
+  border-top: 1px solid var(--orange-light-bg);
   padding-top: 16px;
 }
 
 .suggestions-title {
   font-size: 14px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
   margin-bottom: 12px;
 }
 
@@ -818,7 +818,7 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 10px;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body);
   line-height: 1.6;
 }
 
@@ -827,7 +827,7 @@ onMounted(async () => {
   height: 22px;
   border-radius: 50%;
   background: linear-gradient(135deg, #fff3e8 0%, #ffe0c8 100%);
-  color: #ff8c42;
+  color: var(--orange-main);
   font-size: 12px;
   font-weight: 600;
   display: flex;

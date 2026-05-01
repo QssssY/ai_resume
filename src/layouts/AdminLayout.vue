@@ -137,14 +137,14 @@ const handleLogout = () => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f5f6fa;
+  background: var(--bg-page);
 }
 
 .admin-header {
   height: 60px;
   padding: 0 24px;
-  border-bottom: 1px solid #e8e8e8;
-  background: #fff;
+  border-bottom: 1px solid var(--border-divider);
+  background: var(--bg-header);
   display: flex;
   align-items: center;
   gap: 16px;
@@ -164,7 +164,7 @@ const handleLogout = () => {
 .admin-header-title {
   font-size: 20px;
   font-weight: 700;
-  color: #2c3e50;
+  color: var(--text-title);
 }
 
 .header-spacer {
@@ -176,15 +176,15 @@ const handleLogout = () => {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #f8f9fa;
+  background: var(--bg-elevated);
   border-radius: 8px;
-  color: #34495e;
+  color: var(--text-body);
 }
 
 .admin-user-name {
   font-size: 14px;
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--text-title);
 }
 
 .logout-btn {

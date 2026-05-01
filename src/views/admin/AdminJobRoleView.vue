@@ -1013,7 +1013,7 @@ watch(
   border-radius: 14px;
   border: 1px solid rgba(217, 196, 170, 0.25);
   box-shadow: 0 4px 20px rgba(143, 69, 27, 0.06);
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .pagination-wrap {
@@ -1025,7 +1025,7 @@ watch(
 :deep(.el-table) {
   --el-table-border-color: rgba(217, 196, 170, 0.3);
   --el-table-header-bg-color: #fffcf8;
-  --el-table-tr-bg-color: #fff;
+  --el-table-tr-bg-color: var(--bg-card);
 }
 
 :deep(.el-table th.el-table__cell) {
@@ -1212,8 +1212,8 @@ watch(
   flex-shrink: 0;
   padding: 14px 20px;
   margin: 0;
-  background: #f8f9fa;
-  border-bottom: 1px solid #eee;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-divider);
 }
 
 .fixed-dialog :deep(.el-dialog__body) {
@@ -1225,8 +1225,8 @@ watch(
 .fixed-dialog :deep(.el-dialog__footer) {
   flex-shrink: 0;
   padding: 12px 20px;
-  background: #fafafa;
-  border-top: 1px solid #eee;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-divider);
 }
 
 .dialog-btn {

@@ -118,6 +118,26 @@
     </button>
 
     <div class="header-right">
+      <!-- 主题切换按钮 -->
+      <button class="theme-toggle" @click="themeStore.toggleTheme()" :aria-label="themeStore.resolvedTheme === 'dark' ? '切换为亮色模式' : '切换为暗色模式'">
+        <!-- 亮色模式显示月亮图标 -->
+        <svg v-if="themeStore.resolvedTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+        <!-- 暗色模式显示太阳图标 -->
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      </button>
+
       <!-- 已登录状态：显示通知铃铛和头像下拉菜单 -->
       <template v-if="isLoggedIn">
         <!-- 消息通知铃铛 -->
@@ -369,6 +389,24 @@
           <span v-if="unreadCount > 0" class="mobile-unread-badge">{{ unreadCount }}</span>
         </router-link
         >
+        <!-- 移动端主题切换 -->
+        <button class="mobile-nav-link theme-toggle-mobile" @click="themeStore.toggleTheme(); drawerVisible = false">
+          <svg v-if="themeStore.resolvedTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="theme-icon">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="theme-icon">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+          {{ themeStore.resolvedTheme === 'dark' ? '切换亮色模式' : '切换暗色模式' }}
+        </button>
       </nav>
     </el-drawer>
 
@@ -437,6 +475,7 @@
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
+import { useThemeStore } from "@/stores/theme";
 import { ElMessage } from "element-plus";
 import { removeToken } from "@/utils/auth";
 import { updateNickname } from "@/api/auth";
@@ -445,6 +484,7 @@ import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from "@/a
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
+const themeStore = useThemeStore();
 
 const drawerVisible = ref(false);
 /**
@@ -722,8 +762,8 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 60px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #ff8c42;
+  background-color: var(--bg-header);
+  border-bottom: 1px solid var(--orange-main);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -746,7 +786,7 @@ onUnmounted(() => {
 .logo-text {
   font-size: 16px;
   font-weight: 500;
-  color: #333333;
+  color: var(--text-title);
 }
 
 .header-nav {
@@ -758,7 +798,7 @@ onUnmounted(() => {
 .nav-link {
   padding: 8px 16px;
   font-size: 14px;
-  color: #666666;
+  color: var(--text-body);
   text-decoration: none;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
@@ -769,12 +809,12 @@ onUnmounted(() => {
 }
 
 .nav-link:hover {
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .nav-link.active {
-  color: #ff8c42;
-  border-bottom-color: #ff8c42;
+  color: var(--orange-main);
+  border-bottom-color: var(--orange-main);
 }
 
 .header-right {
@@ -784,7 +824,7 @@ onUnmounted(() => {
 
 .login-link {
   font-size: 14px;
-  color: #ff8c42;
+  color: var(--orange-main);
   text-decoration: none;
 }
 
@@ -823,13 +863,13 @@ onUnmounted(() => {
 }
 
 .hamburger-btn:hover {
-  background-color: #fff8f3;
+  background-color: var(--bg-page);
 }
 
 .hamburger-btn svg {
   width: 22px;
   height: 22px;
-  color: #333;
+  color: var(--text-title);
   display: block;
 }
 
@@ -844,20 +884,20 @@ onUnmounted(() => {
   display: block;
   padding: 14px 16px;
   font-size: 15px;
-  color: #555;
+  color: var(--text-body);
   text-decoration: none;
   border-radius: 8px;
   transition: all 0.15s;
 }
 
 .mobile-nav-link:hover {
-  background-color: #fff8f3;
-  color: #ff8c42;
+  background-color: var(--bg-page);
+  color: var(--orange-main);
 }
 
 .mobile-nav-link.router-link-active {
-  background-color: #fff8f3;
-  color: #ff8c42;
+  background-color: var(--bg-page);
+  color: var(--orange-main);
   font-weight: 500;
 }
 
@@ -920,12 +960,12 @@ onUnmounted(() => {
 }
 
 .nickname-dialog :deep(.el-dialog__headerbtn .el-dialog__close) {
-  color: #999;
+  color: var(--text-muted);
   transition: all 0.2s;
 }
 
 .nickname-dialog :deep(.el-dialog__headerbtn .el-dialog__close:hover) {
-  color: #333;
+  color: var(--text-title);
   transform: rotate(90deg);
 }
 
@@ -949,7 +989,7 @@ onUnmounted(() => {
   width: 64px;
   height: 64px;
   margin: 0 auto 20px;
-  background: linear-gradient(135deg, #fff8f3 0%, #ffecd9 100%);
+  background: linear-gradient(135deg, var(--bg-page) 0%, var(--orange-light-bg) 100%);
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -965,7 +1005,7 @@ onUnmounted(() => {
 .nickname-icon {
   width: 32px;
   height: 32px;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 /* 标题区域 */
@@ -976,14 +1016,14 @@ onUnmounted(() => {
 .nickname-title {
   font-size: 20px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-title);
   margin: 0 0 8px;
   letter-spacing: -0.02em;
 }
 
 .nickname-desc {
   font-size: 14px;
-  color: #888;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -994,21 +1034,21 @@ onUnmounted(() => {
   justify-content: center;
   gap: 12px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-card-hover) 100%);
   border-radius: 12px;
   margin-bottom: 20px;
 }
 
 .current-label {
   font-size: 13px;
-  color: #999;
+  color: var(--text-muted);
   font-weight: 500;
 }
 
 .current-value {
   font-size: 15px;
   font-weight: 600;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 /* 输入框包装 */
@@ -1020,26 +1060,26 @@ onUnmounted(() => {
   border-radius: 12px;
   padding: 4px 16px;
   box-shadow: none;
-  border: 2px solid #f0f0f0;
+  border: 2px solid var(--border-input);
   transition: all 0.25s ease;
 }
 
 .nickname-input :deep(.el-input__wrapper):hover {
-  border-color: #e0e0e0;
+  border-color: var(--border-divider);
 }
 
 .nickname-input :deep(.el-input__wrapper.is-focus) {
-  border-color: #ff8c42;
+  border-color: var(--orange-main);
   box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.15);
 }
 
 .nickname-input :deep(.el-input__inner) {
   font-size: 15px;
-  color: #333;
+  color: var(--text-title);
 }
 
 .nickname-input :deep(.el-input__inner::placeholder) {
-  color: #bbb;
+  color: var(--text-placeholder);
 }
 
 .nickname-input :deep(.el-input__prefix) {
@@ -1049,12 +1089,12 @@ onUnmounted(() => {
 .input-icon {
   width: 18px;
   height: 18px;
-  color: #ccc;
+  color: var(--text-placeholder);
 }
 
 .input-tips {
   font-size: 12px;
-  color: #aaa;
+  color: var(--text-muted);
   margin-top: 8px;
   text-align: center;
 }
@@ -1075,14 +1115,14 @@ onUnmounted(() => {
 }
 
 .dialog-footer .el-button:not(.el-button--primary) {
-  background: #f5f5f5;
+  background: var(--bg-elevated);
   border: none;
-  color: #666;
+  color: var(--text-body);
 }
 
 .dialog-footer .el-button:not(.el-button--primary):hover {
-  background: #e8e8e8;
-  color: #333;
+  background: var(--border-divider);
+  color: var(--text-title);
 }
 
 .dialog-footer .el-button--primary {
@@ -1155,8 +1195,8 @@ onUnmounted(() => {
 }
 
 .dialog-footer .el-button--primary:disabled {
-  background: #c8c9cc;
-  border-color: #c8c9cc;
+  background: var(--text-placeholder);
+  border-color: var(--text-placeholder);
 }
 
 /* ===== 消息通知铃铛 ===== */
@@ -1174,18 +1214,18 @@ onUnmounted(() => {
 }
 
 .notification-bell:hover {
-  background-color: #fff8f3;
+  background-color: var(--bg-page);
 }
 
 .notification-bell svg {
   width: 20px;
   height: 20px;
-  color: #666;
+  color: var(--text-body);
   transition: color 0.2s;
 }
 
 .notification-bell:hover svg {
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .bell-badge {
@@ -1216,13 +1256,13 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-divider);
 }
 
 .panel-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-title);
 }
 
 .panel-loading {
@@ -1231,15 +1271,15 @@ onUnmounted(() => {
   justify-content: center;
   gap: 8px;
   padding: 40px 0;
-  color: #999;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
 .loading-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #e0e0e0;
-  border-top-color: #ff8c42;
+  border: 2px solid var(--border-divider);
+  border-top-color: var(--orange-main);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -1258,13 +1298,13 @@ onUnmounted(() => {
 .empty-bell-icon {
   width: 40px;
   height: 40px;
-  color: #ddd;
+  color: var(--text-placeholder);
   margin-bottom: 8px;
 }
 
 .panel-empty p {
   font-size: 13px;
-  color: #999;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -1284,11 +1324,11 @@ onUnmounted(() => {
 }
 
 .panel-item:hover {
-  background-color: #fafafa;
+  background-color: var(--bg-elevated);
 }
 
 .panel-item.unread {
-  background-color: #fffbf8;
+  background-color: var(--bg-card-hover);
 }
 
 .panel-item-icon {
@@ -1339,7 +1379,7 @@ onUnmounted(() => {
 .panel-item-title {
   font-size: 13px;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--text-title);
   margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1348,7 +1388,7 @@ onUnmounted(() => {
 
 .panel-item-text {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1357,14 +1397,14 @@ onUnmounted(() => {
 
 .panel-item-time {
   font-size: 11px;
-  color: #bbb;
+  color: var(--text-placeholder);
 }
 
 .panel-item-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #ff8c42;
+  background: var(--orange-main);
   flex-shrink: 0;
   margin-top: 6px;
 }
@@ -1373,14 +1413,14 @@ onUnmounted(() => {
   text-align: center;
   padding: 10px 16px;
   font-size: 13px;
-  color: #ff8c42;
-  border-top: 1px solid #f0f0f0;
+  color: var(--orange-main);
+  border-top: 1px solid var(--border-divider);
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .panel-footer:hover {
-  background-color: #fff8f3;
+  background-color: var(--bg-page);
 }
 
 /* 移动端未读角标 */
@@ -1394,8 +1434,53 @@ onUnmounted(() => {
   font-size: 11px;
   font-weight: 600;
   color: #fff;
-  background: #ff4d4f;
+  background: var(--color-danger);
   border-radius: 9px;
   margin-left: 6px;
+}
+
+/* ===== 主题切换按钮 ===== */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  background: none;
+  border: none;
+  transition: background-color 0.2s;
+  margin-right: 4px;
+  color: var(--text-body);
+}
+
+.theme-toggle:hover {
+  background-color: var(--bg-page);
+  color: var(--orange-main);
+}
+
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+  transition: color 0.2s;
+}
+
+/* 移动端主题切换 */
+.theme-toggle-mobile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.theme-toggle-mobile .theme-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 </style>

@@ -1327,7 +1327,7 @@ watch(
 .stats-card {
   border: 1px solid rgba(217, 196, 170, 0.25);
   border-radius: 14px;
-  background: #fff;
+  background: var(--bg-card);
   padding: 16px;
   text-align: left;
   cursor: pointer;
@@ -1440,7 +1440,7 @@ watch(
 }
 
 .filter-icon {
-  color: #999;
+  color: var(--text-muted);
   font-size: 16px;
 }
 
@@ -1451,7 +1451,7 @@ watch(
 }
 
 .engine-table :deep(.el-table__header-wrapper) {
-  background: #f8f9fa;
+  background: var(--bg-elevated);
 }
 
 .table-header {
@@ -1460,7 +1460,7 @@ watch(
 }
 
 .engine-table :deep(.el-table__body tr:nth-child(even)) {
-  background: #fafafa;
+  background: var(--bg-elevated);
 }
 
 .engine-table :deep(.el-table__body tr:hover > td) {
@@ -1502,8 +1502,8 @@ watch(
 }
 
 .engine-dialog :deep(.el-dialog__header) {
-  background: #f8f9fa;
-  border-bottom: 1px solid #eee;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-divider);
 }
 
 .engine-dialog :deep(.el-dialog__title) {

@@ -148,7 +148,7 @@ const getTagType = (index) => {
   gap: 20px;
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-divider, #f0f0f0);
 }
 
 .score-circle {
@@ -160,14 +160,14 @@ const getTagType = (index) => {
   align-items: center;
   justify-content: center;
   position: relative;
-  background-color: #fff;
+  background-color: var(--bg-card, #fff);
 }
 
 .score-circle::before {
   content: '';
   position: absolute;
   inset: 6px;
-  background: #fff;
+  background: var(--bg-card, #fff);
   border-radius: 50%;
 }
 
@@ -175,14 +175,14 @@ const getTagType = (index) => {
   position: relative;
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-title, #303133);
   line-height: 1;
 }
 
 .score-unit {
   position: relative;
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted, #909399);
   margin-top: 2px;
 }
 
@@ -193,13 +193,13 @@ const getTagType = (index) => {
 .score-label {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
   margin-bottom: 4px;
 }
 
 .score-comment {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body, #606266);
   line-height: 1.6;
 }
 
@@ -212,7 +212,7 @@ const getTagType = (index) => {
 .section-label {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
   margin-bottom: 12px;
 }
 
@@ -237,15 +237,15 @@ const getTagType = (index) => {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body, #606266);
   padding: 4px 10px;
-  background-color: #f5f7fa;
+  background-color: var(--bg-elevated, #f5f7fa);
   border-radius: 4px;
 }
 
 .description-content {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-body, #606266);
   line-height: 1.8;
   white-space: pre-wrap;
 }
@@ -256,7 +256,7 @@ const getTagType = (index) => {
   align-items: center;
   gap: 8px;
   padding: 40px 0;
-  color: #909399;
+  color: var(--text-muted, #909399);
   font-size: 14px;
 }
 </style>

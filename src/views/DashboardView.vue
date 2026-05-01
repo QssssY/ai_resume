@@ -821,7 +821,7 @@ const viewAllInterview = () => {
 }
 
 .quota-card {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 20px;
   padding: 28px 32px;
   display: flex;
@@ -858,7 +858,7 @@ const viewAllInterview = () => {
 .quota-icon {
   width: 24px;
   height: 24px;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .quota-info {
@@ -870,7 +870,7 @@ const viewAllInterview = () => {
 .quota-number {
   font-size: 28px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title);
   line-height: 1;
 }
 
@@ -899,7 +899,7 @@ const viewAllInterview = () => {
 }
 
 .stat-card {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 20px 22px;
   display: flex;
@@ -932,12 +932,12 @@ const viewAllInterview = () => {
 
 .stat-icon.resume {
   background: linear-gradient(135deg, #fff3e8 0%, #ffe0c8 100%);
-  color: #e67a35;
+  color: var(--orange-deep);
 }
 
 .stat-icon.interview {
   background: linear-gradient(135deg, #fff8f3 0%, #ffe8d6 100%);
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .stat-icon.resume-left {
@@ -959,7 +959,7 @@ const viewAllInterview = () => {
 .stat-value {
   font-size: 26px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title);
   line-height: 1;
 }
 
@@ -1034,7 +1034,7 @@ const viewAllInterview = () => {
 }
 
 .record-column {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 2px 16px rgba(255, 140, 66, 0.06);
@@ -1047,7 +1047,7 @@ const viewAllInterview = () => {
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #fff8f3;
+  border-bottom: 1px solid var(--bg-page);
 }
 
 .header-left {
@@ -1071,20 +1071,20 @@ const viewAllInterview = () => {
 }
 
 .header-icon.resume {
-  background: #fff3e8;
-  color: #ff8c42;
+  background: var(--orange-light-bg);
+  color: var(--orange-main);
 }
 
 .header-icon.interview {
-  background: #fff8f3;
-  color: #e67a35;
+  background: var(--orange-light-bg);
+  color: var(--orange-deep);
 }
 
 .column-title {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .view-all-btn {
@@ -1092,7 +1092,7 @@ const viewAllInterview = () => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .arrow-icon {
@@ -1117,7 +1117,7 @@ const viewAllInterview = () => {
 }
 
 .record-item:hover {
-  background: #fff8f3;
+  background: var(--bg-card-hover);
 }
 
 .record-left {
@@ -1133,7 +1133,7 @@ const viewAllInterview = () => {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: #fff3e8;
+  background: var(--orange-light-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1144,7 +1144,7 @@ const viewAllInterview = () => {
 .interview-icon-wrap svg {
   width: 18px;
   height: 18px;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .record-info {
@@ -1154,7 +1154,7 @@ const viewAllInterview = () => {
 
 .record-name {
   font-size: 14px;
-  color: #2f2f2f;
+  color: var(--text-title);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1176,8 +1176,8 @@ const viewAllInterview = () => {
 }
 
 .record-status-badge.status-success {
-  background: #fff3e8;
-  color: #e67a35;
+  background: var(--orange-light-bg);
+  color: var(--orange-deep);
 }
 
 .record-status-badge.status-processing {
@@ -1186,7 +1186,7 @@ const viewAllInterview = () => {
 }
 
 .record-status-badge.status-pending {
-  background: #f5f7fa;
+  background: var(--bg-elevated);
   color: #909399;
 }
 
@@ -1208,12 +1208,12 @@ const viewAllInterview = () => {
 .score-value {
   font-size: 15px;
   font-weight: 700;
-  color: #e67a35;
+  color: var(--orange-deep);
 }
 
 .score-unit {
   font-size: 12px;
-  color: #e67a35;
+  color: var(--orange-deep);
 }
 
 .empty-state {
@@ -1228,7 +1228,7 @@ const viewAllInterview = () => {
 .empty-icon {
   width: 40px;
   height: 40px;
-  color: #f3d8c7;
+  color: var(--orange-border);
   margin-bottom: 4px;
 }
 
@@ -1378,5 +1378,58 @@ const viewAllInterview = () => {
   .record-column {
     padding: 14px;
   }
+}
+
+/* ===== 暗色模式适配 ===== */
+.quota-divider {
+  background: linear-gradient(180deg, transparent 0%, var(--border-card) 50%, transparent 100%);
+}
+
+.stat-icon.resume {
+  background: linear-gradient(135deg, rgba(255, 140, 66, 0.15) 0%, rgba(255, 140, 66, 0.08) 100%);
+}
+
+.stat-icon.interview {
+  background: linear-gradient(135deg, rgba(255, 140, 66, 0.12) 0%, rgba(255, 140, 66, 0.06) 100%);
+}
+
+.stat-icon.resume-left {
+  background: linear-gradient(135deg, rgba(103, 194, 58, 0.2) 0%, rgba(103, 194, 58, 0.1) 100%);
+  color: #95d06a;
+}
+
+.stat-icon.interview-left {
+  background: linear-gradient(135deg, rgba(230, 162, 60, 0.2) 0%, rgba(230, 162, 60, 0.1) 100%);
+  color: #f0c060;
+}
+
+.stat-label {
+  color: var(--text-muted);
+}
+
+.record-time {
+  color: var(--text-muted);
+}
+
+.empty-text {
+  color: var(--text-muted);
+}
+
+.record-status-badge.status-processing {
+  background: rgba(230, 162, 60, 0.15);
+  color: #f0c060;
+}
+
+.record-status-badge.status-pending {
+  color: var(--text-muted);
+}
+
+.record-status-badge.status-failed {
+  background: rgba(245, 108, 108, 0.15);
+  color: #f89898;
+}
+
+.record-score-tag {
+  background: linear-gradient(135deg, rgba(255, 140, 66, 0.15) 0%, rgba(255, 140, 66, 0.08) 100%);
 }
 </style>

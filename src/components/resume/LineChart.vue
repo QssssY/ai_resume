@@ -17,9 +17,13 @@ import {
   Legend,
   Filler
 } from 'chart.js'
+import { useThemeStore } from '@/stores/theme'
 
 // 注册折线图所需的 Chart.js 模块
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
+
+const themeStore = useThemeStore()
+const isDark = computed(() => themeStore.resolvedTheme === 'dark')
 
 const props = defineProps({
   /** X轴标签数组，如 ["04/01", "04/15", "05/01"] */
@@ -44,7 +48,7 @@ const chartData = computed(() => ({
     backgroundColor: ds.backgroundColor || 'rgba(255, 140, 66, 0.1)',
     borderWidth: 2,
     pointBackgroundColor: ds.borderColor || '#FF8C42',
-    pointBorderColor: '#fff',
+    pointBorderColor: isDark.value ? '#1a1a2e' : '#fff',
     pointBorderWidth: 2,
     pointRadius: 4,
     pointHoverRadius: 6,
@@ -67,14 +71,14 @@ const chartOptions = computed(() => ({
   },
   scales: {
     x: {
-      grid: { color: 'rgba(0, 0, 0, 0.04)' },
-      ticks: { font: { size: 11 }, color: '#999' }
+      grid: { color: isDark.value ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)' },
+      ticks: { font: { size: 11 }, color: isDark.value ? '#7A7A90' : '#999' }
     },
     y: {
       min: 0,
       max: 100,
-      ticks: { stepSize: 20, font: { size: 11 }, color: '#999' },
-      grid: { color: 'rgba(0, 0, 0, 0.06)' }
+      ticks: { stepSize: 20, font: { size: 11 }, color: isDark.value ? '#7A7A90' : '#999' },
+      grid: { color: isDark.value ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }
     }
   }
 }))

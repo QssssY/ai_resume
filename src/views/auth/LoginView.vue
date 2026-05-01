@@ -347,7 +347,7 @@ const handleRegister = async () => {
   height: 52px;
   border-radius: 12px;
   object-fit: contain;
-  background: #fff;
+  background: var(--bg-card);
   padding: 6px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
@@ -412,7 +412,7 @@ const handleRegister = async () => {
 
 .auth-card {
   width: 400px;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 24px;
   padding: 40px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
@@ -422,7 +422,7 @@ const handleRegister = async () => {
 .card-tabs {
   display: flex;
   gap: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-divider);
   padding-bottom: 16px;
 }
 
@@ -432,7 +432,7 @@ const handleRegister = async () => {
   background: none;
   font-size: 18px;
   font-weight: 500;
-  color: #999;
+  color: var(--text-muted);
   cursor: pointer;
   position: relative;
   transition: color 0.2s;
@@ -443,7 +443,7 @@ const handleRegister = async () => {
 }
 
 .tab.active {
-  color: #333;
+  color: var(--text-title);
 }
 
 .tab.active::after {
@@ -453,7 +453,7 @@ const handleRegister = async () => {
   left: 0;
   right: 0;
   height: 3px;
-  background: #ff6700;
+  background: var(--orange-main);
   border-radius: 2px;
 }
 
@@ -464,13 +464,13 @@ const handleRegister = async () => {
 .card-title {
   font-size: 24px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-title);
   margin: 0 0 8px;
 }
 
 .card-subtitle {
   font-size: 14px;
-  color: #999;
+  color: var(--text-muted);
   margin: 0 0 32px;
 }
 
@@ -480,16 +480,16 @@ const handleRegister = async () => {
 
 .auth-form :deep(.el-input__wrapper) {
   border-radius: 8px;
-  box-shadow: 0 0 0 1px #e0e0e0 inset;
+  box-shadow: 0 0 0 1px var(--border-input) inset;
   padding: 4px 12px;
 }
 
 .auth-form :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #ff6700 inset;
+  box-shadow: 0 0 0 1px var(--orange-main) inset;
 }
 
 .auth-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #ff6700 inset;
+  box-shadow: 0 0 0 1px var(--orange-main) inset;
 }
 
 .btn-primary {
@@ -498,33 +498,33 @@ const handleRegister = async () => {
   border-radius: 8px;
   font-size: 16px;
   font-weight: 500;
-  background: #ff6700;
+  background: var(--orange-main);
   border: none;
-  color: #fff;
+  color: var(--bg-card);
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .btn-primary:hover {
-  background: #e65c00;
+  background: var(--orange-deep);
 }
 
 .card-footer {
   text-align: center;
   font-size: 14px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .btn-link {
   border: none;
-  color: #ff6700;
+  color: var(--orange-main);
   padding: 0 4px;
   height: auto;
   font-size: 14px;
 }
 
 .btn-link:hover {
-  color: #e65c00;
+  color: var(--orange-deep);
   background: none;
 }
 

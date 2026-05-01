@@ -422,13 +422,13 @@ onMounted(async () => {
   margin: 0 0 6px 0;
   font-size: 24px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .page-desc {
   margin: 0;
   font-size: 14px;
-  color: #888888;
+  color: var(--text-muted);
 }
 
 .ready-bar {
@@ -437,7 +437,7 @@ onMounted(async () => {
   gap: 12px;
   padding: 16px 20px;
   background: linear-gradient(135deg, #fff3e8 0%, #fff8f3 100%);
-  border: 1px solid #ffd7bf;
+  border: 1px solid var(--orange-border);
   border-radius: 10px;
   margin-bottom: 24px;
 }
@@ -446,16 +446,16 @@ onMounted(async () => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-color: #ff8c42;
+  background-color: var(--orange-main);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: var(--bg-card);
 }
 
 .ready-text {
   font-size: 14px;
-  color: #555555;
+  color: var(--text-body);
 }
 
 .config-section {
@@ -463,8 +463,8 @@ onMounted(async () => {
 }
 
 .config-card {
-  background-color: #ffffff;
-  border: 1px solid #f3d8c7;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 12px;
   padding: 32px;
   box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
@@ -481,7 +481,7 @@ onMounted(async () => {
 .config-label {
   font-size: 15px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
   margin-bottom: 14px;
   letter-spacing: 0.5px;
 }
@@ -498,18 +498,18 @@ onMounted(async () => {
 
 .job-select :deep(.el-input__wrapper) {
   border-radius: 10px;
-  border: 1px solid #f3d8c7;
+  border: 1px solid var(--border-card);
   box-shadow: none;
   transition: all 0.2s;
   padding: 0 16px;
 }
 
 .job-select :deep(.el-input__wrapper:hover) {
-  border-color: #ff8c42;
+  border-color: var(--orange-main);
 }
 
 .job-select :deep(.el-input__wrapper.is-focus) {
-  border-color: #ff8c42;
+  border-color: var(--orange-main);
   box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.1);
 }
 
@@ -527,7 +527,7 @@ onMounted(async () => {
 
 .job-select-popper .el-select-dropdown__item.hover,
 .job-select-popper .el-select-dropdown__item:hover {
-  background-color: #fff8f3;
+  background-color: var(--orange-light-bg);
 }
 
 .job-option-content {
@@ -540,7 +540,7 @@ onMounted(async () => {
 
 .job-name {
   font-size: 15px;
-  color: #2f2f2f;
+  color: var(--text-title);
   font-weight: 500;
 }
 
@@ -561,7 +561,7 @@ onMounted(async () => {
 
 .tag-style-orange {
   background-color: rgba(255, 140, 66, 0.15);
-  color: #e67a35;
+  color: var(--orange-deep);
 }
 
 .tag-style-blue {
@@ -604,7 +604,7 @@ onMounted(async () => {
 .empty-options {
   padding: 20px;
   text-align: center;
-  color: #888888;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
@@ -616,9 +616,9 @@ onMounted(async () => {
   min-width: 96px;
   height: 44px;
   padding: 0 20px;
-  border: 1px solid #f3d8c7;
+  border: 1px solid var(--border-card);
   border-radius: 22px;
-  background-color: #ffffff;
+  background-color: var(--bg-card);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -629,35 +629,35 @@ onMounted(async () => {
 }
 
 .pill-button:hover {
-  border-color: #ff8c42;
-  background-color: #fff8f3;
+  border-color: var(--orange-main);
+  background-color: var(--orange-light-bg);
 }
 
 .pill-button.active {
-  border-color: #ff8c42;
-  background-color: #ff8c42;
+  border-color: var(--orange-main);
+  background-color: var(--orange-main);
   box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
 }
 
 .pill-label {
   font-size: 14px;
   font-weight: 600;
-  color: #555555;
+  color: var(--text-body);
   transition: color 0.25s ease;
 }
 
 .pill-hint {
   font-size: 11px;
-  color: #888888;
+  color: var(--text-muted);
   transition: color 0.25s ease;
 }
 
 .pill-button:hover .pill-label {
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .pill-button.active .pill-label {
-  color: #ffffff;
+  color: var(--bg-card);
 }
 
 .pill-button.active .pill-hint {
@@ -665,7 +665,7 @@ onMounted(async () => {
 }
 
 .job-target-card {
-  border: 1px solid #f3d8c7;
+  border: 1px solid var(--border-card);
   border-radius: 14px;
   background: linear-gradient(180deg, #fffdfb 0%, #fff8f3 100%);
   overflow: hidden;
@@ -681,14 +681,14 @@ onMounted(async () => {
 .job-target-title {
   font-size: 15px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
   margin-bottom: 8px;
 }
 
 .job-target-desc {
   font-size: 13px;
   line-height: 1.7;
-  color: #666666;
+  color: var(--text-body);
 }
 
 .job-target-body {
@@ -705,11 +705,11 @@ onMounted(async () => {
 }
 
 .resume-link-label {
-  color: #888888;
+  color: var(--text-muted);
 }
 
 .resume-link-value {
-  color: #ff8c42;
+  color: var(--orange-main);
   font-weight: 600;
 }
 
@@ -718,8 +718,8 @@ onMounted(async () => {
 }
 
 .source-option {
-  border: 1px solid #f2d5c2;
-  background: #ffffff;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 16px;
 }
@@ -740,33 +740,33 @@ onMounted(async () => {
 .source-option-title {
   font-size: 14px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .source-option-desc {
   font-size: 13px;
   line-height: 1.7;
-  color: #666666;
+  color: var(--text-body);
 }
 
 .job-match-summary {
   margin-bottom: 16px;
   padding: 16px;
-  background: #ffffff;
-  border: 1px solid #f4dfd0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 12px;
 }
 
 .summary-title {
   font-size: 14px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
   margin-bottom: 8px;
 }
 
 .summary-score {
   font-size: 13px;
-  color: #ff8c42;
+  color: var(--orange-main);
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -784,7 +784,7 @@ onMounted(async () => {
 
 .summary-label {
   font-size: 12px;
-  color: #888888;
+  color: var(--text-muted);
 }
 
 .config-sub-item {
@@ -794,7 +794,7 @@ onMounted(async () => {
 .config-sub-label {
   font-size: 14px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
   margin-bottom: 10px;
 }
 
@@ -830,8 +830,8 @@ onMounted(async () => {
 }
 
 .start-section .el-button:disabled {
-  background: #f3d8c7;
-  border-color: #f3d8c7;
+  background: var(--border-card);
+  border-color: var(--border-card);
   box-shadow: none;
   cursor: not-allowed;
 }
@@ -841,8 +841,8 @@ onMounted(async () => {
 }
 
 .info-card {
-  background-color: #ffffff;
-  border: 1px solid #f3d8c7;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
@@ -852,7 +852,7 @@ onMounted(async () => {
   margin: 0 0 20px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .info-list {
@@ -877,13 +877,13 @@ onMounted(async () => {
   justify-content: center;
   font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--bg-card);
   flex-shrink: 0;
 }
 
 .info-text {
   font-size: 14px;
-  color: #555555;
+  color: var(--text-body);
 }
 
 @media (max-width: 768px) {

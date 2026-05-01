@@ -86,7 +86,7 @@ const highlights = computed(() => {
   padding: 12px 16px;
   background-color: #f0f9eb;
   border-radius: 4px;
-  border-left: 3px solid #67c23a;
+  border-left: 3px solid var(--color-success, #67c23a);
 }
 
 .highlight-icon {
@@ -101,13 +101,13 @@ const highlights = computed(() => {
 .highlight-title {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
   margin-bottom: 4px;
 }
 
 .highlight-desc {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body, #606266);
   line-height: 1.6;
 }
 
@@ -117,7 +117,7 @@ const highlights = computed(() => {
   align-items: center;
   gap: 8px;
   padding: 40px 0;
-  color: #909399;
+  color: var(--text-muted, #909399);
   font-size: 14px;
 }
 </style>

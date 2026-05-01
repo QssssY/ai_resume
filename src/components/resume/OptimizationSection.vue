@@ -195,10 +195,10 @@ const hasContent = computed(() => {
   gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-divider, #f0f0f0);
   font-size: 15px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
 }
 
 .suggestions-list {
@@ -208,20 +208,20 @@ const hasContent = computed(() => {
 }
 
 .suggestion-card {
-  background-color: #f5f7fa;
+  background-color: var(--bg-elevated, #f5f7fa);
   border-radius: 4px;
   padding: 16px;
-  border-left: 3px solid #909399;
+  border-left: 3px solid var(--text-muted, #909399);
 }
 
 .suggestion-card.priority {
   background-color: #fef0f0;
-  border-left-color: #f56c6c;
+  border-left-color: var(--color-danger, #f56c6c);
 }
 
 .suggestion-card.general {
   background-color: #ecf5ff;
-  border-left-color: #409eff;
+  border-left-color: var(--color-info, #409eff);
 }
 
 .card-header {
@@ -241,28 +241,28 @@ const hasContent = computed(() => {
   border-radius: 50%;
   font-size: 12px;
   font-weight: 500;
-  color: #606266;
+  color: var(--text-body, #606266);
 }
 
 .suggestion-card.priority .card-number {
   background-color: rgba(245, 108, 108, 0.2);
-  color: #f56c6c;
+  color: var(--color-danger, #f56c6c);
 }
 
 .suggestion-card.general .card-number {
   background-color: rgba(64, 158, 255, 0.2);
-  color: #409eff;
+  color: var(--color-info, #409eff);
 }
 
 .card-title {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
 }
 
 .card-body {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body, #606266);
   line-height: 1.6;
   margin-bottom: 8px;
 }
@@ -273,7 +273,7 @@ const hasContent = computed(() => {
   gap: 6px;
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px dashed #dcdfe6;
+  border-top: 1px dashed var(--border-divider, #dcdfe6);
 }
 
 .action-item {
@@ -281,13 +281,13 @@ const hasContent = computed(() => {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body, #606266);
 }
 
 .actionable-section {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--border-divider, #f0f0f0);
 }
 
 .section-title {
@@ -296,7 +296,7 @@ const hasContent = computed(() => {
   gap: 6px;
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
   margin-bottom: 12px;
 }
 
@@ -310,12 +310,12 @@ const hasContent = computed(() => {
   padding: 10px 12px;
   background-color: #f0f9eb;
   border-radius: 4px;
-  border-left: 3px solid #67c23a;
+  border-left: 3px solid var(--color-success, #67c23a);
 }
 
 .item-text {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body, #606266);
 }
 
 .empty-optimization {
@@ -324,7 +324,7 @@ const hasContent = computed(() => {
   align-items: center;
   gap: 8px;
   padding: 40px 0;
-  color: #909399;
+  color: var(--text-muted, #909399);
   font-size: 14px;
 }
 </style>

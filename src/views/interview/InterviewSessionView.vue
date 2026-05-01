@@ -620,7 +620,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .interview-session-view {
   height: 100vh;
-  background: #f8f6f3;
+  background: var(--bg-page);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -651,11 +651,11 @@ onBeforeUnmount(() => {
 .interview-title {
   font-size: 15px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .status-divider {
-  color: #f3d8c7;
+  color: var(--border-card);
 }
 
 .difficulty-badge {
@@ -683,7 +683,7 @@ onBeforeUnmount(() => {
 .mode-text,
 .status-indicator {
   font-size: 13px;
-  color: #666666;
+  color: var(--text-body);
 }
 
 .status-indicator {
@@ -748,19 +748,19 @@ onBeforeUnmount(() => {
 }
 
 .opening-loading .loading-icon {
-  color: #ff8c42;
+  color: var(--orange-main);
   animation: spin 1s linear infinite;
 }
 
 .opening-loading .loading-text {
   font-size: 16px;
   font-weight: 500;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .opening-loading .loading-hint {
   font-size: 13px;
-  color: #999999;
+  color: var(--text-muted);
 }
 
 @keyframes spin {
@@ -780,7 +780,7 @@ onBeforeUnmount(() => {
 }
 
 .loading-icon {
-  color: #ff8c42;
+  color: var(--orange-main);
   animation: spin 1s linear infinite;
 }
 
@@ -795,7 +795,7 @@ onBeforeUnmount(() => {
 
 .loading-text {
   font-size: 14px;
-  color: #666;
+  color: var(--text-body);
 }
 
 .session-content {
@@ -850,7 +850,7 @@ onBeforeUnmount(() => {
   height: 40px;
   border-radius: 50%;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--bg-card);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
 }
@@ -885,15 +885,15 @@ onBeforeUnmount(() => {
 }
 
 .assistant-bubble {
-  background: #ffffff;
+  background: var(--bg-card);
   border: 1px solid rgba(243, 216, 199, 0.6);
-  color: #2f2f2f;
+  color: var(--text-title);
   border-top-left-radius: 4px;
 }
 
 .user-bubble {
   background: linear-gradient(135deg, #ff8c42 0%, #ff7a30 100%);
-  color: #ffffff;
+  color: var(--bg-card);
   border-top-right-radius: 4px;
 }
 
@@ -903,11 +903,11 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-top: 8px;
   font-size: 11px;
-  color: #999999;
+  color: var(--text-muted);
 }
 
 .role-tag {
-  color: #ff8c42;
+  color: var(--orange-main);
   font-weight: 500;
 }
 
@@ -915,7 +915,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: #999999;
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -935,7 +935,7 @@ onBeforeUnmount(() => {
 
 .typing-cursor {
   display: inline-block;
-  color: #ff8c42;
+  color: var(--orange-main);
   font-weight: bold;
   animation: blink 0.8s step-end infinite;
   margin-left: 1px;
@@ -952,7 +952,7 @@ onBeforeUnmount(() => {
 }
 
 .error-text {
-  color: #f56c6c;
+  color: var(--color-danger);
 }
 
 .streaming-text,
@@ -978,8 +978,8 @@ onBeforeUnmount(() => {
 
 .date-separator-text {
   font-size: 12px;
-  color: #c0c4cc;
-  background: #f8f6f3;
+  color: var(--text-placeholder);
+  background: var(--bg-page);
   padding: 4px 12px;
   border-radius: 12px;
 }
@@ -990,7 +990,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   min-height: 360px;
-  color: #999999;
+  color: var(--text-muted);
   text-align: center;
 }
 
@@ -1008,26 +1008,26 @@ onBeforeUnmount(() => {
 .empty-title {
   font-size: 18px;
   font-weight: 500;
-  color: #2f2f2f;
+  color: var(--text-title);
   margin: 0 0 8px 0;
 }
 
 .empty-desc {
   font-size: 14px;
-  color: #999999;
+  color: var(--text-muted);
   margin: 0;
 }
 
 .input-area {
   flex-shrink: 0;
   padding: 16px 24px 24px;
-  background: #f8f6f3;
+  background: var(--bg-page);
 }
 
 .input-container {
   max-width: 900px;
   margin: 0 auto;
-  background: #ffffff;
+  background: var(--bg-card);
   border: 1px solid rgba(243, 216, 199, 0.6);
   border-radius: 16px;
   box-shadow: 0 -4px 24px rgba(255, 140, 66, 0.1), 0 2px 12px rgba(0, 0, 0, 0.04);
@@ -1039,13 +1039,13 @@ onBeforeUnmount(() => {
   padding: 8px;
   font-size: 14px;
   line-height: 1.8;
-  color: #2f2f2f;
+  color: var(--text-title);
   background: transparent;
   box-shadow: none;
 }
 
 .input-container :deep(.el-textarea__inner::placeholder) {
-  color: #c0c4cc;
+  color: var(--text-placeholder);
 }
 
 .input-footer {
@@ -1059,13 +1059,13 @@ onBeforeUnmount(() => {
 
 .input-hint {
   font-size: 12px;
-  color: #999999;
+  color: var(--text-muted);
 }
 
 .input-hint kbd {
   display: inline-block;
   padding: 2px 6px;
-  background: #f5f7fa;
+  background: var(--bg-elevated);
   border: 1px solid #e4e7ed;
   border-radius: 4px;
   font-size: 11px;
@@ -1084,7 +1084,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding: 16px;
   font-size: 14px;
-  color: #909399;
+  color: var(--text-muted);
   background: rgba(255, 255, 255, 0.92);
   border-top: 1px solid rgba(243, 216, 199, 0.3);
 }
@@ -1140,5 +1140,29 @@ onBeforeUnmount(() => {
     padding: 12px;
     border-radius: 12px;
   }
+}
+
+/* ===== 暗色模式适配 ===== */
+.difficulty-badge.difficulty-1 {
+  background: rgba(76, 175, 80, 0.15);
+  color: #81c784;
+}
+
+.difficulty-badge.difficulty-2 {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ffb74d;
+}
+
+.difficulty-badge.difficulty-3 {
+  background: rgba(244, 67, 54, 0.15);
+  color: #ef9a9a;
+}
+
+.status-dot {
+  background: #81c784;
+}
+
+.status-indicator.ended .status-dot {
+  background: var(--text-muted);
 }
 </style>

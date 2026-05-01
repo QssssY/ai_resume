@@ -252,13 +252,13 @@ onMounted(() => {
   margin: 0 0 6px 0;
   font-size: 24px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .page-desc {
   margin: 0;
   font-size: 14px;
-  color: #888888;
+  color: var(--text-muted, #888888);
 }
 
 /* 加载状态 - 骨架屏 */
@@ -267,8 +267,8 @@ onMounted(() => {
 }
 
 .skeleton-card {
-  background: #ffffff;
-  border: 1px solid #f3d8c7;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--orange-border, #f3d8c7);
   border-radius: 12px;
   padding: 24px;
 }
@@ -277,7 +277,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--bg-elevated, #f5f5f5);
 }
 
 .skeleton-item:last-child {
@@ -296,8 +296,8 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 20px;
-  background-color: #ffffff;
-  border: 1px solid #f3d8c7;
+  background-color: var(--bg-card, #ffffff);
+  border: 1px solid var(--orange-border, #f3d8c7);
   border-radius: 12px;
   padding: 32px;
   max-width: 500px;
@@ -315,13 +315,13 @@ onMounted(() => {
 .error-title {
   font-size: 16px;
   font-weight: 500;
-  color: #f56c6c;
+  color: var(--color-danger);
   margin-bottom: 8px;
 }
 
 .error-desc {
   font-size: 14px;
-  color: #888888;
+  color: var(--text-muted, #888888);
   margin-bottom: 16px;
 }
 
@@ -348,13 +348,13 @@ onMounted(() => {
 .empty-title {
   font-size: 18px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   margin: 20px 0 8px;
 }
 
 .empty-desc {
   font-size: 14px;
-  color: #888888;
+  color: var(--text-muted, #888888);
   margin-bottom: 24px;
   max-width: 400px;
   line-height: 1.6;
@@ -366,8 +366,8 @@ onMounted(() => {
 }
 
 .history-card {
-  background-color: #ffffff;
-  border: 1px solid #f3d8c7;
+  background-color: var(--bg-card, #ffffff);
+  border: 1px solid var(--orange-border, #f3d8c7);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
@@ -381,7 +381,7 @@ onMounted(() => {
 
 .file-name {
   font-size: 14px;
-  color: #555555;
+  color: var(--text-body, #555555);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -390,7 +390,7 @@ onMounted(() => {
 
 .create-time {
   font-size: 13px;
-  color: #888888;
+  color: var(--text-muted, #888888);
 }
 
 /* 分页器 */

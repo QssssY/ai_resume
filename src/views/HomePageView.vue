@@ -326,7 +326,7 @@ const handleInterview = () => {
 /* 页面基础样式 */
 .landing-page {
   min-height: calc(100vh - 60px);
-  background-color: #fff8f3;
+  background-color: var(--bg-page);
   overflow-x: hidden;
 }
 
@@ -406,19 +406,19 @@ const handleInterview = () => {
 .badge-icon {
   width: 16px;
   height: 16px;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .hero-badge span {
   font-size: 13px;
-  color: #ff8c42;
+  color: var(--orange-main);
   font-weight: 500;
 }
 
 .hero-title {
   font-size: 52px;
   font-weight: 700;
-  color: #333333;
+  color: var(--text-title);
   line-height: 1.15;
   margin: 0 0 20px 0;
   letter-spacing: -0.02em;
@@ -426,7 +426,7 @@ const handleInterview = () => {
 
 .hero-subtitle {
   font-size: 18px;
-  color: #666666;
+  color: var(--text-body);
   margin: 0 0 36px 0;
   line-height: 1.6;
 }
@@ -457,7 +457,7 @@ const handleInterview = () => {
 .primary-btn {
   background: linear-gradient(135deg, #ff8c42 0%, #e67a35 100%);
   border: none;
-  color: #ffffff;
+  color: var(--bg-card);
   box-shadow: 0 4px 16px rgba(255, 140, 66, 0.35);
 }
 
@@ -467,9 +467,9 @@ const handleInterview = () => {
 }
 
 .secondary-btn {
-  background: #ffffff;
-  border: 2px solid #ff8c42;
-  color: #ff8c42;
+  background: var(--bg-card);
+  border: 2px solid var(--orange-main);
+  color: var(--orange-main);
 }
 
 .secondary-btn:hover {
@@ -493,18 +493,18 @@ const handleInterview = () => {
 .stat-number {
   font-size: 24px;
   font-weight: 700;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .stat-text {
   font-size: 13px;
-  color: #888888;
+  color: var(--text-muted);
 }
 
 .stat-divider {
   width: 1px;
   height: 32px;
-  background: #e0e0e0;
+  background: var(--border-divider);
 }
 
 /* Hero 右侧装饰卡片 */
@@ -517,7 +517,7 @@ const handleInterview = () => {
 }
 
 .visual-card {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 24px;
   display: flex;
@@ -554,13 +554,13 @@ const handleInterview = () => {
 .visual-icon svg {
   width: 24px;
   height: 24px;
-  color: #ffffff;
+  color: var(--bg-card);
 }
 
 .visual-card span {
   font-size: 15px;
   font-weight: 600;
-  color: #333333;
+  color: var(--text-title);
 }
 
 /* ============================================
@@ -581,7 +581,7 @@ const handleInterview = () => {
   display: inline-block;
   font-size: 12px;
   font-weight: 600;
-  color: #ff8c42;
+  color: var(--orange-main);
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 12px;
@@ -590,13 +590,13 @@ const handleInterview = () => {
 .section-title {
   font-size: 36px;
   font-weight: 700;
-  color: #333333;
+  color: var(--text-title);
   margin: 0 0 12px 0;
 }
 
 .section-desc {
   font-size: 16px;
-  color: #666666;
+  color: var(--text-body);
   margin: 0;
 }
 
@@ -610,12 +610,12 @@ const handleInterview = () => {
 /* 功能卡片样式 */
 .feature-card {
   position: relative;
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 20px;
   padding: 40px 36px;
   cursor: pointer;
   transition: all 0.3s ease;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border-divider);
   overflow: hidden;
 }
 
@@ -681,19 +681,19 @@ const handleInterview = () => {
 .feature-icon svg {
   width: 30px;
   height: 30px;
-  color: #ffffff;
+  color: var(--bg-card);
 }
 
 .feature-title {
   font-size: 24px;
   font-weight: 700;
-  color: #333333;
+  color: var(--text-title);
   margin: 0 0 14px 0;
 }
 
 .feature-desc {
   font-size: 15px;
-  color: #666666;
+  color: var(--text-body);
   line-height: 1.7;
   margin: 0 0 28px 0;
 }
@@ -709,7 +709,7 @@ const handleInterview = () => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #ff8c42;
+  color: var(--orange-main);
   transition: gap 0.2s ease;
 }
 
@@ -747,9 +747,9 @@ const handleInterview = () => {
   align-items: flex-start;
   gap: 16px;
   padding: 24px;
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 16px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border-divider);
   transition: all 0.25s ease;
 }
 
@@ -776,7 +776,7 @@ const handleInterview = () => {
 .highlight-icon svg {
   width: 20px;
   height: 20px;
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .highlight-content {
@@ -787,13 +787,13 @@ const handleInterview = () => {
 .highlight-title {
   font-size: 15px;
   font-weight: 600;
-  color: #333333;
+  color: var(--text-title);
   margin: 0 0 6px 0;
 }
 
 .highlight-desc {
   font-size: 13px;
-  color: #888888;
+  color: var(--text-muted);
   margin: 0;
   line-height: 1.5;
 }

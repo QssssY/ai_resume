@@ -317,7 +317,7 @@ onMounted(() => {
 
 .unread-badge {
   font-size: 13px;
-  color: #ff8c42;
+  color: var(--orange-main);
   background: rgba(255, 140, 66, 0.1);
   padding: 2px 10px;
   border-radius: 12px;
@@ -342,15 +342,15 @@ onMounted(() => {
   justify-content: center;
   gap: 8px;
   padding: 60px 0;
-  color: #999;
+  color: var(--text-muted, #999);
   font-size: 14px;
 }
 
 .loading-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid #e0e0e0;
-  border-top-color: #ff8c42;
+  border: 2px solid var(--border-divider, #e0e0e0);
+  border-top-color: var(--orange-main);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -370,19 +370,19 @@ onMounted(() => {
 .empty-icon {
   width: 64px;
   height: 64px;
-  color: #ddd;
+  color: var(--text-placeholder, #ddd);
   margin-bottom: 16px;
 }
 
 .empty-text {
   font-size: 16px;
-  color: #999;
+  color: var(--text-muted, #999);
   margin: 0 0 8px;
 }
 
 .empty-desc {
   font-size: 13px;
-  color: #bbb;
+  color: var(--text-placeholder, #bbb);
   margin: 0;
   text-align: center;
 }
@@ -408,13 +408,13 @@ onMounted(() => {
 }
 
 .notification-item:hover {
-  border-color: #ffecd9;
+  border-color: var(--orange-light-bg, #ffecd9);
   box-shadow: 0 2px 8px rgba(255, 140, 66, 0.08);
 }
 
 .notification-item.unread {
-  background: #fffbf8;
-  border-color: #ffe0c4;
+  background: var(--bg-page, #fffbf8);
+  border-color: var(--orange-border, #ffe0c4);
 }
 
 /* 类型图标 */
@@ -435,7 +435,7 @@ onMounted(() => {
 
 .item-icon.type-resume {
   background: rgba(255, 140, 66, 0.1);
-  color: #ff8c42;
+  color: var(--orange-main);
 }
 
 .item-icon.type-polish {
@@ -445,17 +445,17 @@ onMounted(() => {
 
 .item-icon.type-interview {
   background: rgba(103, 194, 58, 0.1);
-  color: #67c23a;
+  color: var(--color-success);
 }
 
 .item-icon.type-quota {
   background: rgba(245, 108, 108, 0.1);
-  color: #f56c6c;
+  color: var(--color-danger);
 }
 
 .item-icon.type-system {
   background: rgba(144, 147, 153, 0.1);
-  color: #909399;
+  color: var(--text-muted);
 }
 
 /* 内容区 */
@@ -497,7 +497,7 @@ onMounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ff8c42;
+  background: var(--orange-main);
   flex-shrink: 0;
   margin-top: 6px;
 }

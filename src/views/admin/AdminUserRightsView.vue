@@ -1322,7 +1322,7 @@ onMounted(async () => {
 .stats-card {
   border: 1px solid rgba(217, 196, 170, 0.25);
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--bg-card);
   padding: 16px;
   text-align: left;
   cursor: pointer;
@@ -1425,7 +1425,7 @@ onMounted(async () => {
 }
 
 .action-btn:hover {
-  background: #f8f9fa;
+  background: var(--bg-elevated);
   border-radius: 6px;
 }
 
@@ -1436,8 +1436,8 @@ onMounted(async () => {
 }
 
 .rights-drawer :deep(.el-drawer__header) {
-  background: #f8f9fa;
-  border-bottom: 1px solid #eee;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-divider);
   margin-bottom: 0;
 }
 
@@ -1449,17 +1449,17 @@ onMounted(async () => {
 .rights-descriptions :deep(.el-descriptions__label) {
   font-weight: 500;
   color: #34495e;
-  background: #fafafa;
+  background: var(--bg-elevated);
 }
 
 .edit-dialog :deep(.el-dialog__header) {
-  background: #f8f9fa;
-  border-bottom: 1px solid #eee;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-divider);
 }
 
 .quota-dialog :deep(.el-dialog__header) {
-  background: #f8f9fa;
-  border-bottom: 1px solid #eee;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-divider);
 }
 
 .quota-alert {

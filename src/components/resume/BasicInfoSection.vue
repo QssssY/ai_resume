@@ -224,7 +224,7 @@ const comment = computed(() => {
 .completeness-score {
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-divider, #f0f0f0);
 }
 
 .completeness-display {
@@ -237,7 +237,7 @@ const comment = computed(() => {
 .completeness-bar {
   flex: 1;
   height: 12px;
-  background-color: #e4e7ed;
+  background-color: var(--border-divider, #e4e7ed);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -249,28 +249,28 @@ const comment = computed(() => {
 }
 
 .completeness-high {
-  background-color: #67c23a;
+  background-color: var(--color-success, #67c23a);
 }
 
 .completeness-medium {
-  background-color: #e6a23c;
+  background-color: var(--color-warning, #e6a23c);
 }
 
 .completeness-low {
-  background-color: #f56c6c;
+  background-color: var(--color-danger, #f56c6c);
 }
 
 .completeness-value {
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-title, #303133);
   min-width: 60px;
   text-align: right;
 }
 
 .completeness-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted, #909399);
 }
 
 .info-items {
@@ -288,7 +288,7 @@ const comment = computed(() => {
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
-  background-color: #f5f7fa;
+  background-color: var(--bg-elevated, #f5f7fa);
   border-radius: 8px;
   transition: background-color 0.2s;
   min-width: 0;
@@ -298,7 +298,7 @@ const comment = computed(() => {
 }
 
 .info-item:hover {
-  background-color: #e8ecf1;
+  background-color: var(--bg-card-hover, #e8ecf1);
 }
 
 .info-item.is-missing {
@@ -312,7 +312,7 @@ const comment = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fff;
+  background-color: var(--bg-card, #fff);
   border-radius: 4px;
 }
 
@@ -324,7 +324,7 @@ const comment = computed(() => {
 
 .item-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted, #909399);
   margin-bottom: 2px;
   display: flex;
   align-items: center;
@@ -333,15 +333,15 @@ const comment = computed(() => {
 
 .optional-tag {
   font-size: 11px;
-  color: #909399;
-  background-color: #f0f0f0;
+  color: var(--text-muted, #909399);
+  background-color: var(--border-divider, #f0f0f0);
   padding: 0 4px;
   border-radius: 2px;
 }
 
 .item-value {
   font-size: 14px;
-  color: #303133;
+  color: var(--text-title, #303133);
   font-weight: 500;
   white-space: normal;
   overflow: hidden;
@@ -352,7 +352,7 @@ const comment = computed(() => {
 }
 
 .item-value.is-empty {
-  color: #c0c4cc;
+  color: var(--text-placeholder, #c0c4cc);
   font-weight: normal;
 }
 
@@ -362,19 +362,19 @@ const comment = computed(() => {
 
 .basic-info-comment {
   padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--border-divider, #f0f0f0);
 }
 
 .comment-label {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
   margin-bottom: 8px;
 }
 
 .comment-content {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-body, #606266);
   line-height: 1.8;
   white-space: pre-wrap;
 }
@@ -385,7 +385,7 @@ const comment = computed(() => {
   align-items: center;
   gap: 8px;
   padding: 40px 0;
-  color: #909399;
+  color: var(--text-muted, #909399);
   font-size: 14px;
 }
 </style>

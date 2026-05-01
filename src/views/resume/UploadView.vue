@@ -288,13 +288,13 @@ const retrySubmit = () => {
   margin: 0 0 6px 0;
   font-size: 24px;
   font-weight: 600;
-  color: #2F2F2F;
+  color: var(--text-title);
 }
 
 .page-desc {
   margin: 0;
   font-size: 14px;
-  color: #888888;
+  color: var(--text-muted);
 }
 
 /* 入口操作区 */
@@ -303,8 +303,8 @@ const retrySubmit = () => {
 }
 
 .upload-card {
-  background-color: #FFFFFF;
-  border: 1px solid #F3D8C7;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 12px;
   padding: 32px;
   box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
@@ -317,16 +317,16 @@ const retrySubmit = () => {
 
 .upload-area :deep(.el-upload-dragger) {
   width: 100%;
-  border: 2px dashed #FFD7BF;
+  border: 2px dashed var(--orange-border);
   border-radius: 12px;
-  background-color: #FFFBF8;
+  background-color: var(--bg-page);
   padding: 40px 20px;
   transition: all 0.25s ease;
 }
 
 .upload-area :deep(.el-upload-dragger:hover) {
-  border-color: #FF8C42;
-  background-color: #FFF8F3;
+  border-color: var(--orange-main);
+  background-color: var(--orange-light-bg);
 }
 
 .upload-placeholder {
@@ -335,18 +335,18 @@ const retrySubmit = () => {
 
 .upload-icon {
   margin-bottom: 12px;
-  color: #FF8C42;
+  color: var(--orange-main);
 }
 
 .upload-title {
   font-size: 15px;
-  color: #555555;
+  color: var(--text-body);
   margin-bottom: 6px;
 }
 
 .upload-hint {
   font-size: 13px;
-  color: #888888;
+  color: var(--text-muted);
 }
 
 .upload-selected {
@@ -362,7 +362,7 @@ const retrySubmit = () => {
 }
 
 .file-icon {
-  color: #FF8C42;
+  color: var(--orange-main);
 }
 
 .file-detail {
@@ -373,12 +373,12 @@ const retrySubmit = () => {
 
 .file-name {
   font-size: 14px;
-  color: #555555;
+  color: var(--text-body);
 }
 
 .file-size {
   font-size: 12px;
-  color: #888888;
+  color: var(--text-muted);
 }
 
 /* 文件错误提示 */
@@ -388,11 +388,11 @@ const retrySubmit = () => {
   gap: 6px;
   padding: 10px 12px;
   background-color: #FEF0F0;
-  border: 1px solid #FFD7BF;
+  border: 1px solid var(--orange-border);
   border-radius: 8px;
   margin-bottom: 16px;
   font-size: 13px;
-  color: #F56C6C;
+  color: var(--color-danger);
 }
 
 /* 文件要求说明 */
@@ -403,7 +403,7 @@ const retrySubmit = () => {
 .req-title {
   font-size: 14px;
   font-weight: 500;
-  color: #555555;
+  color: var(--text-body);
   margin-bottom: 10px;
 }
 
@@ -415,7 +415,7 @@ const retrySubmit = () => {
 
 .req-list li {
   font-size: 13px;
-  color: #888888;
+  color: var(--text-muted);
   padding: 4px 0;
   display: flex;
   align-items: center;
@@ -427,7 +427,7 @@ const retrySubmit = () => {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background-color: #FF8C42;
+  background-color: var(--orange-main);
 }
 
 /* 提交按钮区 */
@@ -463,7 +463,7 @@ const retrySubmit = () => {
   gap: 16px;
   padding: 20px;
   background-color: #FEF0F0;
-  border: 1px solid #FFD7BF;
+  border: 1px solid var(--orange-border);
   border-radius: 8px;
 }
 
@@ -474,13 +474,13 @@ const retrySubmit = () => {
 .error-title {
   font-size: 15px;
   font-weight: 500;
-  color: #F56C6C;
+  color: var(--color-danger);
   margin-bottom: 6px;
 }
 
 .error-desc {
   font-size: 13px;
-  color: #888888;
+  color: var(--text-muted);
   margin-bottom: 12px;
 }
 
@@ -490,8 +490,8 @@ const retrySubmit = () => {
 }
 
 .info-card {
-  background-color: #FFFFFF;
-  border: 1px solid #F3D8C7;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
@@ -501,7 +501,7 @@ const retrySubmit = () => {
   margin: 0 0 16px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #2F2F2F;
+  color: var(--text-title);
 }
 
 .info-list {
@@ -520,13 +520,13 @@ const retrySubmit = () => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #FF8C42;
+  background-color: var(--orange-main);
   flex-shrink: 0;
 }
 
 .info-text {
   font-size: 14px;
-  color: #555555;
+  color: var(--text-body);
 }
 
 /* 移动端适配 */

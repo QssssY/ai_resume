@@ -1133,7 +1133,7 @@ onUnmounted(() => {
 <style scoped>
 .resume-result-view {
   min-height: 100%;
-  background: #F8F6F3;
+  background: var(--bg-page);
   padding: 24px;
   box-sizing: border-box;
 }
@@ -1158,8 +1158,8 @@ onUnmounted(() => {
 .loading-ring {
   width: 64px;
   height: 64px;
-  border: 4px solid #f3d8c7;
-  border-top-color: #FF8C42;
+  border: 4px solid var(--border-card);
+  border-top-color: var(--orange-main);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1170,7 +1170,7 @@ onUnmounted(() => {
 
 .loading-text {
   font-size: 15px;
-  color: #666;
+  color: var(--text-body);
 }
 
 /* ============================================
@@ -1184,12 +1184,12 @@ onUnmounted(() => {
 }
 
 .error-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 40px;
   text-align: center;
   max-width: 400px;
-  border: 1px solid #f3d8c7;
+  border: 1px solid var(--border-card);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -1201,13 +1201,13 @@ onUnmounted(() => {
 .error-title {
   font-size: 18px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
   margin-bottom: 8px;
 }
 
 .error-desc {
   font-size: 14px;
-  color: #666;
+  color: var(--text-body);
   margin-bottom: 24px;
 }
 
@@ -1221,7 +1221,7 @@ onUnmounted(() => {
    Hero 诊断总览区
    ============================================ */
 .hero-section {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 20px;
   padding: 28px 32px;
   margin-bottom: 20px;
@@ -1295,9 +1295,9 @@ onUnmounted(() => {
 
 .ai-summary {
   padding: 16px;
-  background: #fafafa;
+  background: var(--bg-elevated);
   border-radius: 12px;
-  border-left: 4px solid #FF8C42;
+  border-left: 4px solid var(--orange-main);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -1307,7 +1307,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #FF8C42;
+  color: var(--orange-main);
   font-weight: 500;
   margin-bottom: 8px;
 }
@@ -1316,13 +1316,13 @@ onUnmounted(() => {
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: #2f2f2f;
+  color: var(--text-title);
   word-break: break-all;
   white-space: normal;
 }
 
 .summary-text.processing {
-  color: #909399;
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -1392,7 +1392,7 @@ onUnmounted(() => {
 
 .update-time {
   font-size: 13px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .refresh-hint {
@@ -1420,13 +1420,13 @@ onUnmounted(() => {
   transform: translate(-50%, -50%);
   font-size: 22px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title);
   pointer-events: none;
   white-space: nowrap;
 }
 
 .ring-score.muted {
-  color: #c0c4cc;
+  color: var(--text-placeholder);
 }
 
 /* ============================================
@@ -1443,7 +1443,7 @@ onUnmounted(() => {
 }
 
 .kpi-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 20px 16px;
   display: flex;
@@ -1458,7 +1458,7 @@ onUnmounted(() => {
 
 .card-label {
   font-size: 13px;
-  color: #666;
+  color: var(--text-body);
   text-align: center;
 }
 
@@ -1466,7 +1466,7 @@ onUnmounted(() => {
    通用卡片区块
    ============================================ */
 .section-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
   margin-bottom: 16px;
   border: 1px solid rgba(243, 216, 199, 0.5);
@@ -1534,7 +1534,7 @@ onUnmounted(() => {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .section-body {
@@ -1578,7 +1578,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-divider);
   box-sizing: border-box;
   min-width: 0;
 }
@@ -1589,12 +1589,12 @@ onUnmounted(() => {
 
 .item-label {
   font-size: 13px;
-  color: #666;
+  color: var(--text-body);
 }
 
 .item-value {
   font-size: 13px;
-  color: #2f2f2f;
+  color: var(--text-title);
   font-weight: 500;
   word-break: break-all;
   white-space: normal;
@@ -1614,7 +1614,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background: #f5f7fa;
+  background: var(--bg-elevated);
   border-radius: 8px;
   box-sizing: border-box;
   min-width: 0;
@@ -1623,7 +1623,7 @@ onUnmounted(() => {
 
 .basic-item .label {
   font-size: 13px;
-  color: #666;
+  color: var(--text-body);
   flex-shrink: 0;
 }
 
@@ -1657,7 +1657,7 @@ onUnmounted(() => {
   gap: 10px;
   align-items: flex-start;
   padding: 10px 12px;
-  background: #f5f7fa;
+  background: var(--bg-elevated);
   border-radius: 8px;
   box-sizing: border-box;
   min-width: 0;
@@ -1668,8 +1668,8 @@ onUnmounted(() => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #FF8C42;
-  color: #fff;
+  background: var(--orange-main);
+  color: var(--bg-card);
   font-size: 11px;
   font-weight: 600;
   display: flex;
@@ -1680,7 +1680,7 @@ onUnmounted(() => {
 
 .suggestion-text {
   font-size: 13px;
-  color: #2f2f2f;
+  color: var(--text-title);
   line-height: 1.6;
   word-break: break-all;
   white-space: normal;
@@ -1690,7 +1690,7 @@ onUnmounted(() => {
    失败状态
    ============================================ */
 .failed-section {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 48px;
   text-align: center;
@@ -1709,7 +1709,7 @@ onUnmounted(() => {
 
 .failed-desc {
   font-size: 14px;
-  color: #666;
+  color: var(--text-body);
 }
 
 /* ============================================
@@ -1717,8 +1717,8 @@ onUnmounted(() => {
    ============================================ */
 .result-pre {
   font-size: 13px;
-  color: #606266;
-  background: #f5f7fa;
+  color: var(--text-body);
+  background: var(--bg-elevated);
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;
@@ -1745,12 +1745,12 @@ onUnmounted(() => {
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: #666;
+  color: var(--text-body);
 }
 
 .job-match-entry-btn {
-  border-color: #FF8C42;
-  color: #FF8C42;
+  border-color: var(--orange-main);
+  color: var(--orange-main);
 }
 
 .job-match-panel {
@@ -1780,7 +1780,7 @@ onUnmounted(() => {
 
 .job-match-score-label {
   font-size: 13px;
-  color: #666;
+  color: var(--text-body);
 }
 
 .job-match-score-value {
@@ -1788,7 +1788,7 @@ onUnmounted(() => {
   font-size: 34px;
   line-height: 1;
   font-weight: 700;
-  color: #FF8C42;
+  color: var(--orange-main);
 }
 
 .job-match-result-grid {
@@ -1801,14 +1801,14 @@ onUnmounted(() => {
 .job-match-suggestions {
   padding: 18px 20px;
   border-radius: 14px;
-  background: #f9fafb;
+  background: var(--bg-elevated);
 }
 
 .job-match-block-title {
   margin-bottom: 12px;
   font-size: 14px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title);
 }
 
 .job-match-tag-list {
@@ -1840,7 +1840,7 @@ onUnmounted(() => {
 .job-match-empty {
   font-size: 13px;
   line-height: 1.7;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .polish-card {
@@ -1862,13 +1862,13 @@ onUnmounted(() => {
 
 .polish-time {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .polish-content-block {
   padding: 18px 20px;
   border-radius: 14px;
-  background: #f9fafb;
+  background: var(--bg-elevated);
 }
 
 .polish-block-header {
@@ -1894,14 +1894,14 @@ onUnmounted(() => {
   margin-bottom: 12px;
   font-size: 12px;
   line-height: 1.7;
-  color: #64748b;
+  color: var(--text-body);
 }
 
 .polish-content-pre {
   margin: 0;
   font-size: 13px;
   line-height: 1.8;
-  color: #2f2f2f;
+  color: var(--text-title);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -1930,20 +1930,20 @@ onUnmounted(() => {
 }
 
 .action-btn.secondary {
-  background: #fff;
-  border-color: #f3d8c7;
-  color: #666;
+  background: var(--bg-card);
+  border-color: var(--border-card);
+  color: var(--text-body);
 }
 
 .action-btn.secondary:hover {
-  border-color: #FF8C42;
-  color: #FF8C42;
+  border-color: var(--orange-main);
+  color: var(--orange-main);
 }
 
 .action-btn.primary {
   background: linear-gradient(135deg, #FF8C42 0%, #FF7A30 100%);
   border: none;
-  color: #fff;
+  color: var(--bg-card);
   box-shadow: 0 4px 16px rgba(255, 140, 66, 0.3);
 }
 
@@ -2014,5 +2014,103 @@ onUnmounted(() => {
   .action-btn {
     width: 100%;
   }
+}
+
+/* ===== 暗色模式适配 ===== */
+.level-excellent {
+  background: rgba(76, 175, 80, 0.15);
+  color: #81c784;
+}
+
+.level-good {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ffb74d;
+}
+
+.level-fair {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffd54f;
+}
+
+.level-poor {
+  background: rgba(244, 67, 54, 0.15);
+  color: #ef9a9a;
+}
+
+.status-0 {
+  background: rgba(230, 162, 60, 0.15);
+  color: #f0c060;
+}
+
+.status-1 {
+  background: rgba(64, 158, 255, 0.15);
+  color: #79bbff;
+}
+
+.status-2 {
+  background: rgba(103, 194, 58, 0.15);
+  color: #95d06a;
+}
+
+.status-3 {
+  background: rgba(245, 108, 108, 0.15);
+  color: #f89898;
+}
+
+.section-header {
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-card) 100%);
+}
+
+.section-icon.overall {
+  background: rgba(103, 194, 58, 0.15);
+  color: #81c784;
+}
+
+.section-icon.highlight {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ffb74d;
+}
+
+.section-icon.skill {
+  background: rgba(64, 158, 255, 0.15);
+  color: #79bbff;
+}
+
+.section-icon.basic {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+}
+
+.section-icon.experience {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+}
+
+.section-icon.optimization {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.section-icon.radar {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+}
+
+.kpi-card {
+  border-color: var(--border-card);
+}
+
+.section-card {
+  border-color: var(--border-card);
+}
+
+.job-match-tag.matched {
+  background: rgba(47, 155, 93, 0.15);
+  color: #6ee7a0;
+}
+
+.job-match-tag.missing {
+  background: rgba(217, 72, 65, 0.15);
+  color: #f87171;
 }
 </style>

@@ -268,13 +268,13 @@ onMounted(() => {
   margin: 0 0 6px 0;
   font-size: 24px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .page-desc {
   margin: 0;
   font-size: 14px;
-  color: #888888;
+  color: var(--text-muted, #888888);
 }
 
 .loading-section {
@@ -289,8 +289,8 @@ onMounted(() => {
 
 .skeleton-card,
 .history-card {
-  background: #ffffff;
-  border: 1px solid #f3d8c7;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--orange-border, #f3d8c7);
   border-radius: 16px;
   padding: 28px 32px;
 }
@@ -302,7 +302,7 @@ onMounted(() => {
   justify-content: space-between;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #fff8f3;
+  border-bottom: 1px solid var(--orange-light-bg, #fff8f3);
 }
 
 .skeleton-info {
@@ -337,8 +337,8 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 20px;
-  background-color: #ffffff;
-  border: 1px solid #f3d8c7;
+  background-color: var(--bg-card, #ffffff);
+  border: 1px solid var(--orange-border, #f3d8c7);
   border-radius: 12px;
   padding: 32px;
   max-width: 500px;
@@ -348,14 +348,14 @@ onMounted(() => {
 .error-title {
   font-size: 16px;
   font-weight: 500;
-  color: #f56c6c;
+  color: var(--color-danger);
   margin-bottom: 8px;
 }
 
 .error-desc,
 .empty-desc {
   font-size: 14px;
-  color: #888888;
+  color: var(--text-muted, #888888);
 }
 
 .empty-content {
@@ -368,7 +368,7 @@ onMounted(() => {
 .empty-title {
   font-size: 18px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   margin: 20px 0 8px;
 }
 
@@ -384,7 +384,7 @@ onMounted(() => {
 }
 
 .history-card:hover {
-  border-color: #ff8c42;
+  border-color: var(--orange-main, #ff8c42);
   box-shadow: 0 6px 24px rgba(255, 140, 66, 0.12);
   transform: translateY(-2px);
 }
@@ -404,14 +404,14 @@ onMounted(() => {
 .job-title {
   font-size: 20px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   margin: 0;
 }
 
 .card-info {
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #fff8f3;
+  border-bottom: 1px solid var(--orange-light-bg, #fff8f3);
 }
 
 .info-row {
@@ -433,24 +433,24 @@ onMounted(() => {
 
 .info-label {
   font-size: 13px;
-  color: #999999;
+  color: var(--text-muted, #999999);
   min-width: 50px;
 }
 
 .info-value {
   font-size: 14px;
-  color: #555555;
+  color: var(--text-body, #555555);
 }
 
 .info-value.score {
   font-weight: 600;
-  color: #ff8c42;
+  color: var(--orange-main, #ff8c42);
   font-size: 16px;
 }
 
 .time-info {
   font-size: 13px;
-  color: #999999;
+  color: var(--text-muted, #999999);
 }
 
 .pagination-section {

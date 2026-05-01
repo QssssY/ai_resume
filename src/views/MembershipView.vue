@@ -475,7 +475,7 @@ onMounted(async () => {
   padding: 32px 36px;
   border-radius: 24px;
   background: linear-gradient(135deg, #ff9a5c 0%, #ff8c42 42%, #e67a35 100%);
-  color: #ffffff;
+  color: var(--bg-card, #ffffff);
   box-shadow: 0 10px 28px rgba(255, 140, 66, 0.22);
 }
 
@@ -550,9 +550,9 @@ onMounted(async () => {
 .quota-panel,
 .plan-card,
 .empty-card {
-  background: #ffffff;
+  background: var(--bg-card, #ffffff);
   border-radius: 20px;
-  border: 1px solid rgba(243, 216, 199, 0.55);
+  border: 1px solid var(--border-card, rgba(243, 216, 199, 0.55));
   box-shadow: 0 4px 18px rgba(255, 140, 66, 0.08);
 }
 
@@ -571,7 +571,7 @@ onMounted(async () => {
 .section-eyebrow {
   font-size: 12px;
   font-weight: 600;
-  color: #ff8c42;
+  color: var(--orange-main);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -580,7 +580,7 @@ onMounted(async () => {
   margin: 8px 0 0;
   font-size: 22px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .status-badge {
@@ -599,8 +599,8 @@ onMounted(async () => {
 }
 
 .status-badge.badge-normal {
-  background: #f5f7fa;
-  color: #606266;
+  background: var(--bg-elevated, #f5f7fa);
+  color: var(--text-body);
 }
 
 .status-body {
@@ -613,19 +613,19 @@ onMounted(async () => {
 .status-name {
   font-size: 30px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   line-height: 1.1;
 }
 
 .status-plan,
 .status-expire {
   font-size: 15px;
-  color: #7a7a7a;
+  color: var(--text-muted);
 }
 
 .status-plan span,
 .status-expire span {
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   font-weight: 600;
 }
 
@@ -663,7 +663,7 @@ onMounted(async () => {
   margin-top: 10px;
   font-size: 24px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   line-height: 1.2;
 }
 
@@ -709,7 +709,7 @@ onMounted(async () => {
   padding: 6px 12px;
   border-radius: 999px;
   background: linear-gradient(135deg, #ff9c60 0%, #ff8c42 100%);
-  color: #ffffff;
+  color: var(--bg-card, #ffffff);
   font-size: 12px;
   font-weight: 600;
   margin-bottom: 12px;
@@ -725,7 +725,7 @@ onMounted(async () => {
 .plan-name {
   font-size: 22px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .plan-desc {
@@ -741,7 +741,7 @@ onMounted(async () => {
   padding: 7px 12px;
   border-radius: 999px;
   background: linear-gradient(135deg, #ff9c60 0%, #ff8c42 100%);
-  color: #ffffff;
+  color: var(--bg-card, #ffffff);
   font-size: 12px;
   font-weight: 600;
 }
@@ -755,7 +755,7 @@ onMounted(async () => {
 .plan-price {
   font-size: 38px;
   font-weight: 700;
-  color: #e67a35;
+  color: var(--orange-deep, #e67a35);
   line-height: 1;
 }
 
@@ -771,7 +771,7 @@ onMounted(async () => {
   gap: 8px;
   padding: 14px;
   border-radius: 14px;
-  background: #fff9f4;
+  background: var(--orange-light-bg);
   border: 1px solid rgba(243, 216, 199, 0.45);
 }
 
@@ -785,7 +785,7 @@ onMounted(async () => {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #ff8c42;
+  background: var(--orange-main);
   flex-shrink: 0;
 }
 
@@ -832,7 +832,7 @@ onMounted(async () => {
 .metric-item {
   padding: 14px;
   border-radius: 14px;
-  background: #fff9f4;
+  background: var(--orange-light-bg);
   border: 1px solid rgba(243, 216, 199, 0.45);
 }
 
@@ -847,7 +847,7 @@ onMounted(async () => {
   margin-top: 8px;
   font-size: 18px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .upgrade-btn {
@@ -861,9 +861,9 @@ onMounted(async () => {
 
 .upgrade-btn.is-disabled,
 .upgrade-btn.is-disabled:hover {
-  background: #f3f4f6;
+  background: var(--bg-elevated);
   box-shadow: none;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .empty-card {
@@ -874,7 +874,7 @@ onMounted(async () => {
 .empty-title {
   font-size: 18px;
   font-weight: 700;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
 }
 
 .empty-desc {

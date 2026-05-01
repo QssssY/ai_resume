@@ -16,9 +16,13 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js'
+import { useThemeStore } from '@/stores/theme'
 
 // 注册雷达图所需的 Chart.js 模块
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend)
+
+const themeStore = useThemeStore()
+const isDark = computed(() => themeStore.resolvedTheme === 'dark')
 
 const props = defineProps({
   scores: {
@@ -48,7 +52,7 @@ const chartData = computed(() => ({
       borderColor: '#FF8C42',
       borderWidth: 2,
       pointBackgroundColor: '#FF8C42',
-      pointBorderColor: '#fff',
+      pointBorderColor: isDark.value ? '#1a1a2e' : '#fff',
       pointBorderWidth: 2,
       pointRadius: 5,
       pointHoverRadius: 7,
@@ -75,18 +79,18 @@ const chartOptions = computed(() => ({
       ticks: {
         stepSize: 20,
         font: { size: 11 },
-        color: '#999',
+        color: isDark.value ? '#7A7A90' : '#999',
         backdropColor: 'transparent',
       },
       pointLabels: {
         font: { size: 13, weight: '600' },
-        color: '#2f2f2f',
+        color: isDark.value ? '#E8E8F0' : '#2f2f2f',
       },
       grid: {
-        color: 'rgba(0, 0, 0, 0.06)',
+        color: isDark.value ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
       },
       angleLines: {
-        color: 'rgba(0, 0, 0, 0.06)',
+        color: isDark.value ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
       },
     },
   },

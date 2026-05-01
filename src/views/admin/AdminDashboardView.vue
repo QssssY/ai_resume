@@ -649,7 +649,7 @@ onMounted(() => {
 }
 
 .overview-card {
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid rgba(217, 196, 170, 0.3);
   border-radius: 16px;
   padding: 22px;
@@ -701,7 +701,7 @@ onMounted(() => {
 }
 
 .panel-card {
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid rgba(217, 196, 170, 0.25);
   border-radius: 16px;
   padding: 22px;
@@ -800,7 +800,7 @@ onMounted(() => {
   background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
   border: none;
   border-radius: 12px;
-  color: #fff;
+  color: var(--bg-card);
   font-weight: 600;
   display: flex;
   align-items: center;

@@ -188,7 +188,7 @@ const getScoreClass = (score) => {
   gap: 40px;
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-divider, #f0f0f0);
 }
 
 .score-item {
@@ -203,20 +203,20 @@ const getScoreClass = (score) => {
 }
 
 .score-excellent {
-  color: #67c23a;
+  color: var(--color-success, #67c23a);
 }
 
 .score-good {
-  color: #e6a23c;
+  color: var(--color-warning, #e6a23c);
 }
 
 .score-poor {
-  color: #f56c6c;
+  color: var(--color-danger, #f56c6c);
 }
 
 .score-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted, #909399);
 }
 
 .experience-list {
@@ -226,15 +226,15 @@ const getScoreClass = (score) => {
 .section-title {
   font-size: 15px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
   margin-bottom: 16px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-divider, #f0f0f0);
 }
 
 .experience-item {
   padding: 16px;
-  background-color: #f5f7fa;
+  background-color: var(--bg-elevated, #f5f7fa);
   border-radius: 4px;
   margin-bottom: 12px;
 }
@@ -249,23 +249,23 @@ const getScoreClass = (score) => {
 .exp-title {
   font-size: 15px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
 }
 
 .exp-period {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted, #909399);
 }
 
 .exp-position {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-body, #606266);
   margin-bottom: 8px;
 }
 
 .exp-desc {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body, #606266);
   line-height: 1.6;
 }
 
@@ -283,7 +283,7 @@ const getScoreClass = (score) => {
 .issues-section {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--border-divider, #f0f0f0);
 }
 
 .issues-list,
@@ -306,7 +306,7 @@ const getScoreClass = (score) => {
   border-radius: 4px;
   margin-bottom: 8px;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-body, #606266);
   line-height: 1.5;
 }
 
@@ -325,7 +325,7 @@ const getScoreClass = (score) => {
   align-items: center;
   gap: 8px;
   padding: 40px 0;
-  color: #909399;
+  color: var(--text-muted, #909399);
   font-size: 14px;
 }
 </style>

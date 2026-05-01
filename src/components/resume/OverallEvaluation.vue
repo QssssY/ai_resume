@@ -64,7 +64,7 @@ const gradeClass = computed(() => {
   gap: 40px;
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-divider, #f0f0f0);
 }
 
 .score-display {
@@ -75,14 +75,14 @@ const gradeClass = computed(() => {
 .score-value {
   font-size: 48px;
   font-weight: 600;
-  color: #409eff;
+  color: var(--color-info, #409eff);
   line-height: 1;
   margin-bottom: 8px;
 }
 
 .score-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted, #909399);
 }
 
 .grade-section {
@@ -102,32 +102,32 @@ const gradeClass = computed(() => {
 
 .grade-excellent {
   background-color: #f0f9eb;
-  color: #67c23a;
+  color: var(--color-success, #67c23a);
 }
 
 .grade-good {
   background-color: #ecf5ff;
-  color: #409eff;
+  color: var(--color-info, #409eff);
 }
 
 .grade-average {
   background-color: #fdf6ec;
-  color: #e6a23c;
+  color: var(--color-warning, #e6a23c);
 }
 
 .grade-poor {
   background-color: #fef0f0;
-  color: #f56c6c;
+  color: var(--color-danger, #f56c6c);
 }
 
 .grade-default {
-  background-color: #f5f7fa;
-  color: #606266;
+  background-color: var(--bg-elevated, #f5f7fa);
+  color: var(--text-body, #606266);
 }
 
 .grade-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted, #909399);
 }
 
 .summary-section {
@@ -137,13 +137,13 @@ const gradeClass = computed(() => {
 .summary-label {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-title, #303133);
   margin-bottom: 10px;
 }
 
 .summary-content {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-body, #606266);
   line-height: 1.8;
   white-space: pre-wrap;
 }

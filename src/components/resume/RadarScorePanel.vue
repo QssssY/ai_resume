@@ -137,13 +137,13 @@ const scoreLevelClass = (score) => {
 
 .score-item {
   border-radius: 8px;
-  background: #fafbfc;
+  background: var(--bg-elevated, #fafbfc);
   overflow: hidden;
   transition: background 0.2s;
 }
 
 .score-item--open {
-  background: #f5f7fa;
+  background: var(--bg-elevated, #f5f7fa);
 }
 
 .score-item-header {
@@ -170,7 +170,7 @@ const scoreLevelClass = (score) => {
 .score-item-label {
   font-size: 13px;
   font-weight: 600;
-  color: #2f2f2f;
+  color: var(--text-title, #2f2f2f);
   white-space: nowrap;
   width: 62px;
   flex-shrink: 0;
@@ -181,7 +181,7 @@ const scoreLevelClass = (score) => {
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: #e8ecef;
+  background: var(--border-divider, #e8ecef);
   overflow: hidden;
 }
 
@@ -218,19 +218,19 @@ const scoreLevelClass = (score) => {
 }
 
 .score-item-value.score-high {
-  color: #67c23a;
+  color: var(--color-success, #67c23a);
 }
 
 .score-item-value.score-medium {
-  color: #e6a23c;
+  color: var(--color-warning, #e6a23c);
 }
 
 .score-item-value.score-low {
-  color: #f56c6c;
+  color: var(--color-danger, #f56c6c);
 }
 
 .score-arrow {
-  color: #aaa;
+  color: var(--text-placeholder, #aaa);
   transition: transform 0.2s;
   flex-shrink: 0;
 }
@@ -258,11 +258,11 @@ const scoreLevelClass = (score) => {
 }
 
 .score-detail-title--plus {
-  color: #67c23a;
+  color: var(--color-success, #67c23a);
 }
 
 .score-detail-title--minus {
-  color: #f56c6c;
+  color: var(--color-danger, #f56c6c);
 }
 
 .score-detail-list {
@@ -287,7 +287,7 @@ const scoreLevelClass = (score) => {
   position: absolute;
   left: 2px;
   font-weight: 700;
-  color: #67c23a;
+  color: var(--color-success, #67c23a);
 }
 
 .score-detail-item--minus {
@@ -299,12 +299,12 @@ const scoreLevelClass = (score) => {
   position: absolute;
   left: 2px;
   font-weight: 700;
-  color: #f56c6c;
+  color: var(--color-danger, #f56c6c);
 }
 
 .score-detail-empty {
   font-size: 12px;
-  color: #aaa;
+  color: var(--text-placeholder, #aaa);
   padding: 4px 0;
 }
 </style>
