@@ -78,27 +78,28 @@ const props = defineProps({
     required: true,
     // { basicInfo: { score, plus:[], minus:[] }, skill: {...}, work: {...}, project: {...}, education: {...} }
   },
+  dimensionConfig: {
+    type: Array,
+    default: () => [
+      { key: 'basicInfo', label: '基本信息' },
+      { key: 'skill', label: '岗位能力' },
+      { key: 'work', label: '工作经验' },
+      { key: 'project', label: '项目经历' },
+      { key: 'education', label: '教育背景' },
+    ],
+  },
 })
-
-// 维度配置：key 对应 details 中的字段名，label 为显示名称
-const dimensionConfig = [
-  { key: 'basicInfo', label: '基本信息' },
-  { key: 'skill', label: '岗位能力' },
-  { key: 'work', label: '工作经验' },
-  { key: 'project', label: '项目经历' },
-  { key: 'education', label: '教育背景' },
-]
 
 // 组装维度数据列表
 const dimensions = computed(() =>
-  dimensionConfig.map((cfg) => {
+  props.dimensionConfig.map((cfg) => {
     const d = props.details?.[cfg.key] || {}
     return {
       key: cfg.key,
       label: cfg.label,
       score: d.score || 0,
-      plus: Array.isArray(d.plus) ? d.plus : [],
-      minus: Array.isArray(d.minus) ? d.minus : [],
+      plus: Array.isArray(d.plus) ? d.plus : Array.isArray(d.strengths) ? d.strengths : [],
+      minus: Array.isArray(d.minus) ? d.minus : Array.isArray(d.weaknesses) ? d.weaknesses : [],
     }
   })
 )
@@ -106,7 +107,7 @@ const dimensions = computed(() =>
 // 默认展开得分最低的维度
 const lowestKey = computed(() => {
   const sorted = [...dimensions.value].sort((a, b) => a.score - b.score)
-  return sorted[0]?.key || 'basicInfo'
+  return sorted[0]?.key || props.dimensionConfig[0]?.key || 'basicInfo'
 })
 
 // 用 reactive 跟踪展开状态，初始展开得分最低项
@@ -172,7 +173,7 @@ const scoreLevelClass = (score) => {
   font-weight: 600;
   color: var(--text-title, #2f2f2f);
   white-space: nowrap;
-  width: 62px;
+  min-width: 62px;
   flex-shrink: 0;
 }
 

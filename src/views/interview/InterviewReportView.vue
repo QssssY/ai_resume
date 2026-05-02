@@ -143,13 +143,34 @@
 
       <div v-if="dimensionCards.length" class="section-card">
         <div class="section-header">
-          <h3 class="section-title">维度评分</h3>
+          <h3 class="section-title">维度详情</h3>
         </div>
         <div class="section-body dimension-grid">
           <div v-for="item in dimensionCards" :key="item.key" class="dimension-card">
             <div class="dimension-label">{{ item.label }}</div>
             <div class="dimension-score">{{ item.score }}</div>
             <div class="dimension-comment">{{ item.comment || "暂无补充说明" }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="Object.keys(radarScores).length" class="section-card">
+        <div class="section-header">
+          <h3 class="section-title">维度评分</h3>
+        </div>
+        <div class="section-body radar-layout">
+          <div class="radar-chart-area">
+            <RadarChart
+              :labels="radarLabels"
+              :keys="radarKeys"
+              :scores="radarScores"
+            />
+          </div>
+          <div class="radar-panel-area">
+            <RadarScorePanel
+              :details="radarScores"
+              :dimension-config="radarDimensionConfig"
+            />
           </div>
         </div>
       </div>
@@ -205,6 +226,8 @@ import { useRoute, useRouter } from "vue-router";
 import { ArrowLeft } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { getInterviewSession } from "@/api/interview";
+import RadarChart from "@/components/resume/RadarChart.vue";
+import RadarScorePanel from "@/components/resume/RadarScorePanel.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -310,6 +333,38 @@ const dimensionCards = computed(() => {
       comment: item.value.comment,
     }));
 });
+
+// 面试五维配置
+const interviewDimensionConfig = [
+  { key: "technicalDepth", label: "技术深度" },
+  { key: "communication", label: "沟通表达" },
+  { key: "problemSolving", label: "问题解决" },
+  { key: "pressureResistance", label: "抗压表现" },
+  { key: "jobMatch", label: "岗位匹配" },
+];
+
+const radarLabels = computed(() => interviewDimensionConfig.map((d) => d.label));
+const radarKeys = computed(() => interviewDimensionConfig.map((d) => d.key));
+const radarScores = computed(() => {
+  const report = parsedReport.value;
+  if (!report) return {};
+  const result = {};
+  for (const dim of interviewDimensionConfig) {
+    const val = report[dim.key];
+    if (val && val.score != null) {
+      result[dim.key] = {
+        score: val.score,
+        comment: val.comment || "",
+        plus: val.strengths || [],
+        minus: val.weaknesses || [],
+      };
+    }
+  }
+  return result;
+});
+const radarDimensionConfig = computed(() =>
+  interviewDimensionConfig.map((d) => ({ key: d.key, label: d.label }))
+);
 
 const fetchSessionDetail = async (options = {}) => {
   const { showLoading = true, silentError = false } = options;
@@ -581,18 +636,30 @@ onUnmounted(() => {
   padding: 20px;
 }
 
-.job-feedback-body,
-.dimension-grid {
+.job-feedback-body {
   display: grid;
   gap: 16px;
 }
 
-.dimension-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+.radar-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.radar-chart-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.radar-panel-area {
+  display: flex;
+  flex-direction: column;
 }
 
 .job-feedback-item,
-.dimension-card,
 .question-card {
   background: var(--orange-light-bg, #fffaf7);
   border: 1px solid var(--border-card, rgba(243, 216, 199, 0.35));
@@ -600,7 +667,19 @@ onUnmounted(() => {
   padding: 14px 16px;
 }
 
-.job-feedback-label,
+.dimension-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.dimension-card {
+  background: var(--orange-light-bg, #fffaf7);
+  border: 1px solid var(--border-card, rgba(243, 216, 199, 0.35));
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
 .dimension-label {
   font-size: 13px;
   font-weight: 600;
@@ -608,20 +687,32 @@ onUnmounted(() => {
   margin-bottom: 8px;
 }
 
-.job-feedback-value,
-.dimension-comment,
-.question-answer,
-.question-comment {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--text-title, #2f2f2f);
-}
-
 .dimension-score {
   font-size: 28px;
   font-weight: 700;
   color: var(--orange-main, #ff8c42);
   margin-bottom: 6px;
+}
+
+.dimension-comment {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-title, #2f2f2f);
+}
+
+.job-feedback-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8a5b39;
+  margin-bottom: 8px;
+}
+
+.job-feedback-value,
+.question-answer,
+.question-comment {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-title, #2f2f2f);
 }
 
 .simple-list {
@@ -692,6 +783,10 @@ onUnmounted(() => {
 
 @media (max-width: 900px) {
   .hero-section {
+    grid-template-columns: 1fr;
+  }
+
+  .radar-layout {
     grid-template-columns: 1fr;
   }
 }

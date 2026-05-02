@@ -28,26 +28,32 @@ const props = defineProps({
   scores: {
     type: Object,
     required: true,
-    // 期望格式: { basicInfo: 0-100, skill: 0-100, work: 0-100, project: 0-100, education: 0-100 }
-  }
+  },
+  labels: {
+    type: Array,
+    default: () => ['基本信息', '岗位能力', '工作经验', '项目经历', '教育背景'],
+  },
+  keys: {
+    type: Array,
+    default: () => ['basicInfo', 'skill', 'work', 'project', 'education'],
+  },
 })
 
-// 五维标签
-const labels = ['基本信息', '岗位能力', '工作经验', '项目经历', '教育背景']
+// 提取分数值（兼容纯数字和 {score, ...} 对象格式）
+const getScoreValue = (val) => {
+  if (val == null) return 0
+  if (typeof val === 'number') return val
+  if (typeof val === 'object' && val.score != null) return val.score
+  return 0
+}
 
 // 图表数据
 const chartData = computed(() => ({
-  labels,
+  labels: props.labels,
   datasets: [
     {
-      label: '简历评分',
-      data: [
-        props.scores.basicInfo || 0,
-        props.scores.skill || 0,
-        props.scores.work || 0,
-        props.scores.project || 0,
-        props.scores.education || 0,
-      ],
+      label: '评分',
+      data: props.keys.map((key) => getScoreValue(props.scores[key])),
       backgroundColor: 'rgba(255, 140, 66, 0.15)',
       borderColor: '#FF8C42',
       borderWidth: 2,
