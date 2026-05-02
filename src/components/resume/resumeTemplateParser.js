@@ -1,4 +1,4 @@
-let blockIdSeed = 0
+ let blockIdSeed = 0
 
 const SECTION_SPECS = [
   {

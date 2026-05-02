@@ -1,22 +1,29 @@
 <template>
   <div ref="resumeRef" :class="['resume-template', `resume-template--${mode}`]">
     <div v-if="isPreview" class="editor-toolbar">
-      <button type="button" class="editor-tool" :disabled="!activeBlockId" @mousedown.prevent @click="toggleBold">
+      <button type="button" class="editor-tool" :disabled="!canUndo" @mousedown.prevent @click="undoTemplateChange">
+        上一步
+      </button>
+      <button type="button" class="editor-tool" :disabled="!canRedo" @mousedown.prevent @click="redoTemplateChange">
+        下一步
+      </button>
+      <span class="toolbar-separator"></span>
+      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="toggleBold">
         B
       </button>
-      <button type="button" class="editor-tool" :disabled="!activeBlockId" @mousedown.prevent @click="decreaseFontSize">
+      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="decreaseFontSize">
         A-
       </button>
-      <button type="button" class="editor-tool" :disabled="!activeBlockId" @mousedown.prevent @click="increaseFontSize">
+      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="increaseFontSize">
         A+
       </button>
       <span class="toolbar-separator"></span>
-      <button type="button" class="editor-tool" @mousedown.prevent @click="insertLabelBlockAfterCurrent">插入标签段</button>
-      <button type="button" class="editor-tool" @mousedown.prevent @click="insertSectionTitleAfterCurrent">章节标题</button>
-      <button type="button" class="editor-tool" :disabled="!activeBlockId" @mousedown.prevent @click="deleteCurrentBlock">
+      <button type="button" class="editor-tool" @mousedown.prevent @click="toggleLabelStyleAtCurrent">标签样式</button>
+      <button type="button" class="editor-tool" @mousedown.prevent @click="toggleSectionTitleAtCurrent">章节标题</button>
+      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="deleteCurrentTarget">
         删除段落
       </button>
-      <button type="button" class="editor-tool" :disabled="!activeBlockId" @mousedown.prevent @click="resetCurrentStyle">
+      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="resetCurrentStyle">
         重置
       </button>
     </div>
@@ -31,6 +38,7 @@
               class="section-title-input resume-inline-input"
               data-export-display="inline"
               :readonly="!isPreview"
+              placeholder="个人信息"
             />
           </div>
           <div class="section-line"></div>
@@ -39,47 +47,54 @@
         <div class="profile-card">
           <div class="profile-main">
             <div class="profile-name-row">
-              <input
-                v-model="header.name"
-                class="profile-name-input resume-inline-input"
-                data-export-display="block"
-                :readonly="!isPreview"
+              <ResumeInlineRichEditor
+                :ref="(instance) => setHeaderFieldRef(header.name.id, instance)"
+                :field="header.name"
+                :mode="mode"
                 placeholder="请输入姓名"
+                :class="['profile-name-input', { 'is-active': isActiveHeaderField(header.name.id) }]"
+                @focus="activateHeaderField(header.name.id, 'name')"
+                @update-html="updateHeaderFieldHtml"
+                @request-remove-empty="handleHeaderFieldEmptyDelete"
               />
             </div>
 
             <div class="profile-meta-grid">
-              <input
-                v-model="header.jobTarget"
-                class="profile-target-input resume-inline-input profile-meta-item--wide"
-                data-export-display="inline"
-                :readonly="!isPreview"
+              <ResumeInlineRichEditor
+                :ref="(instance) => setHeaderFieldRef(header.jobTarget.id, instance)"
+                :field="header.jobTarget"
+                :mode="mode"
                 placeholder="请输入求职方向"
+                :class="['profile-target-input', 'profile-meta-item--wide', { 'is-active': isActiveHeaderField(header.jobTarget.id) }]"
+                @focus="activateHeaderField(header.jobTarget.id, 'job_target')"
+                @update-html="updateHeaderFieldHtml"
+                @request-remove-empty="handleHeaderFieldEmptyDelete"
               />
 
               <div
                 v-for="item in header.metaItems"
                 :key="item.id"
-                class="profile-meta-card"
+                :class="['profile-meta-card', { 'is-active': isActiveHeaderField(item.id) }]"
                 :draggable="isPreview"
-                @dragstart="handleMetaDragStart(item.id)"
-                @dragover.prevent
-                @drop="handleMetaDrop(item.id)"
+                @dragstart="handleMetaDragStart(item.id, $event)"
+                @dragover.prevent="handleMetaDragOver($event)"
+                @drop.prevent="handleMetaDrop(item.id)"
+                @dragend="resetMetaDragState"
               >
-                <span v-if="isPreview" class="drag-handle drag-handle--meta">⋮⋮</span>
-                <input
-                  v-model="item.value"
-                  class="profile-meta-input resume-inline-input"
-                  data-export-display="inline"
-                  :readonly="!isPreview"
+                <button v-if="isPreview" type="button" class="drag-handle drag-handle--meta" draggable="true" @mousedown.stop>
+                  ⋮⋮
+                </button>
+                <ResumeInlineRichEditor
+                  :ref="(instance) => setHeaderFieldRef(item.id, instance)"
+                  :field="item"
+                  :mode="mode"
                   placeholder="请输入联系方式"
+                  class="profile-meta-input"
+                  @focus="activateHeaderField(item.id, 'meta')"
+                  @update-html="updateHeaderFieldHtml"
+                  @request-remove-empty="handleHeaderFieldEmptyDelete"
                 />
-                <button
-                  v-if="isPreview"
-                  type="button"
-                  class="meta-remove-btn editor-ghost-btn"
-                  @click="removeMetaItem(item.id)"
-                >
+                <button v-if="isPreview" type="button" class="meta-remove-btn editor-ghost-btn" @click="removeMetaItem(item.id)">
                   删除
                 </button>
               </div>
@@ -91,21 +106,23 @@
             </div>
 
             <div v-if="header.summaryLines.length" class="profile-summary">
-              <div v-for="item in header.summaryLines" :key="item.id" class="profile-summary-item">
-                <textarea
-                  v-model="item.value"
-                  class="profile-summary-input resume-textarea-input"
-                  data-export-display="block"
-                  :readonly="!isPreview"
-                  rows="2"
+              <div
+                v-for="item in header.summaryLines"
+                :key="item.id"
+                :class="['profile-summary-item', { 'is-active': isActiveHeaderField(item.id) }]"
+              >
+                <ResumeInlineRichEditor
+                  :ref="(instance) => setHeaderFieldRef(item.id, instance)"
+                  :field="item"
+                  :mode="mode"
+                  multiline
                   placeholder="请输入补充说明"
-                ></textarea>
-                <button
-                  v-if="isPreview"
-                  type="button"
-                  class="summary-remove-btn editor-ghost-btn"
-                  @click="removeSummaryLine(item.id)"
-                >
+                  class="profile-summary-input"
+                  @focus="activateHeaderField(item.id, 'summary')"
+                  @update-html="updateHeaderFieldHtml"
+                  @request-remove-empty="handleHeaderFieldEmptyDelete"
+                />
+                <button v-if="isPreview" type="button" class="summary-remove-btn editor-ghost-btn" @click="removeSummaryLine(item.id)">
                   删除
                 </button>
               </div>
@@ -177,22 +194,18 @@
                 v-if="isPreview"
                 class="block-drop-indicator"
                 :class="{ 'is-visible': isDragOver(section.id, block.id, 'before') }"
-                @dragover.prevent="setDragOver(section.id, block.id, 'before')"
+                @dragover.prevent="setDragOver(section.id, block.id, 'before', $event)"
                 @dragleave="clearDragOver"
                 @drop.prevent="handleBlockDrop(section.id, block.id, 'before')"
               ></div>
 
-              <div
-                class="resume-block"
-                :data-block-id="block.id"
-                @click="setActiveBlock(block.id)"
-              >
+              <div class="resume-block" :data-block-id="block.id" @click="activateBlock(block.id)">
                 <button
                   v-if="isPreview"
                   type="button"
                   class="drag-handle drag-handle--block"
                   draggable="true"
-                  @dragstart="handleBlockDragStart(block.id)"
+                  @dragstart="handleBlockDragStart(block.id, $event)"
                   @dragend="resetDragState"
                   @mousedown.stop
                 >
@@ -205,7 +218,7 @@
                       :ref="(instance) => setRichBlockRef(block.id, instance)"
                       :block="block"
                       :mode="mode"
-                      @focus="setActiveBlock"
+                      @focus="activateBlock"
                       @update-html="updateBlockHtml"
                       @request-insert-after="insertTextBlockAfter"
                       @request-remove-empty="removeEmptyBlock"
@@ -226,7 +239,7 @@
                       :style="buildBlockInlineStyle(block)"
                       data-export-display="inline"
                       :readonly="!isPreview"
-                      @focus="setActiveBlock(block.id)"
+                      @focus="activateBlock(block.id)"
                       @keydown.enter.prevent="insertTextBlockAfter(block.id)"
                     />
                   </div>
@@ -239,7 +252,7 @@
                     class="label-key-input resume-inline-input"
                     data-export-display="inline"
                     :readonly="!isPreview"
-                    @focus="setActiveBlock(block.id)"
+                    @focus="activateBlock(block.id)"
                     @keydown.enter.prevent="insertTextBlockAfter(block.id)"
                   />
                   <input
@@ -247,7 +260,7 @@
                     class="label-value-input resume-inline-input"
                     data-export-display="inline"
                     :readonly="!isPreview"
-                    @focus="setActiveBlock(block.id)"
+                    @focus="activateBlock(block.id)"
                     @keydown.enter.prevent="insertTextBlockAfter(block.id)"
                   />
                 </div>
@@ -260,7 +273,7 @@
                     :class="['entry-cell-input', `entry-cell--${resolveCellRole(itemIndex, block.items.length)}`, 'resume-inline-input']"
                     data-export-display="inline"
                     :readonly="!isPreview"
-                    @focus="setActiveBlock(block.id)"
+                    @focus="activateBlock(block.id)"
                     @keydown.enter.prevent="insertTextBlockAfter(block.id)"
                   />
                 </div>
@@ -270,7 +283,7 @@
                 v-if="isPreview"
                 class="block-drop-indicator"
                 :class="{ 'is-visible': isDragOver(section.id, block.id, 'after') }"
-                @dragover.prevent="setDragOver(section.id, block.id, 'after')"
+                @dragover.prevent="setDragOver(section.id, block.id, 'after', $event)"
                 @dragleave="clearDragOver"
                 @drop.prevent="handleBlockDrop(section.id, block.id, 'after')"
               ></div>
@@ -280,7 +293,7 @@
               v-if="isPreview"
               class="section-drop-tail"
               :class="{ 'is-visible': isDragOver(section.id, null, 'end') }"
-              @dragover.prevent="setDragOver(section.id, null, 'end')"
+              @dragover.prevent="setDragOver(section.id, null, 'end', $event)"
               @dragleave="clearDragOver"
               @drop.prevent="handleBlockDrop(section.id, null, 'end')"
             >
@@ -296,6 +309,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import ResumeInlineRichEditor from './ResumeInlineRichEditor.vue'
 import ResumeRichBlockEditor from './ResumeRichBlockEditor.vue'
 import {
   buildResumeTemplateModel,
@@ -319,66 +333,198 @@ const isPreview = computed(() => props.mode === 'preview')
 const resumeRef = ref(null)
 const photoInputRef = ref(null)
 const photoDataUrl = ref('')
-const header = ref({
-  sectionTitle: '个人信息',
-  name: '',
-  jobTarget: '',
-  metaItems: [],
-  summaryLines: [],
-})
+const header = ref(createEmptyHeaderModel())
 const sections = ref([])
-const activeBlockId = ref('')
+const activeTarget = ref(createEmptyActiveTarget())
 const draggingBlockId = ref('')
 const metaDraggingId = ref('')
-const dragOverState = ref({
-  sectionId: '',
-  blockId: '',
-  position: '',
+const dragOverState = ref(createEmptyDragState())
+const historyState = ref({
+  past: [],
+  future: [],
 })
+const suspendHistory = ref(false)
+const historyTimer = ref(null)
 const richBlockRefs = new Map()
+const headerFieldRefs = new Map()
 
-const cloneModel = (value) => JSON.parse(JSON.stringify(value))
+function createEmptyActiveTarget() {
+  return {
+    type: '',
+    id: '',
+    fieldKind: '',
+  }
+}
 
-/**
- * 胶囊章节标题块属于前端编辑器专用块类型。
- * 它复用现有章节头视觉样式，但不改动后端 AI 文本结构与解析结果。
- */
-const createBannerTitleBlock = () => ({
-  id: `resume_block_banner_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-  type: 'banner_title',
-  title: '章节标题',
-  style: {
-    fontSize: null,
-    fontWeight: null,
-  },
-})
-
-/**
- * 当 AI 润色结果变化时，重新生成模板状态。
- * 这里统一把原始纯文本拆成头部信息和正文块，后续编辑都只修改这份前端状态。
- */
-const applyTemplateText = (text) => {
-  const model = cloneModel(buildResumeTemplateModel(text))
-  header.value = model.header
-  sections.value = model.sections
-  activeBlockId.value = ''
-  draggingBlockId.value = ''
-  dragOverState.value = {
+function createEmptyDragState() {
+  return {
     sectionId: '',
     blockId: '',
     position: '',
   }
 }
 
-watch(
-  () => props.text,
-  (nextText) => {
-    applyTemplateText(nextText)
-  },
-  { immediate: true },
-)
+function createStyleModel() {
+  return {
+    fontSize: null,
+    fontWeight: null,
+  }
+}
 
-const setRichBlockRef = (blockId, instance) => {
+function createEmptyHeaderModel() {
+  return {
+    sectionTitle: '个人信息',
+    name: createHeaderField({ kind: 'name', placeholder: '请输入姓名' }),
+    jobTarget: createHeaderField({ kind: 'job_target', placeholder: '请输入求职方向' }),
+    metaItems: [],
+    summaryLines: [],
+  }
+}
+
+function cloneModel(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
+function generateClientId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function wrapTextAsHtml(value) {
+  return `<p>${escapeHtml(value).replace(/\n/g, '<br>')}</p>`
+}
+
+function createHeaderField({
+  id,
+  kind,
+  html = '<p></p>',
+  style = null,
+  placeholder = '',
+}) {
+  return {
+    id: id || generateClientId(`header_${kind}`),
+    kind,
+    html,
+    style: {
+      ...createStyleModel(),
+      ...(style || {}),
+    },
+    placeholder,
+  }
+}
+
+function normalizeHeaderField(source, kind, placeholder) {
+  if (source?.html !== undefined) {
+    return createHeaderField({
+      id: source.id,
+      kind: source.kind || kind,
+      html: source.html || '<p></p>',
+      style: source.style,
+      placeholder: source.placeholder || placeholder,
+    })
+  }
+
+  const rawText = typeof source === 'string' ? source : source?.value || ''
+  return createHeaderField({
+    id: source?.id,
+    kind,
+    html: rawText ? wrapTextAsHtml(rawText) : '<p></p>',
+    style: source?.style,
+    placeholder,
+  })
+}
+
+function normalizeHeaderModel(source) {
+  return {
+    sectionTitle: source?.sectionTitle || '个人信息',
+    name: normalizeHeaderField(source?.name, 'name', '请输入姓名'),
+    jobTarget: normalizeHeaderField(source?.jobTarget, 'job_target', '请输入求职方向'),
+    metaItems: (source?.metaItems || []).map((item) => normalizeHeaderField(item, 'meta', '请输入联系方式')),
+    summaryLines: (source?.summaryLines || []).map((item) => normalizeHeaderField(item, 'summary', '请输入补充说明')),
+  }
+}
+
+function normalizeSectionsModel(sourceSections) {
+  return (sourceSections || []).map((section) => ({
+    ...section,
+    blocks: (section.blocks || []).map((block) => ({
+      ...block,
+      style: {
+        ...createStyleModel(),
+        ...(block.style || {}),
+      },
+      items: block.items ? block.items.map((item) => ({ ...item })) : undefined,
+    })),
+  }))
+}
+
+function createTextBlockFromText(text, variant = '', style = null) {
+  return {
+    id: generateClientId('resume_block_text'),
+    type: 'text',
+    variant,
+    html: wrapTextAsHtml(text || ''),
+    style: {
+      ...createStyleModel(),
+      ...(style || {}),
+    },
+  }
+}
+
+/**
+ * 胶囊章节标题块属于前端模板编辑器专用块类型。
+ * 它只影响当前预览与导出效果，不修改后端 AI 返回的纯文本结构。
+ */
+function createBannerTitleBlock(title = '章节标题', style = null) {
+  return {
+    id: generateClientId('resume_block_banner'),
+    type: 'banner_title',
+    title,
+    style: {
+      ...createStyleModel(),
+      ...(style || {}),
+    },
+  }
+}
+
+function createLabelBlock(label = '标签：', value = '请输入内容', style = null) {
+  return {
+    id: generateClientId('resume_block_label'),
+    type: 'label',
+    label,
+    value,
+    style: {
+      ...createStyleModel(),
+      ...(style || {}),
+    },
+  }
+}
+
+const activeBlockId = computed(() => {
+  return activeTarget.value.type === 'block' ? activeTarget.value.id : ''
+})
+
+const hasActiveEditableTarget = computed(() => {
+  return !!activeTarget.value.id
+})
+
+const canUndo = computed(() => {
+  return historyState.value.past.length > 1
+})
+
+const canRedo = computed(() => {
+  return historyState.value.future.length > 0
+})
+
+function setRichBlockRef(blockId, instance) {
   if (instance) {
     richBlockRefs.set(blockId, instance)
     return
@@ -386,7 +532,15 @@ const setRichBlockRef = (blockId, instance) => {
   richBlockRefs.delete(blockId)
 }
 
-const resolveCellRole = (index, total) => {
+function setHeaderFieldRef(fieldId, instance) {
+  if (instance) {
+    headerFieldRefs.set(fieldId, instance)
+    return
+  }
+  headerFieldRefs.delete(fieldId)
+}
+
+function resolveCellRole(index, total) {
   if (total === 1 || index === 0) {
     return 'left'
   }
@@ -396,29 +550,45 @@ const resolveCellRole = (index, total) => {
   return 'middle'
 }
 
-const isRichTextBlock = (block) => {
+function isRichTextBlock(block) {
   return block.type === 'text' || block.type === 'section_title'
 }
 
-const resolveTextBlockClass = (block) => {
+function resolveTextBlockClass(block) {
   return [
     block.type === 'section_title' ? 'subsection-line' : 'text-line',
     block.variant ? `text-line--${block.variant}` : '',
   ]
 }
 
-const buildBlockInlineStyle = (block) => {
+function buildBlockInlineStyle(block) {
   return {
     fontSize: block.style?.fontSize ? `${block.style.fontSize}px` : undefined,
     fontWeight: block.style?.fontWeight || undefined,
   }
 }
 
-const setActiveBlock = (blockId) => {
-  activeBlockId.value = blockId
+function activateBlock(blockId) {
+  activeTarget.value = {
+    type: 'block',
+    id: blockId,
+    fieldKind: '',
+  }
 }
 
-const findBlockLocation = (blockId) => {
+function activateHeaderField(fieldId, fieldKind) {
+  activeTarget.value = {
+    type: 'header_field',
+    id: fieldId,
+    fieldKind,
+  }
+}
+
+function isActiveHeaderField(fieldId) {
+  return activeTarget.value.type === 'header_field' && activeTarget.value.id === fieldId
+}
+
+function findBlockLocation(blockId) {
   for (let sectionIndex = 0; sectionIndex < sections.value.length; sectionIndex += 1) {
     const section = sections.value[sectionIndex]
     const blockIndex = section.blocks.findIndex((block) => block.id === blockId)
@@ -434,29 +604,304 @@ const findBlockLocation = (blockId) => {
   return null
 }
 
-const focusBlock = async (blockId) => {
+function findHeaderFieldById(fieldId) {
+  if (header.value.name.id === fieldId) {
+    return {
+      type: 'direct',
+      kind: 'name',
+      field: header.value.name,
+      parent: header.value,
+      key: 'name',
+    }
+  }
+
+  if (header.value.jobTarget.id === fieldId) {
+    return {
+      type: 'direct',
+      kind: 'job_target',
+      field: header.value.jobTarget,
+      parent: header.value,
+      key: 'jobTarget',
+    }
+  }
+
+  const metaIndex = header.value.metaItems.findIndex((item) => item.id === fieldId)
+  if (metaIndex !== -1) {
+    return {
+      type: 'array',
+      kind: 'meta',
+      field: header.value.metaItems[metaIndex],
+      parent: header.value.metaItems,
+      index: metaIndex,
+    }
+  }
+
+  const summaryIndex = header.value.summaryLines.findIndex((item) => item.id === fieldId)
+  if (summaryIndex !== -1) {
+    return {
+      type: 'array',
+      kind: 'summary',
+      field: header.value.summaryLines[summaryIndex],
+      parent: header.value.summaryLines,
+      index: summaryIndex,
+    }
+  }
+
+  return null
+}
+
+function getActiveBlock() {
+  return activeTarget.value.type === 'block' ? findBlockLocation(activeTarget.value.id)?.block || null : null
+}
+
+function getActiveHeaderFieldLocation() {
+  return activeTarget.value.type === 'header_field' ? findHeaderFieldById(activeTarget.value.id) : null
+}
+
+async function focusBlock(blockId) {
+  activateBlock(blockId)
   await nextTick()
-  activeBlockId.value = blockId
-  richBlockRefs.get(blockId)?.focusEditor?.()
+
+  const richEditor = richBlockRefs.get(blockId)
+  if (richEditor?.focusEditor) {
+    richEditor.focusEditor()
+    return
+  }
+
+  const plainInput = resumeRef.value?.querySelector(`[data-block-id="${blockId}"] input, [data-block-id="${blockId}"] textarea`)
+  plainInput?.focus()
+}
+
+async function focusHeaderField(fieldId, fieldKind) {
+  activateHeaderField(fieldId, fieldKind)
+  await nextTick()
+  headerFieldRefs.get(fieldId)?.focusEditor?.()
+}
+
+function blurCurrentTarget() {
+  if (activeTarget.value.type === 'header_field') {
+    headerFieldRefs.get(activeTarget.value.id)?.blurEditor?.()
+    return
+  }
+
+  if (activeTarget.value.type === 'block') {
+    richBlockRefs.get(activeTarget.value.id)?.blurEditor?.()
+    const plainInput = resumeRef.value?.querySelector(
+      `[data-block-id="${activeTarget.value.id}"] input, [data-block-id="${activeTarget.value.id}"] textarea`,
+    )
+    plainInput?.blur()
+  }
 }
 
 /**
- * 点击模板外空白区域时，主动清理当前激活态并让富文本编辑器失焦，
- * 避免预览区继续残留选中边框或光标态。
+ * 点击模板外空白区域时，需要同时清理正文块和头部字段的激活态，
+ * 避免导出前仍残留工具栏关联的焦点样式。
  */
-const clearActiveState = () => {
-  const currentId = activeBlockId.value
-  if (currentId) {
-    richBlockRefs.get(currentId)?.blurEditor?.()
-  }
-  activeBlockId.value = ''
+function clearActiveState() {
+  blurCurrentTarget()
+  activeTarget.value = createEmptyActiveTarget()
 }
 
-const handleDocumentPointerDown = (event) => {
+function handleDocumentPointerDown(event) {
   if (!resumeRef.value?.contains(event.target)) {
     clearActiveState()
   }
 }
+
+function stripHtmlToText(html) {
+  if (!html) {
+    return ''
+  }
+
+  const wrapper = document.createElement('div')
+  wrapper.innerHTML = html
+  wrapper.querySelectorAll('br').forEach((node) => {
+    node.replaceWith('\n')
+  })
+  return wrapper.textContent?.replace(/\u00a0/g, ' ').trim() || ''
+}
+
+function readHeaderFieldText(field) {
+  return stripHtmlToText(field?.html || '')
+}
+
+function isSingleLineRichText(block) {
+  const text = stripHtmlToText(block?.html || '')
+  if (!text) {
+    return false
+  }
+  return !text.includes('\n')
+}
+
+function parseLabelText(text) {
+  const normalized = String(text || '').trim()
+  const match = normalized.match(/^([^:：]{1,20}[:：])\s*(.+)$/)
+  if (match) {
+    return {
+      label: match[1],
+      value: match[2],
+    }
+  }
+
+  return {
+    label: '标签：',
+    value: normalized,
+  }
+}
+
+function buildLabelPlainText(block) {
+  return `${block.label || ''}${block.value || ''}`.trim()
+}
+
+function applyTemplateText(text) {
+  const model = cloneModel(buildResumeTemplateModel(text))
+  suspendHistory.value = true
+  header.value = normalizeHeaderModel(model.header)
+  sections.value = normalizeSectionsModel(model.sections)
+  photoDataUrl.value = ''
+  activeTarget.value = createEmptyActiveTarget()
+  resetDragState()
+  resetMetaDragState()
+  suspendHistory.value = false
+  initializeHistory()
+}
+
+function createSnapshot() {
+  return {
+    header: cloneModel(header.value),
+    sections: cloneModel(sections.value),
+    photoDataUrl: photoDataUrl.value,
+    activeTarget: cloneModel(activeTarget.value),
+  }
+}
+
+function createSnapshotRecord() {
+  const snapshot = createSnapshot()
+  return {
+    signature: JSON.stringify(snapshot),
+    snapshot,
+  }
+}
+
+function initializeHistory() {
+  historyState.value = {
+    past: [createSnapshotRecord()],
+    future: [],
+  }
+}
+
+/**
+ * 结构性操作立即入历史栈，文本输入走节流快照。
+ * 这样既能保证撤销/重做覆盖整份模板，又不会因为每个字符输入都生成一条历史记录。
+ */
+function recordHistoryNow() {
+  if (!isPreview.value || suspendHistory.value) {
+    return
+  }
+
+  if (historyTimer.value) {
+    clearTimeout(historyTimer.value)
+    historyTimer.value = null
+  }
+
+  const record = createSnapshotRecord()
+  const lastRecord = historyState.value.past[historyState.value.past.length - 1]
+  if (lastRecord?.signature === record.signature) {
+    return
+  }
+
+  historyState.value.past.push(record)
+  if (historyState.value.past.length > 80) {
+    historyState.value.past.shift()
+  }
+  historyState.value.future = []
+}
+
+function queueHistorySnapshot() {
+  if (!isPreview.value || suspendHistory.value) {
+    return
+  }
+
+  if (historyTimer.value) {
+    clearTimeout(historyTimer.value)
+  }
+
+  historyTimer.value = setTimeout(() => {
+    historyTimer.value = null
+    recordHistoryNow()
+  }, 280)
+}
+
+async function restoreSnapshot(snapshot) {
+  suspendHistory.value = true
+  header.value = normalizeHeaderModel(snapshot.header)
+  sections.value = normalizeSectionsModel(snapshot.sections)
+  photoDataUrl.value = snapshot.photoDataUrl || ''
+  activeTarget.value = snapshot.activeTarget || createEmptyActiveTarget()
+  resetDragState()
+  resetMetaDragState()
+  await nextTick()
+
+  if (activeTarget.value.type === 'header_field') {
+    const location = findHeaderFieldById(activeTarget.value.id)
+    if (location) {
+      headerFieldRefs.get(location.field.id)?.focusEditor?.()
+    }
+  } else if (activeTarget.value.type === 'block') {
+    const location = findBlockLocation(activeTarget.value.id)
+    if (location) {
+      const richEditor = richBlockRefs.get(location.block.id)
+      if (richEditor?.focusEditor) {
+        richEditor.focusEditor()
+      } else {
+        const plainInput = resumeRef.value?.querySelector(
+          `[data-block-id="${location.block.id}"] input, [data-block-id="${location.block.id}"] textarea`,
+        )
+        plainInput?.focus()
+      }
+    }
+  }
+
+  suspendHistory.value = false
+}
+
+async function undoTemplateChange() {
+  if (!isPreview.value) {
+    return
+  }
+
+  recordHistoryNow()
+  if (historyState.value.past.length <= 1) {
+    return
+  }
+
+  const current = historyState.value.past.pop()
+  historyState.value.future.push(current)
+  await restoreSnapshot(historyState.value.past[historyState.value.past.length - 1].snapshot)
+}
+
+async function redoTemplateChange() {
+  if (!isPreview.value || !historyState.value.future.length) {
+    return
+  }
+
+  recordHistoryNow()
+  const nextRecord = historyState.value.future.pop()
+  historyState.value.past.push(nextRecord)
+  await restoreSnapshot(nextRecord.snapshot)
+}
+
+watch(
+  () => props.text,
+  (nextText) => {
+    applyTemplateText(nextText)
+  },
+  { immediate: true },
+)
+
+watch([header, sections, photoDataUrl], () => {
+  queueHistorySnapshot()
+}, { deep: true })
 
 onMounted(() => {
   document.addEventListener('mousedown', handleDocumentPointerDown)
@@ -464,17 +909,28 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleDocumentPointerDown)
+  if (historyTimer.value) {
+    clearTimeout(historyTimer.value)
+  }
 })
 
-const updateBlockHtml = ({ id, html }) => {
+function updateBlockHtml({ id, html }) {
   const location = findBlockLocation(id)
-  if (!location || !location.block) {
+  if (!location) {
     return
   }
   location.block.html = html
 }
 
-const insertBlockAfter = async (currentBlockId, nextBlock) => {
+function updateHeaderFieldHtml({ id, html }) {
+  const location = findHeaderFieldById(id)
+  if (!location) {
+    return
+  }
+  location.field.html = html
+}
+
+async function insertBlockAfter(currentBlockId, nextBlock) {
   const location = findBlockLocation(currentBlockId)
   if (!location) {
     const firstSection = sections.value[0]
@@ -483,37 +939,85 @@ const insertBlockAfter = async (currentBlockId, nextBlock) => {
     }
     firstSection.blocks.push(nextBlock)
     await focusBlock(nextBlock.id)
+    recordHistoryNow()
     return
   }
 
   location.section.blocks.splice(location.blockIndex + 1, 0, nextBlock)
   await focusBlock(nextBlock.id)
+  recordHistoryNow()
 }
 
 /**
- * 回车创建的新段落总是插入到当前块之后，并自动把光标切到新段落中。
+ * 正文回车仍然保持“在当前块下方新建段落”的 Word 风格，
+ * 新块插入后立即切换焦点，避免出现用户看见新增但无法继续输入的问题。
  */
-const insertTextBlockAfter = async (currentBlockId) => {
+async function insertTextBlockAfter(currentBlockId) {
   await insertBlockAfter(currentBlockId, createEmptyTextBlock())
 }
 
-const insertLabelBlockAfterCurrent = async () => {
-  const baseId = activeBlockId.value || sections.value[0]?.blocks[sections.value[0].blocks.length - 1]?.id
-  if (!baseId) {
+async function replaceBlock(blockId, nextBlock) {
+  const location = findBlockLocation(blockId)
+  if (!location) {
     return
   }
-  await insertBlockAfter(baseId, createEmptyLabelBlock())
+
+  location.section.blocks.splice(location.blockIndex, 1, nextBlock)
+  await focusBlock(nextBlock.id)
+  recordHistoryNow()
 }
 
-const insertSectionTitleAfterCurrent = async () => {
-  const baseId = activeBlockId.value || sections.value[0]?.blocks[sections.value[0].blocks.length - 1]?.id
-  if (!baseId) {
+function canToggleBlockToLabel(block) {
+  return (block.type === 'text' || block.type === 'section_title') && isSingleLineRichText(block)
+}
+
+function canToggleBlockToBanner(block) {
+  return (block.type === 'text' || block.type === 'section_title') && isSingleLineRichText(block)
+}
+
+async function toggleLabelStyleAtCurrent() {
+  const activeBlock = getActiveBlock()
+
+  if (activeBlock?.type === 'label') {
+    await replaceBlock(activeBlock.id, createTextBlockFromText(buildLabelPlainText(activeBlock), '', activeBlock.style))
     return
   }
-  await insertBlockAfter(baseId, createBannerTitleBlock())
+
+  if (activeBlock && canToggleBlockToLabel(activeBlock)) {
+    const parsed = parseLabelText(stripHtmlToText(activeBlock.html))
+    await replaceBlock(activeBlock.id, createLabelBlock(parsed.label, parsed.value, activeBlock.style))
+    return
+  }
+
+  const fallbackId = activeBlockId.value || sections.value[0]?.blocks[sections.value[0].blocks.length - 1]?.id
+  if (!fallbackId) {
+    return
+  }
+  await insertBlockAfter(fallbackId, createEmptyLabelBlock())
 }
 
-const removeBlockById = (blockId) => {
+async function toggleSectionTitleAtCurrent() {
+  const activeBlock = getActiveBlock()
+
+  if (activeBlock?.type === 'banner_title') {
+    await replaceBlock(activeBlock.id, createTextBlockFromText(activeBlock.title || '', 'heading', activeBlock.style))
+    return
+  }
+
+  if (activeBlock && canToggleBlockToBanner(activeBlock)) {
+    const title = stripHtmlToText(activeBlock.html)
+    await replaceBlock(activeBlock.id, createBannerTitleBlock(title || '章节标题', activeBlock.style))
+    return
+  }
+
+  const fallbackId = activeBlockId.value || sections.value[0]?.blocks[sections.value[0].blocks.length - 1]?.id
+  if (!fallbackId) {
+    return
+  }
+  await insertBlockAfter(fallbackId, createBannerTitleBlock())
+}
+
+function removeBlockById(blockId) {
   const location = findBlockLocation(blockId)
   if (!location) {
     return null
@@ -521,7 +1025,6 @@ const removeBlockById = (blockId) => {
 
   location.section.blocks.splice(location.blockIndex, 1)
   return {
-    sectionIndex: location.sectionIndex,
     nextBlock:
       location.section.blocks[location.blockIndex] ||
       location.section.blocks[location.blockIndex - 1] ||
@@ -529,7 +1032,7 @@ const removeBlockById = (blockId) => {
   }
 }
 
-const removeEmptyBlock = async (blockId) => {
+async function removeBlockAndFocus(blockId) {
   const result = removeBlockById(blockId)
   if (!result) {
     return
@@ -537,105 +1040,266 @@ const removeEmptyBlock = async (blockId) => {
 
   if (result.nextBlock) {
     await focusBlock(result.nextBlock.id)
+  } else {
+    clearActiveState()
+  }
+
+  recordHistoryNow()
+}
+
+async function removeEmptyBlock(blockId) {
+  await removeBlockAndFocus(blockId)
+}
+
+async function handleHeaderFieldEmptyDelete(fieldId) {
+  const location = findHeaderFieldById(fieldId)
+  if (!location) {
     return
   }
 
-  activeBlockId.value = ''
-}
-
-const deleteCurrentBlock = async () => {
-  if (!activeBlockId.value) {
-    ElMessage.warning('请先选择要删除的段落')
+  if (location.kind === 'meta') {
+    await removeMetaItem(fieldId)
     return
   }
-  await removeEmptyBlock(activeBlockId.value)
-}
 
-const getActiveBlock = () => {
-  return activeBlockId.value ? findBlockLocation(activeBlockId.value)?.block || null : null
-}
-
-const toggleBlockBold = (block) => {
-  if (!block.style) {
-    block.style = {}
+  if (location.kind === 'summary') {
+    await removeSummaryLine(fieldId)
   }
-  block.style.fontWeight = block.style.fontWeight === '700' ? null : '700'
 }
 
-const adjustBlockFontSize = (block, delta) => {
-  if (!block.style) {
-    block.style = {}
+async function deleteCurrentTarget() {
+  if (!hasActiveEditableTarget.value) {
+    ElMessage.warning('请先选择要删除的内容')
+    return
   }
-  const current = Number.parseFloat(block.style.fontSize || '14') || 14
-  block.style.fontSize = Math.min(28, Math.max(12, current + delta))
+
+  if (activeTarget.value.type === 'block') {
+    await removeBlockAndFocus(activeTarget.value.id)
+    return
+  }
+
+  const location = getActiveHeaderFieldLocation()
+  if (!location) {
+    return
+  }
+
+  if (location.kind === 'meta') {
+    await removeMetaItem(location.field.id)
+    return
+  }
+
+  if (location.kind === 'summary') {
+    await removeSummaryLine(location.field.id)
+    return
+  }
+
+  location.field.html = '<p></p>'
+  await focusHeaderField(location.field.id, location.kind)
+  recordHistoryNow()
 }
 
-/**
- * 工具栏优先尝试修改当前富文本选区；若当前没有选区，则退回到整段样式。
- */
-const toggleBold = () => {
+function getHeaderFieldBaseSize(field) {
+  switch (field.kind) {
+    case 'name':
+      return 38
+    case 'job_target':
+      return 13
+    case 'meta':
+      return 14
+    case 'summary':
+      return 14
+    default:
+      return 14
+  }
+}
+
+function getHeaderFieldBaseWeight(field) {
+  switch (field.kind) {
+    case 'name':
+      return 800
+    case 'job_target':
+      return 600
+    default:
+      return 400
+  }
+}
+
+function getBlockBaseSize(block) {
+  if (block.type === 'banner_title') {
+    return 17
+  }
+  if (block.type === 'section_title' || block.variant === 'heading') {
+    return 15
+  }
+  return 14
+}
+
+function getBlockBaseWeight(block) {
+  if (block.type === 'banner_title' || block.type === 'section_title' || block.variant === 'heading') {
+    return 700
+  }
+  return 400
+}
+
+function toggleFieldBold(field) {
+  const currentWeight = Number(field.style?.fontWeight || getHeaderFieldBaseWeight(field)) || 400
+  field.style.fontWeight = currentWeight >= 600 ? '400' : '700'
+}
+
+function adjustFieldFontSize(field, delta) {
+  const current = Number.parseFloat(field.style?.fontSize || getHeaderFieldBaseSize(field)) || getHeaderFieldBaseSize(field)
+  field.style.fontSize = Math.min(48, Math.max(12, current + delta))
+}
+
+function toggleBlockBold(block) {
+  const currentWeight = Number(block.style?.fontWeight || getBlockBaseWeight(block)) || 400
+  block.style.fontWeight = currentWeight >= 600 ? '400' : '700'
+}
+
+function adjustBlockFontSize(block, delta) {
+  const current = Number.parseFloat(block.style?.fontSize || getBlockBaseSize(block)) || getBlockBaseSize(block)
+  block.style.fontSize = Math.min(48, Math.max(12, current + delta))
+}
+
+function toggleBold() {
+  if (!hasActiveEditableTarget.value) {
+    ElMessage.warning('请先选择要编辑的内容')
+    return
+  }
+
+  if (activeTarget.value.type === 'header_field') {
+    const location = getActiveHeaderFieldLocation()
+    if (!location) {
+      return
+    }
+
+    if (headerFieldRefs.get(location.field.id)?.toggleBoldSelection?.()) {
+      recordHistoryNow()
+      return
+    }
+
+    toggleFieldBold(location.field)
+    recordHistoryNow()
+    return
+  }
+
   const block = getActiveBlock()
   if (!block) {
-    ElMessage.warning('请先选择要编辑的段落')
     return
   }
 
   if (isRichTextBlock(block) && richBlockRefs.get(block.id)?.toggleBoldSelection?.()) {
+    recordHistoryNow()
     return
   }
 
   toggleBlockBold(block)
+  recordHistoryNow()
 }
 
-const updateBlockFontSize = (delta) => {
+function updateCurrentFontSize(delta) {
+  if (!hasActiveEditableTarget.value) {
+    ElMessage.warning('请先选择要编辑的内容')
+    return
+  }
+
+  if (activeTarget.value.type === 'header_field') {
+    const location = getActiveHeaderFieldLocation()
+    if (!location) {
+      return
+    }
+
+    if (headerFieldRefs.get(location.field.id)?.adjustSelectionFontSize?.(delta)) {
+      recordHistoryNow()
+      return
+    }
+
+    adjustFieldFontSize(location.field, delta)
+    recordHistoryNow()
+    return
+  }
+
   const block = getActiveBlock()
   if (!block) {
-    ElMessage.warning('请先选择要编辑的段落')
     return
   }
 
   if (isRichTextBlock(block) && richBlockRefs.get(block.id)?.adjustSelectionFontSize?.(delta)) {
+    recordHistoryNow()
     return
   }
 
   adjustBlockFontSize(block, delta)
+  recordHistoryNow()
 }
 
-const increaseFontSize = () => updateBlockFontSize(1)
-const decreaseFontSize = () => updateBlockFontSize(-1)
+function increaseFontSize() {
+  updateCurrentFontSize(1)
+}
 
-const resetCurrentStyle = () => {
-  const block = getActiveBlock()
-  if (!block) {
-    ElMessage.warning('请先选择要编辑的段落')
+function decreaseFontSize() {
+  updateCurrentFontSize(-1)
+}
+
+function resetCurrentStyle() {
+  if (!hasActiveEditableTarget.value) {
+    ElMessage.warning('请先选择要编辑的内容')
     return
   }
 
-  if (isRichTextBlock(block)) {
-    richBlockRefs.get(block.id)?.resetSelectionStyle?.()
+  if (activeTarget.value.type === 'header_field') {
+    const location = getActiveHeaderFieldLocation()
+    if (!location) {
+      return
+    }
+
+    if (headerFieldRefs.get(location.field.id)?.resetSelectionStyle?.()) {
+      recordHistoryNow()
+      return
+    }
+
+    location.field.style = createStyleModel()
+    recordHistoryNow()
+    return
   }
 
-  block.style = {
-    fontSize: null,
-    fontWeight: null,
+  const block = getActiveBlock()
+  if (!block) {
+    return
   }
+
+  if (isRichTextBlock(block) && richBlockRefs.get(block.id)?.resetSelectionStyle?.()) {
+    recordHistoryNow()
+    return
+  }
+
+  block.style = createStyleModel()
+  recordHistoryNow()
 }
 
-const resetDragState = () => {
+function resetDragState() {
   draggingBlockId.value = ''
-  dragOverState.value = {
-    sectionId: '',
-    blockId: '',
-    position: '',
+  dragOverState.value = createEmptyDragState()
+}
+
+function resetMetaDragState() {
+  metaDraggingId.value = ''
+}
+
+function handleBlockDragStart(blockId, event) {
+  draggingBlockId.value = blockId
+  activateBlock(blockId)
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', blockId)
   }
 }
 
-const handleBlockDragStart = (blockId) => {
-  draggingBlockId.value = blockId
-  activeBlockId.value = blockId
-}
+function setDragOver(sectionId, blockId, position, event) {
+  if (event?.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
 
-const setDragOver = (sectionId, blockId, position) => {
   dragOverState.value = {
     sectionId,
     blockId: blockId || '',
@@ -643,15 +1307,11 @@ const setDragOver = (sectionId, blockId, position) => {
   }
 }
 
-const clearDragOver = () => {
-  dragOverState.value = {
-    sectionId: '',
-    blockId: '',
-    position: '',
-  }
+function clearDragOver() {
+  dragOverState.value = createEmptyDragState()
 }
 
-const isDragOver = (sectionId, blockId, position) => {
+function isDragOver(sectionId, blockId, position) {
   return (
     dragOverState.value.sectionId === sectionId &&
     dragOverState.value.blockId === (blockId || '') &&
@@ -660,10 +1320,10 @@ const isDragOver = (sectionId, blockId, position) => {
 }
 
 /**
- * 正文拖拽遵循文档流重排：只改变块在章节中的顺序或跨章节归属，
- * 不做整页绝对坐标定位，从而保证导出和回显的稳定性。
+ * 正文拖拽继续遵循文档流重排，只改变块顺序和章节归属。
+ * 这里显式写入 dataTransfer，并在 drop 后统一清理拖拽态，保证 HTML5 DnD 真正生效。
  */
-const handleBlockDrop = async (sectionId, blockId, position) => {
+async function handleBlockDrop(sectionId, blockId, position) {
   const draggedId = draggingBlockId.value
   if (!draggedId) {
     return
@@ -697,48 +1357,92 @@ const handleBlockDrop = async (sectionId, blockId, position) => {
   targetSection.blocks.splice(insertIndex, 0, draggedBlock)
   resetDragState()
   await focusBlock(draggedBlock.id)
+  recordHistoryNow()
 }
 
-const handleMetaDragStart = (itemId) => {
+function handleMetaDragStart(itemId, event) {
   metaDraggingId.value = itemId
+  activateHeaderField(itemId, 'meta')
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', itemId)
+  }
 }
 
-const handleMetaDrop = (targetId) => {
+function handleMetaDragOver(event) {
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+async function handleMetaDrop(targetId) {
   const fromIndex = header.value.metaItems.findIndex((item) => item.id === metaDraggingId.value)
   const toIndex = header.value.metaItems.findIndex((item) => item.id === targetId)
   if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
-    metaDraggingId.value = ''
+    resetMetaDragState()
     return
   }
 
   const [moved] = header.value.metaItems.splice(fromIndex, 1)
   header.value.metaItems.splice(toIndex, 0, moved)
-  metaDraggingId.value = ''
+  resetMetaDragState()
+  await focusHeaderField(moved.id, 'meta')
+  recordHistoryNow()
 }
 
-const addMetaItem = () => {
-  header.value.metaItems.push({
-    id: `meta_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    value: '',
+async function addMetaItem() {
+  const field = createHeaderField({
+    kind: 'meta',
+    placeholder: '请输入联系方式',
   })
+  header.value.metaItems.push(field)
+  await focusHeaderField(field.id, 'meta')
+  recordHistoryNow()
 }
 
-const removeMetaItem = (itemId) => {
-  header.value.metaItems = header.value.metaItems.filter((item) => item.id !== itemId)
+async function removeMetaItem(itemId) {
+  const itemIndex = header.value.metaItems.findIndex((item) => item.id === itemId)
+  if (itemIndex === -1) {
+    return
+  }
+
+  header.value.metaItems.splice(itemIndex, 1)
+  const nextItem = header.value.metaItems[itemIndex] || header.value.metaItems[itemIndex - 1]
+  if (nextItem) {
+    await focusHeaderField(nextItem.id, 'meta')
+  } else {
+    clearActiveState()
+  }
+  recordHistoryNow()
 }
 
-const addSummaryLine = () => {
-  header.value.summaryLines.push({
-    id: `summary_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    value: '',
+async function addSummaryLine() {
+  const field = createHeaderField({
+    kind: 'summary',
+    placeholder: '请输入补充说明',
   })
+  header.value.summaryLines.push(field)
+  await focusHeaderField(field.id, 'summary')
+  recordHistoryNow()
 }
 
-const removeSummaryLine = (itemId) => {
-  header.value.summaryLines = header.value.summaryLines.filter((item) => item.id !== itemId)
+async function removeSummaryLine(itemId) {
+  const itemIndex = header.value.summaryLines.findIndex((item) => item.id === itemId)
+  if (itemIndex === -1) {
+    return
+  }
+
+  header.value.summaryLines.splice(itemIndex, 1)
+  const nextItem = header.value.summaryLines[itemIndex] || header.value.summaryLines[itemIndex - 1]
+  if (nextItem) {
+    await focusHeaderField(nextItem.id, 'summary')
+  } else {
+    clearActiveState()
+  }
+  recordHistoryNow()
 }
 
-const handlePhotoChange = (event) => {
+function handlePhotoChange(event) {
   const file = event.target.files?.[0]
   if (!file) {
     return
@@ -759,53 +1463,47 @@ const handlePhotoChange = (event) => {
   reader.onload = () => {
     photoDataUrl.value = typeof reader.result === 'string' ? reader.result : ''
     event.target.value = ''
+    recordHistoryNow()
   }
   reader.readAsDataURL(file)
 }
 
-const triggerPhotoUpload = () => {
+function triggerPhotoUpload() {
   photoInputRef.value?.click()
 }
 
-const clearPhoto = () => {
+function clearPhoto() {
   photoDataUrl.value = ''
   if (photoInputRef.value) {
     photoInputRef.value.value = ''
   }
+  recordHistoryNow()
 }
 
-const stripHtmlToText = (html) => {
-  if (!html) {
-    return ''
-  }
-  const wrapper = document.createElement('div')
-  wrapper.innerHTML = html
-  wrapper.querySelectorAll('br').forEach((node) => {
-    node.replaceWith('\n')
-  })
-  return wrapper.textContent?.replace(/\u00a0/g, ' ').trim() || ''
-}
-
-const getResumePlainText = () => {
+function getResumePlainText() {
   const lines = []
 
   if (header.value.sectionTitle?.trim()) {
     lines.push(header.value.sectionTitle.trim())
   }
-  if (header.value.name?.trim()) {
-    lines.push(header.value.name.trim())
-  }
-  if (header.value.jobTarget?.trim()) {
-    lines.push(header.value.jobTarget.trim())
+
+  const name = readHeaderFieldText(header.value.name)
+  if (name) {
+    lines.push(name)
   }
 
-  const profileMeta = header.value.metaItems.map((item) => item.value.trim()).filter(Boolean)
+  const jobTarget = readHeaderFieldText(header.value.jobTarget)
+  if (jobTarget) {
+    lines.push(jobTarget)
+  }
+
+  const profileMeta = header.value.metaItems.map((item) => readHeaderFieldText(item)).filter(Boolean)
   if (profileMeta.length) {
     lines.push(profileMeta.join(' | '))
   }
 
   header.value.summaryLines
-    .map((item) => item.value.trim())
+    .map((item) => readHeaderFieldText(item))
     .filter(Boolean)
     .forEach((item) => lines.push(item))
 
@@ -834,10 +1532,9 @@ const getResumePlainText = () => {
       }
 
       if (block.type === 'label') {
-        const label = block.label?.trim() || ''
-        const value = block.value?.trim() || ''
-        if (label || value) {
-          lines.push(`${label}${value}`)
+        const labelText = buildLabelPlainText(block)
+        if (labelText) {
+          lines.push(labelText)
         }
         return
       }
@@ -863,25 +1560,27 @@ const getResumePlainText = () => {
   return lines.join('\n').trim()
 }
 
-const getResumeName = () => header.value.name?.trim() || ''
+function getResumeName() {
+  return readHeaderFieldText(header.value.name)
+}
 
-const sanitizeRichTextClone = (rootNode) => {
+function sanitizeRichTextClone(rootNode) {
   rootNode.querySelectorAll('[contenteditable]').forEach((node) => {
     node.removeAttribute('contenteditable')
     node.removeAttribute('role')
     node.removeAttribute('tabindex')
   })
 
-  rootNode.querySelectorAll('.ProseMirror-focused, .has-focus, .is-active').forEach((node) => {
-    node.classList.remove('ProseMirror-focused', 'has-focus', 'is-active')
+  rootNode.querySelectorAll('.ProseMirror-focused, .has-focus, .is-active, .is-focused').forEach((node) => {
+    node.classList.remove('ProseMirror-focused', 'has-focus', 'is-active', 'is-focused')
   })
 }
 
 /**
- * Vue SFC 使用 scoped 样式时，会给真实 DOM 挂载作用域属性。
- * 导出阶段如果新建静态节点却不复制这些属性，个人信息区的结构样式会整体失效。
+ * Vue 单文件组件启用 scoped 后，新增的静态导出节点也必须复制作用域属性，
+ * 否则导出节点无法命中当前组件样式，最终出现预览和导出不一致。
  */
-const copyScopedAttributes = (sourceNode, targetNode) => {
+function copyScopedAttributes(sourceNode, targetNode) {
   Array.from(sourceNode.attributes).forEach((attribute) => {
     if (attribute.name.startsWith('data-v-')) {
       targetNode.setAttribute(attribute.name, attribute.value)
@@ -889,27 +1588,11 @@ const copyScopedAttributes = (sourceNode, targetNode) => {
   })
 }
 
-const createStaticFieldNode = (fieldNode) => {
+function createStaticFieldNode(fieldNode) {
   const nextNode = fieldNode.ownerDocument.createElement('div')
   copyScopedAttributes(fieldNode, nextNode)
   nextNode.className = `${fieldNode.className} export-static-field`.trim()
-  /**
-   * 静态导出节点不再保留编辑态通用类，
-   * 否则 print 模式下针对 input/textarea 的透明背景重置会误伤导出文本节点。
-   */
   nextNode.classList.remove('resume-inline-input', 'resume-textarea-input')
-  if (fieldNode.classList.contains('profile-name-input')) {
-    nextNode.classList.add('export-profile-name')
-  }
-  if (fieldNode.classList.contains('profile-target-input')) {
-    nextNode.classList.add('export-profile-target')
-  }
-  if (fieldNode.classList.contains('profile-meta-input')) {
-    nextNode.classList.add('export-profile-meta')
-  }
-  if (fieldNode.classList.contains('profile-summary-input')) {
-    nextNode.classList.add('export-profile-summary')
-  }
   if (fieldNode.getAttribute('style')) {
     nextNode.setAttribute('style', fieldNode.getAttribute('style'))
   }
@@ -917,21 +1600,17 @@ const createStaticFieldNode = (fieldNode) => {
   return nextNode
 }
 
-/**
- * html2canvas 对原生 input/textarea 的值渲染并不稳定，头部信息容易出现截断或字形偏差。
- * 导出前统一改成静态文本节点，同时保留原有类名，确保导出布局与预览模板一致。
- */
-const replaceFormFieldWithStaticText = (rootNode) => {
+function replaceFormFieldWithStaticText(rootNode) {
   rootNode.querySelectorAll('input, textarea').forEach((fieldNode) => {
     fieldNode.replaceWith(createStaticFieldNode(fieldNode))
   })
 }
 
 /**
- * 预览态的照片区域使用 button 承载上传交互，导出时需要保留外观但移除原生按钮语义，
- * 避免截图阶段出现浏览器默认按钮样式干扰。
+ * 预览态照片区域用 button 承载上传交互。
+ * 导出时需要保留视觉样式，但不能把原生按钮语义带进截图，否则会污染最终结果。
  */
-const replacePhotoFrameButtonWithStaticNode = (rootNode) => {
+function replacePhotoFrameButtonWithStaticNode(rootNode) {
   rootNode.querySelectorAll('.photo-frame--button').forEach((buttonNode) => {
     const nextNode = buttonNode.ownerDocument.createElement('div')
     copyScopedAttributes(buttonNode, nextNode)
@@ -942,10 +1621,10 @@ const replacePhotoFrameButtonWithStaticNode = (rootNode) => {
 }
 
 /**
- * html2canvas 对部分渐变和重复纹理背景的解析不稳定，
- * 这里在导出克隆节点上做一次导出专用降级，保留接近原模板的视觉层次，同时避免 createPattern 零尺寸异常。
+ * html2canvas 对部分渐变和重复纹理背景的解析不稳定。
+ * 导出前统一降级为近似纯色，优先保证预览和 PDF/图片下载链路稳定。
  */
-const applyExportSafeBackgrounds = (rootNode) => {
+function applyExportSafeBackgrounds(rootNode) {
   rootNode.querySelectorAll('.section-tab').forEach((node) => {
     node.style.backgroundImage = 'none'
     node.style.backgroundColor = '#edf4f2'
@@ -963,10 +1642,10 @@ const applyExportSafeBackgrounds = (rootNode) => {
 }
 
 /**
- * 导出时不直接复用编辑态节点，而是先把当前模板克隆成只读节点，
- * 去掉工具栏、拖拽手柄、上传控件和焦点态，再交给 PDF/图片导出链路截图。
+ * 导出时统一基于当前模板克隆出只读节点，
+ * 去掉工具栏、拖拽手柄、上传控件、占位提示和焦点态，保证下载内容与用户最终编辑结果一致。
  */
-const buildExportElement = () => {
+function buildExportElement() {
   clearActiveState()
 
   if (!resumeRef.value) {
@@ -977,7 +1656,10 @@ const buildExportElement = () => {
   clone.classList.remove('resume-template--preview')
   clone.classList.add('resume-template--print')
   clone.querySelector('.editor-toolbar')?.remove()
-  clone.querySelectorAll('.drag-handle, .editor-ghost-btn, .profile-meta-tools, .photo-input, .photo-actions, .block-drop-indicator, .section-drop-tail')
+  clone
+    .querySelectorAll(
+      '.drag-handle, .editor-ghost-btn, .profile-meta-tools, .photo-input, .photo-actions, .block-drop-indicator, .section-drop-tail, .inline-rich-placeholder',
+    )
     .forEach((node) => node.remove())
 
   sanitizeRichTextClone(clone)
@@ -1101,22 +1783,22 @@ defineExpose({
 }
 
 .resume-section + .resume-section {
-  margin-top: 18px;
+  margin-top: 30px;
 }
 
 .resume-template--print .resume-section + .resume-section {
-  margin-top: 12px;
+  margin-top: 20px;
 }
 
 .resume-section-head {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
 }
 
 .resume-template--print .resume-section-head {
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
 
 .section-tab {
@@ -1194,6 +1876,8 @@ defineExpose({
 }
 
 .profile-name-input {
+  display: block;
+  min-width: 0;
   margin: 0;
   font-size: 38px;
   line-height: 1.06;
@@ -1203,25 +1887,18 @@ defineExpose({
 }
 
 .profile-target-input {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
+  display: block;
   width: 100%;
   box-sizing: border-box;
   min-height: 28px;
-  /**
-   * 胶囊左端有圆弧，视觉上会比下方普通文本更“缩”一点。
-   * 这里让背景整体向左外扩，同时增加左内边距，保证文字起点基本不变。
-   */
   margin-left: -10px;
-  width: 100%;
   padding: 0 12px 0 22px;
   border-radius: 999px;
   background: rgba(177, 135, 87, 0.12);
   color: #775531;
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .profile-meta-grid {
@@ -1265,13 +1942,16 @@ defineExpose({
   background: rgba(232, 240, 238, 0.32);
 }
 
+.profile-summary-item {
+  position: relative;
+}
+
 .profile-summary-item + .profile-summary-item {
   margin-top: 10px;
 }
 
 .profile-summary-input {
   min-height: 44px;
-  resize: vertical;
   font-size: 14px;
   line-height: 1.8;
   color: #334155;
@@ -1400,7 +2080,7 @@ defineExpose({
 
 .drag-handle {
   position: absolute;
-  left: -18px;
+  left: -22px;
   top: 3px;
   border: none;
   background: transparent;
@@ -1415,15 +2095,14 @@ defineExpose({
 
 .drag-handle--meta {
   position: absolute;
-  left: -18px;
+  left: -22px;
   top: 50%;
   transform: translateY(-50%);
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.2s ease;
 }
 
-.meta-remove-btn {
+.meta-remove-btn,
+.summary-remove-btn {
   position: absolute;
   right: -12px;
   top: 50%;
@@ -1434,6 +2113,11 @@ defineExpose({
   transition: opacity 0.2s ease;
 }
 
+.summary-remove-btn {
+  top: 10px;
+  transform: none;
+}
+
 .drag-handle:active {
   cursor: grabbing;
 }
@@ -1441,7 +2125,9 @@ defineExpose({
 .profile-meta-card:hover .drag-handle--meta,
 .profile-meta-card:focus-within .drag-handle--meta,
 .profile-meta-card:hover .meta-remove-btn,
-.profile-meta-card:focus-within .meta-remove-btn {
+.profile-meta-card:focus-within .meta-remove-btn,
+.profile-summary-item:hover .summary-remove-btn,
+.profile-summary-item:focus-within .summary-remove-btn {
   opacity: 1;
 }
 
@@ -1564,10 +2250,39 @@ defineExpose({
 
 .resume-inline-input:focus,
 .resume-textarea-input:focus,
-.section-title-input:focus {
+.section-title-input:focus,
+.profile-name-input.is-focused,
+.profile-target-input.is-focused,
+.profile-meta-input.is-focused,
+.profile-summary-input.is-focused {
   background: var(--resume-focus);
   box-shadow: 0 0 0 2px var(--resume-focus-border);
   border-radius: 6px;
+}
+
+.profile-name-input.is-active,
+.profile-target-input.is-active,
+.profile-meta-card.is-active,
+.profile-summary-item.is-active {
+  border-radius: 6px;
+  background: rgba(27, 91, 87, 0.04);
+  box-shadow: 0 0 0 2px rgba(27, 91, 87, 0.12);
+}
+
+.profile-name-input.is-active,
+.profile-target-input.is-active {
+  padding-inline: 4px;
+}
+
+.profile-target-input.is-active {
+  padding-left: 26px;
+  padding-right: 16px;
+}
+
+.profile-target-input :deep(.inline-rich-placeholder) {
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .resume-template--print .resume-inline-input,
@@ -1589,53 +2304,22 @@ defineExpose({
   word-break: break-word;
 }
 
-.resume-template--print .profile-name-input.export-static-field {
-  display: block;
-}
-
-.resume-template--print .export-profile-name {
-  width: auto;
-}
-
-.resume-template--print .profile-target-input.export-static-field {
+.resume-template--print .profile-target-input {
   display: flex;
-}
-
-/**
- * 导出时显式补齐求职方向这一行的整条胶囊样式，
- * 避免只剩文字缩进却丢失浅色底条，看起来像是没有和下方信息对齐。
- */
-.resume-template--print .export-profile-target {
   align-items: center;
-  justify-content: flex-start;
-  margin-left: -10px;
-  width: 100%;
-  min-height: 42px;
-  padding: 0 18px 0 28px;
-  border-radius: 999px;
+  min-height: 28px;
+  padding: 4px 18px 4px 28px;
   background: rgba(177, 135, 87, 0.16);
   color: #7a5631;
   font-size: 14px;
   font-weight: 700;
-  line-height: 1.5;
-  box-sizing: border-box;
+  line-height: 1.35;
 }
 
-.resume-template--print .profile-meta-input.export-static-field,
-.resume-template--print .entry-cell-input.export-static-field,
-.resume-template--print .label-key-input.export-static-field,
-.resume-template--print .label-value-input.export-static-field,
-.resume-template--print .section-title-input.export-static-field {
-  display: block;
-}
-
-.resume-template--print .export-profile-meta-card {
-  padding: 0;
-}
-
-.resume-template--print .export-profile-meta,
-.resume-template--print .export-profile-summary {
-  width: 100%;
+.resume-template--print .profile-meta-card,
+.resume-template--print .profile-summary-item {
+  background: transparent;
+  box-shadow: none;
 }
 
 .resume-template--print .photo-frame {
