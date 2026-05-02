@@ -1,13 +1,18 @@
 <template>
   <div class="overall-evaluation">
     <div class="score-section">
-      <div class="score-display">
-        <div class="score-value">{{ score }}</div>
-        <div class="score-label">综合得分</div>
+      <div class="score-left">
+        <div class="score-display">
+          <div class="score-value">{{ score }}</div>
+          <div class="score-label">综合得分</div>
+        </div>
+        <div class="grade-section">
+          <div class="grade-badge" :class="gradeClass">{{ grade }}</div>
+          <div class="grade-label">综合等级</div>
+        </div>
       </div>
-      <div class="grade-section">
-        <div class="grade-badge" :class="gradeClass">{{ grade }}</div>
-        <div class="grade-label">综合等级</div>
+      <div v-if="evaluation" class="score-right">
+        <div class="evaluation-content">{{ evaluation }}</div>
       </div>
     </div>
     <div v-if="summary" class="summary-section">
@@ -43,6 +48,10 @@ const summary = computed(() => {
   return props.data?.summary ?? props.data?.overallComment ?? props.data?.comment ?? ''
 })
 
+const evaluation = computed(() => {
+  return props.data?.evaluation ?? ''
+})
+
 // 等级样式类
 const gradeClass = computed(() => {
   const g = grade.value?.toLowerCase()
@@ -61,10 +70,30 @@ const gradeClass = computed(() => {
 
 .score-section {
   display: flex;
-  gap: 40px;
+  align-items: flex-start;
+  gap: 32px;
   margin-bottom: 24px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-divider, #f0f0f0);
+}
+
+.score-left {
+  display: flex;
+  gap: 40px;
+  flex-shrink: 0;
+}
+
+.score-right {
+  flex: 1;
+  min-width: 0;
+}
+
+.evaluation-content {
+  font-size: 13px;
+  color: var(--text-body, #606266);
+  line-height: 1.7;
+  text-align: justify;
+  padding-top: 4px;
 }
 
 .score-display {

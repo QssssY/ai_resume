@@ -10,6 +10,7 @@
         <div class="score-value" :class="getScoreClass(projectScore)">{{ projectScore }}</div>
         <div class="score-label">项目经验</div>
       </div>
+      <div v-if="evaluationText" class="score-evaluation">{{ evaluationText }}</div>
     </div>
 
     <!-- 工作经验详情 -->
@@ -161,13 +162,20 @@ const suggestions = computed(() => {
 })
 
 // 是否有内容
-// 是否有内容
 const hasContent = computed(() => {
   return hasScores.value ||
     workExperiences.value.length > 0 ||
     projectExperiences.value.length > 0 ||
     issues.value.length > 0 ||
     suggestions.value.length > 0
+})
+
+// 评价段落（合并工作+项目）
+const evaluationText = computed(() => {
+  const work = props.data?.workEvaluation ?? ''
+  const project = props.data?.projectEvaluation ?? ''
+  if (work && project) return work + '　' + project
+  return work || project || ''
 })
 
 // 得分样式类
@@ -185,10 +193,19 @@ const getScoreClass = (score) => {
 
 .scores-overview {
   display: flex;
+  flex-wrap: wrap;
   gap: 40px;
   margin-bottom: 24px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-divider, #f0f0f0);
+}
+
+.score-evaluation {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--text-body, #606266);
+  line-height: 1.7;
+  text-align: justify;
 }
 
 .score-item {

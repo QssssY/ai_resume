@@ -249,9 +249,12 @@
           </div>
           <div class="section-body">
             <!-- 得分展示 -->
-            <div class="item-row score-row" v-if="basicInfoEvaluation?.score">
-              <span class="item-label">完整度得分</span>
-              <span class="item-value">{{ basicInfoEvaluation.score }}分</span>
+            <div class="score-with-evaluation" v-if="basicInfoEvaluation?.score">
+              <div class="score-row-left">
+                <span class="item-label">完整度得分</span>
+                <span class="item-value">{{ basicInfoEvaluation.score }}分</span>
+              </div>
+              <div v-if="basicInfoEvaluation?.evaluation" class="score-row-right">{{ basicInfoEvaluation.evaluation }}</div>
             </div>
             <!-- 五项填写状态 -->
             <div class="basic-items-grid" v-if="basicInfoDetails">
@@ -418,6 +421,10 @@
               <div class="job-match-score-card">
                 <div class="job-match-score-label">匹配度评分</div>
                 <div class="job-match-score-value">{{ jobMatchResult.matchScore ?? 0 }}</div>
+              </div>
+
+              <div v-if="jobMatchResult.analysisSummary" class="job-match-summary">
+                {{ jobMatchResult.analysisSummary }}
               </div>
 
               <div class="job-match-result-grid">
@@ -722,6 +729,8 @@ const workExperienceData = computed(() => {
       parsedResult.value.workExperienceEvaluation?.items,
     projectExperiences: parsedResult.value.projectExperienceEvaluation?.projects ||
       parsedResult.value.projectExperienceEvaluation?.items,
+    workEvaluation: parsedResult.value.workExperienceEvaluation?.evaluation || '',
+    projectEvaluation: parsedResult.value.projectExperienceEvaluation?.evaluation || '',
     issues: [
       ...(parsedResult.value.workExperienceEvaluation?.issues || []),
       ...(parsedResult.value.projectExperienceEvaluation?.issues || [])
@@ -1602,6 +1611,47 @@ onUnmounted(() => {
   text-align: right;
 }
 
+/* 得分 + 评价段落左右布局 */
+.score-with-evaluation {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.score-row-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.score-row-left .item-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.score-row-left .item-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--orange-main);
+  text-align: center;
+}
+
+.score-row-right {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-body);
+  line-height: 1.7;
+  text-align: justify;
+  padding-top: 4px;
+}
+
 .basic-items-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -1791,6 +1841,15 @@ onUnmounted(() => {
   color: var(--orange-main);
 }
 
+.job-match-summary {
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-body);
+}
+
 .job-match-result-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1828,13 +1887,15 @@ onUnmounted(() => {
 }
 
 .job-match-tag.matched {
-  background: #edf9f1;
-  color: #2f9b5d;
+  background: #eef6f0;
+  color: #3d7a5a;
+  font-weight: 600;
 }
 
 .job-match-tag.missing {
-  background: #fff1f0;
-  color: #d94841;
+  background: #fce4ec;
+  color: #b71c1c;
+  font-weight: 600;
 }
 
 .job-match-empty {

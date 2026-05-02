@@ -9,6 +9,7 @@
       <div class="score-info">
         <div class="score-label">技能得分</div>
         <div v-if="scoreComment" class="score-comment">{{ scoreComment }}</div>
+        <div v-if="evaluation" class="score-evaluation">{{ evaluation }}</div>
       </div>
     </div>
 
@@ -108,7 +109,12 @@ const techStack = computed(() => {
 
 // 技能描述
 const skillDescription = computed(() => {
-  return props.data?.description ?? props.data?.skillDescription ?? props.data?.evaluation ?? ''
+  return props.data?.description ?? props.data?.skillDescription ?? ''
+})
+
+// 评价段落
+const evaluation = computed(() => {
+  return props.data?.evaluation ?? ''
 })
 
 // 是否有内容
@@ -201,6 +207,14 @@ const getTagType = (index) => {
   font-size: 13px;
   color: var(--text-body, #606266);
   line-height: 1.6;
+}
+
+.score-evaluation {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-body, #606266);
+  line-height: 1.7;
+  text-align: justify;
 }
 
 .skills-tags-section,
