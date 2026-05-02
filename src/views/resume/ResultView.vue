@@ -552,7 +552,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { analyzeResumeJobMatch, analyzeResumePolish, getResumeTask } from '@/api/resume'
 import { useUserStore } from '@/stores/user'
@@ -564,7 +564,7 @@ import SkillsSection from '@/components/resume/SkillsSection.vue'
 import WorkExperienceSection from '@/components/resume/WorkExperienceSection.vue'
 import RadarChart from '@/components/resume/RadarChart.vue'
 import RadarScorePanel from '@/components/resume/RadarScorePanel.vue'
-import ResumeTemplate from '@/components/resume/ResumeTemplate.vue'
+const ResumeTemplate = defineAsyncComponent(() => import('@/components/resume/ResumeTemplate.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -998,7 +998,9 @@ const getExportFilename = () => {
 
 // 公共截图函数：将简历模板克隆到离屏容器，用 html2canvas 截图为高分辨率 canvas。
 // 使用 buildExportElement 获取已清理非导出元素的克隆节点，确保截图干净。
+// 公共截图函数：导出前先等待模板状态稳定，再用只读导出节点生成高分辨率 canvas。
 const captureResumeCanvas = async () => {
+  await nextTick()
   const exportEl = resumeTemplateRef.value?.buildExportElement?.()
   if (!exportEl) {
     return null
@@ -1016,6 +1018,7 @@ const captureResumeCanvas = async () => {
   document.body.appendChild(mountNode)
 
   try {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()))
     const html2canvas = (await import('html2canvas')).default
     // scale=3 保证高分辨率输出，dpi 300 适合打印质量
     const canvas = await html2canvas(exportEl, {
