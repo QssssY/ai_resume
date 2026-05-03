@@ -31,6 +31,16 @@
         模拟面试
       </router-link>
 
+      <!-- 已登录才显示模板库 -->
+      <router-link
+        v-if="isLoggedIn"
+        to="/templates"
+        class="nav-link"
+        :class="{ active: isTemplateActive }"
+      >
+        模板库
+      </router-link>
+
       <!-- 已登录才显示成长中心 -->
       <router-link
         v-if="isLoggedIn"
@@ -353,10 +363,17 @@
         >
         <router-link
           v-if="isLoggedIn"
+          to="/templates"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >模板库</router-link
+        >
+        <router-link
+          v-if="isLoggedIn"
           to="/growth"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >成长中心</router-link
+          >成长中心</router-link>
         >
         <router-link
           v-if="isLoggedIn"
@@ -659,6 +676,9 @@ const isInterviewActive = computed(() => {
     path.startsWith("/interview") && !path.startsWith("/interview/history")
   );
 });
+
+// 模板库激活状态
+const isTemplateActive = computed(() => route.path.startsWith("/templates"));
 
 // 成长中心激活状态
 const isGrowthActive = computed(() => route.path === "/growth");

@@ -138,6 +138,18 @@ const routes = [
     meta: { requiresAuth: true, useLayout: true }
   },
   {
+    path: '/templates',
+    name: 'TemplateLibrary',
+    component: () => import('@/views/template/TemplateLibraryView.vue'),
+    meta: { requiresAuth: true, useLayout: true }
+  },
+  {
+    path: '/templates/editor/:templateId',
+    name: 'TemplateEditor',
+    component: () => import('@/views/template/TemplateEditorView.vue'),
+    meta: { requiresAuth: true, useLayout: false }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }

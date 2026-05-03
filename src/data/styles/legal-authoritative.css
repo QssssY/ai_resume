@@ -1,0 +1,96 @@
+/* ============================================
+ * 权威法律 - 法律/咨询
+ * 设计特点：全黑header + 居中排版、衬线字体、
+ *          粗竖条section、方块要点、正式权威
+ * ============================================ */
+
+.resume-tpl-legal-authoritative {
+  --tpl-accent: #111827;
+  --tpl-text: #111827;
+  --tpl-muted: #6B7280;
+  --tpl-line: #E5E7EB;
+  font-family: 'SimSun', 'Songti SC', 'Times New Roman', serif;
+  color: var(--tpl-text);
+  line-height: 1.7;
+  padding: 0;
+}
+
+/* Header：纯黑 + 居中 + 大间距 */
+.resume-tpl-legal-authoritative .resume-header {
+  background: var(--tpl-accent);
+  color: white;
+  padding: 28px 36px;
+  text-align: center;
+}
+
+.resume-tpl-legal-authoritative .name {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  margin-bottom: 6px;
+}
+
+/* 职位徽章：细边框 */
+.resume-tpl-legal-authoritative .profile-badge {
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  padding: 3px 18px;
+  font-size: 14px;
+  font-weight: 400;
+  margin-bottom: 14px;
+  letter-spacing: 2px;
+}
+
+.resume-tpl-legal-authoritative .meta-list { display: flex; justify-content: center; flex-wrap: wrap; gap: 24px; font-size: 13px; opacity: 0.8; }
+.resume-tpl-legal-authoritative .meta-item { display: flex; align-items: center; gap: 4px; }
+.resume-tpl-legal-authoritative .meta-icon { display: none; }
+
+.resume-tpl-legal-authoritative .resume-body { padding: 24px 36px; }
+.resume-tpl-legal-authoritative .section { margin-bottom: 26px; }
+
+/* Section Tab：粗黑竖条 */
+.resume-tpl-legal-authoritative .section-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-left: 4px solid var(--tpl-accent);
+  padding-left: 12px;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-legal-authoritative .section-tab-dot { display: none; }
+.resume-tpl-legal-authoritative .section-line { display: block; height: 1px; background: var(--tpl-line); margin-bottom: 14px; margin-left: 16px; }
+
+.resume-tpl-legal-authoritative .section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--tpl-accent);
+  letter-spacing: 3px;
+}
+
+.resume-tpl-legal-authoritative .summary-text {
+  font-size: 14px;
+  color: #374151;
+  text-indent: 2em;
+  line-height: 1.8;
+}
+
+/* 技能：简约文字列 */
+.resume-tpl-legal-authoritative .skills-list { display: flex; flex-direction: column; gap: 4px; }
+.resume-tpl-legal-authoritative .skill-tag { background: none; border: none; padding: 0; font-size: 13px; color: #4B5563; line-height: 1.7; }
+
+/* 经历条目：实线分隔 */
+.resume-tpl-legal-authoritative .experience-item { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--tpl-line); }
+.resume-tpl-legal-authoritative .experience-item:last-child { border-bottom: none; }
+.resume-tpl-legal-authoritative .exp-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.resume-tpl-legal-authoritative .exp-company { font-size: 15px; font-weight: 700; color: var(--tpl-accent); }
+.resume-tpl-legal-authoritative .exp-date { font-size: 12px; color: var(--tpl-muted); background: #F3F4F6; padding: 2px 8px; border-radius: 4px; }
+.resume-tpl-legal-authoritative .exp-position { font-size: 14px; color: #374151; font-weight: 600; margin-bottom: 6px; }
+.resume-tpl-legal-authoritative .exp-desc { font-size: 13px; color: #6B7280; margin-top: 4px; }
+
+/* 要点：小方块 */
+.resume-tpl-legal-authoritative .exp-highlights { list-style: none; padding: 0; margin: 0; }
+.resume-tpl-legal-authoritative .exp-highlights li { font-size: 13px; color: #4B5563; padding-left: 16px; position: relative; margin-bottom: 4px; }
+.resume-tpl-legal-authoritative .exp-highlights li::before { content: '■'; position: absolute; left: 0; color: var(--tpl-accent); font-size: 6px; top: 6px; }

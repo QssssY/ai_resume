@@ -1,0 +1,76 @@
+/* ============================================
+ * 精致咨询 - 法律/咨询
+ * 设计特点：无header背景、双线分隔、
+ *          细竖条section、短横线要点、精致排版
+ * ============================================ */
+
+.resume-tpl-legal-refined {
+  --tpl-accent: #374151;
+  --tpl-text: #1F2937;
+  --tpl-muted: #9CA3AF;
+  --tpl-line: #D1D5DB;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--tpl-text);
+  line-height: 1.7;
+  padding: 32px;
+}
+
+/* Header：双线底线分隔 */
+.resume-tpl-legal-refined .resume-header {
+  padding-bottom: 20px;
+  border-bottom: 3px double var(--tpl-accent);
+  margin-bottom: 24px;
+}
+
+.resume-tpl-legal-refined .name {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--tpl-accent);
+  margin-bottom: 4px;
+  letter-spacing: 2px;
+}
+
+.resume-tpl-legal-refined .profile-badge {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6B7280;
+  margin-bottom: 12px;
+}
+
+.resume-tpl-legal-refined .meta-list { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--tpl-muted); }
+.resume-tpl-legal-refined .meta-item { display: flex; align-items: center; gap: 4px; }
+.resume-tpl-legal-refined .meta-icon { display: none; }
+
+.resume-tpl-legal-refined .section-tab { display: flex; align-items: center; }
+.resume-tpl-legal-refined .section-tab-dot { display: none; }
+.resume-tpl-legal-refined .section-line { display: none; }
+
+/* Section标题：细竖条 + 间距 */
+.resume-tpl-legal-refined .section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tpl-accent);
+  letter-spacing: 2px;
+  padding-left: 10px;
+  border-left: 2px solid var(--tpl-accent);
+  margin-bottom: 14px;
+}
+
+.resume-tpl-legal-refined .summary-text { font-size: 14px; color: #4B5563; line-height: 1.85; }
+
+/* 技能：简约文字列 */
+.resume-tpl-legal-refined .skills-list { display: flex; flex-direction: column; gap: 4px; }
+.resume-tpl-legal-refined .skill-tag { background: none; border: none; padding: 0; font-size: 13px; color: #4B5563; line-height: 1.7; }
+
+.resume-tpl-legal-refined .experience-item { margin-bottom: 16px; }
+.resume-tpl-legal-refined .exp-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.resume-tpl-legal-refined .exp-company { font-size: 15px; font-weight: 600; color: var(--tpl-accent); }
+.resume-tpl-legal-refined .exp-date { font-size: 12px; color: var(--tpl-muted); background: #F9FAFB; padding: 2px 8px; border-radius: 4px; }
+.resume-tpl-legal-refined .exp-position { font-size: 14px; color: #4B5563; font-weight: 500; margin-bottom: 6px; }
+.resume-tpl-legal-refined .exp-desc { font-size: 13px; color: #6B7280; margin-top: 4px; }
+
+/* 要点：短横线 */
+.resume-tpl-legal-refined .exp-highlights { list-style: none; padding: 0; margin: 0; }
+.resume-tpl-legal-refined .exp-highlights li { font-size: 13px; color: #4B5563; padding-left: 14px; position: relative; margin-bottom: 4px; }
+.resume-tpl-legal-refined .exp-highlights li::before { content: '–'; position: absolute; left: 0; color: #9CA3AF; }

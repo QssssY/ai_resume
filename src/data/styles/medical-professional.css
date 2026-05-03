@@ -1,0 +1,93 @@
+/* ============================================
+ * 专业医疗 - 医疗/健康
+ * 设计特点：浅蓝渐变header、专业洁净、
+ *          十字装饰、圆角标签、清晰排版
+ * ============================================ */
+
+.resume-tpl-medical-professional {
+  --tpl-accent: #0EA5E9;
+  --tpl-accent-soft: #F0F9FF;
+  --tpl-text: #1F2937;
+  --tpl-muted: #6B7280;
+  --tpl-line: #E0F2FE;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--tpl-text);
+  line-height: 1.6;
+  padding: 0;
+}
+
+/* Header：浅蓝渐变 */
+.resume-tpl-medical-professional .resume-header {
+  background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%);
+  color: white;
+  padding: 28px 32px;
+  position: relative;
+}
+
+/* 装饰性十字 */
+.resume-tpl-medical-professional .resume-header::after {
+  content: '+';
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 48px;
+  font-weight: 200;
+  opacity: 0.1;
+  color: white;
+}
+
+.resume-tpl-medical-professional .name { font-size: 28px; font-weight: 700; margin-bottom: 6px; position: relative; z-index: 1; }
+
+.resume-tpl-medical-professional .profile-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 3px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.resume-tpl-medical-professional .meta-list { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; opacity: 0.9; position: relative; z-index: 1; }
+.resume-tpl-medical-professional .meta-item { display: flex; align-items: center; gap: 4px; }
+.resume-tpl-medical-professional .meta-icon { display: none; }
+
+.resume-tpl-medical-professional .resume-body { padding: 24px 32px; }
+.resume-tpl-medical-professional .section { margin-bottom: 26px; }
+
+/* Section Tab：蓝色标签 */
+.resume-tpl-medical-professional .section-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.1), transparent);
+  border-left: 3px solid var(--tpl-accent);
+  border-radius: 0 12px 12px 0;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-medical-professional .section-tab-dot { display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--tpl-accent); flex-shrink: 0; }
+.resume-tpl-medical-professional .section-line { display: block; height: 1px; background: linear-gradient(90deg, rgba(14, 165, 233, 0.3), transparent); margin-bottom: 14px; margin-left: 15px; }
+.resume-tpl-medical-professional .section-title { font-size: 14px; font-weight: 700; color: var(--tpl-accent); letter-spacing: 1px; }
+.resume-tpl-medical-professional .summary-text { font-size: 14px; color: #4B5563; line-height: 1.8; padding-left: 15px; }
+
+/* 技能标签：tech-item样式（圆角方形 + ✓前缀） */
+.resume-tpl-medical-professional .skills-list { display: flex; flex-wrap: wrap; gap: 10px; padding-left: 15px; }
+.resume-tpl-medical-professional .skill-tag { display: inline-flex; align-items: flex-start; gap: 6px; background: var(--tpl-accent-soft); color: var(--tpl-accent); padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: 500; white-space: normal; word-break: break-word; line-height: 1.5; }
+.resume-tpl-medical-professional .skill-tag::before { content: '✓'; color: var(--tpl-accent); font-size: 12px; }
+
+.resume-tpl-medical-professional .experience-item { margin-bottom: 16px; padding-left: 15px; padding-bottom: 12px; border-bottom: 1px dashed var(--tpl-line); }
+.resume-tpl-medical-professional .experience-item:last-child { border-bottom: none; }
+.resume-tpl-medical-professional .exp-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.resume-tpl-medical-professional .exp-company { font-size: 15px; font-weight: 600; color: var(--tpl-text); }
+.resume-tpl-medical-professional .exp-date { font-size: 12px; color: var(--tpl-muted); background: var(--tpl-accent-soft); padding: 2px 8px; border-radius: 4px; }
+.resume-tpl-medical-professional .exp-position { font-size: 14px; color: var(--tpl-accent); font-weight: 500; margin-bottom: 6px; }
+.resume-tpl-medical-professional .exp-desc { font-size: 13px; color: #6B7280; margin-top: 4px; }
+
+/* 要点：箭头 */
+.resume-tpl-medical-professional .exp-highlights { list-style: none; padding: 0; margin: 0; }
+.resume-tpl-medical-professional .exp-highlights li { font-size: 13px; color: #4B5563; padding-left: 16px; position: relative; margin-bottom: 4px; }
+.resume-tpl-medical-professional .exp-highlights li::before { content: '▸'; position: absolute; left: 0; color: var(--tpl-accent); }

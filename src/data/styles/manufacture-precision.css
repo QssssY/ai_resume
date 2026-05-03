@@ -1,0 +1,79 @@
+/* ============================================
+ * 精准工程 - 制造/工程
+ * 设计特点：灰色渐变header、硬朗线条、
+ *          方形标签、方形要点、技术风格
+ * ============================================ */
+
+.resume-tpl-manufacture-precision {
+  --tpl-accent: #475569;
+  --tpl-accent-soft: #F1F5F9;
+  --tpl-text: #1F2937;
+  --tpl-muted: #6B7280;
+  --tpl-line: #CBD5E1;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--tpl-text);
+  line-height: 1.6;
+  padding: 0;
+}
+
+/* Header：灰色渐变 */
+.resume-tpl-manufacture-precision .resume-header {
+  background: linear-gradient(135deg, #475569 0%, #334155 100%);
+  color: white;
+  padding: 28px 32px;
+}
+
+.resume-tpl-manufacture-precision .name { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+
+/* 职位徽章：硬朗方形 */
+.resume-tpl-manufacture-precision .profile-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 3px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+
+.resume-tpl-manufacture-precision .meta-list { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; opacity: 0.85; }
+.resume-tpl-manufacture-precision .meta-item { display: flex; align-items: center; gap: 4px; }
+.resume-tpl-manufacture-precision .meta-icon { display: none; }
+
+.resume-tpl-manufacture-precision .resume-body { padding: 24px 32px; }
+.resume-tpl-manufacture-precision .section { margin-bottom: 26px; }
+
+/* Section Tab：灰色左边框 */
+.resume-tpl-manufacture-precision .section-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  background: linear-gradient(90deg, rgba(71, 85, 105, 0.08), transparent);
+  border-left: 4px solid var(--tpl-accent);
+  border-radius: 0;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-manufacture-precision .section-tab-dot { display: none; }
+.resume-tpl-manufacture-precision .section-line { display: block; height: 1px; background: var(--tpl-line); margin-bottom: 14px; margin-left: 16px; }
+.resume-tpl-manufacture-precision .section-title { font-size: 14px; font-weight: 700; color: var(--tpl-accent); letter-spacing: 1px; text-transform: uppercase; }
+.resume-tpl-manufacture-precision .summary-text { font-size: 14px; color: #4B5563; line-height: 1.8; padding-left: 16px; }
+
+/* 技能：简约文字列 */
+.resume-tpl-manufacture-precision .skills-list { display: flex; flex-direction: column; gap: 4px; padding-left: 16px; }
+.resume-tpl-manufacture-precision .skill-tag { background: none; border: none; padding: 0; font-size: 13px; color: #4B5563; line-height: 1.7; }
+
+.resume-tpl-manufacture-precision .experience-item { margin-bottom: 16px; padding-left: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--tpl-line); }
+.resume-tpl-manufacture-precision .experience-item:last-child { border-bottom: none; }
+.resume-tpl-manufacture-precision .exp-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.resume-tpl-manufacture-precision .exp-company { font-size: 15px; font-weight: 700; color: var(--tpl-text); }
+.resume-tpl-manufacture-precision .exp-date { font-size: 12px; color: var(--tpl-muted); background: var(--tpl-accent-soft); padding: 2px 8px; border-radius: 4px; }
+.resume-tpl-manufacture-precision .exp-position { font-size: 14px; color: var(--tpl-accent); font-weight: 600; margin-bottom: 6px; }
+.resume-tpl-manufacture-precision .exp-desc { font-size: 13px; color: #6B7280; margin-top: 4px; }
+
+/* 要点：小方块 */
+.resume-tpl-manufacture-precision .exp-highlights { list-style: none; padding: 0; margin: 0; }
+.resume-tpl-manufacture-precision .exp-highlights li { font-size: 13px; color: #4B5563; padding-left: 16px; position: relative; margin-bottom: 4px; }
+.resume-tpl-manufacture-precision .exp-highlights li::before { content: '▪'; position: absolute; left: 0; color: var(--tpl-accent); font-size: 10px; top: 4px; }

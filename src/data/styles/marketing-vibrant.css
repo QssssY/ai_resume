@@ -1,0 +1,104 @@
+/* ============================================
+ * 活力营销 - 市场/营销
+ * 设计特点：橙色渐变header、活力配色、
+ *          圆润标签、箭头要点、创意排版
+ * ============================================ */
+
+.resume-tpl-marketing-vibrant {
+  --tpl-accent: #F59E0B;
+  --tpl-accent-dark: #D97706;
+  --tpl-accent-soft: #FFFBEB;
+  --tpl-text: #1F2937;
+  --tpl-muted: #6B7280;
+  --tpl-line: #FDE68A;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--tpl-text);
+  line-height: 1.6;
+  padding: 0;
+}
+
+/* Header：橙色渐变 + 装饰圆形 */
+.resume-tpl-marketing-vibrant .resume-header {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: white;
+  padding: 28px 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+.resume-tpl-marketing-vibrant .resume-header::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.resume-tpl-marketing-vibrant .resume-header::after {
+  content: '';
+  position: absolute;
+  bottom: -30px;
+  right: 40px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.resume-tpl-marketing-vibrant .name { font-size: 28px; font-weight: 700; margin-bottom: 6px; position: relative; z-index: 1; }
+
+.resume-tpl-marketing-vibrant .profile-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 3px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.resume-tpl-marketing-vibrant .meta-list { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; opacity: 0.9; position: relative; z-index: 1; }
+.resume-tpl-marketing-vibrant .meta-item { display: flex; align-items: center; gap: 4px; }
+.resume-tpl-marketing-vibrant .meta-icon { display: none; }
+
+.resume-tpl-marketing-vibrant .resume-body { padding: 24px 32px; }
+.resume-tpl-marketing-vibrant .section { margin-bottom: 26px; }
+
+/* Section Tab：橙色标签 */
+.resume-tpl-marketing-vibrant .section-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.1), transparent);
+  border-left: 3px solid var(--tpl-accent);
+  border-radius: 0 16px 16px 0;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-marketing-vibrant .section-tab-dot { display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--tpl-accent); flex-shrink: 0; }
+.resume-tpl-marketing-vibrant .section-line { display: block; height: 1px; background: linear-gradient(90deg, rgba(245, 158, 11, 0.4), transparent); margin-bottom: 14px; margin-left: 15px; }
+.resume-tpl-marketing-vibrant .section-title { font-size: 14px; font-weight: 700; color: var(--tpl-accent-dark); letter-spacing: 1px; }
+.resume-tpl-marketing-vibrant .summary-text { font-size: 14px; color: #4B5563; line-height: 1.8; padding-left: 15px; }
+
+/* 技能标签：橙色pill */
+.resume-tpl-marketing-vibrant .skills-list { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 15px; }
+.resume-tpl-marketing-vibrant .skill-tag { display: inline-block; background: linear-gradient(135deg, #FFFBEB, #FEF3C7); color: var(--tpl-accent-dark); padding: 5px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; border: 1px solid rgba(245, 158, 11, 0.2); white-space: normal; word-break: break-word; line-height: 1.5; }
+
+.resume-tpl-marketing-vibrant .experience-item { margin-bottom: 16px; padding-left: 15px; padding-bottom: 12px; border-bottom: 1px dashed #FDE68A; }
+.resume-tpl-marketing-vibrant .experience-item:last-child { border-bottom: none; }
+.resume-tpl-marketing-vibrant .exp-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.resume-tpl-marketing-vibrant .exp-company { font-size: 15px; font-weight: 600; color: var(--tpl-text); }
+.resume-tpl-marketing-vibrant .exp-date { font-size: 12px; color: var(--tpl-muted); background: var(--tpl-accent-soft); padding: 2px 8px; border-radius: 4px; }
+.resume-tpl-marketing-vibrant .exp-position { font-size: 14px; color: var(--tpl-accent-dark); font-weight: 500; margin-bottom: 6px; }
+.resume-tpl-marketing-vibrant .exp-desc { font-size: 13px; color: #6B7280; margin-top: 4px; }
+
+/* 要点：箭头 */
+.resume-tpl-marketing-vibrant .exp-highlights { list-style: none; padding: 0; margin: 0; }
+.resume-tpl-marketing-vibrant .exp-highlights li { font-size: 13px; color: #4B5563; padding-left: 16px; position: relative; margin-bottom: 4px; }
+.resume-tpl-marketing-vibrant .exp-highlights li::before { content: '▸'; position: absolute; left: 0; color: var(--tpl-accent); }

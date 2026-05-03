@@ -1,0 +1,215 @@
+/* ============================================
+ * 暗色科技 - 互联网/IT
+ * 设计特点：深色背景、发光accent、
+ *          暗色section标签、边框标签、暗色圆点
+ * ============================================ */
+
+.resume-tpl-tech-dark {
+  --tpl-accent: #818CF8;
+  --tpl-accent-dark: #6366F1;
+  --tpl-accent-soft: #1E1B4B;
+  --tpl-text: #E2E8F0;
+  --tpl-muted: #94A3B8;
+  --tpl-line: #334155;
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--tpl-text);
+  line-height: 1.6;
+  background: #0F172A;
+  padding: 0;
+}
+
+/* Header：深色渐变 */
+.resume-tpl-tech-dark .resume-header {
+  background: linear-gradient(135deg, #312E81 0%, #1E1B4B 100%);
+  color: white;
+  padding: 28px 32px;
+  border-bottom: 2px solid var(--tpl-accent);
+}
+
+.resume-tpl-tech-dark .name {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+
+/* 职位徽章：暗色pill + 发光边框 */
+.resume-tpl-tech-dark .profile-badge {
+  display: inline-block;
+  background: rgba(129, 140, 248, 0.1);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  border-radius: 999px;
+  padding: 3px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tpl-accent);
+  margin-bottom: 14px;
+}
+
+.resume-tpl-tech-dark .meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.resume-tpl-tech-dark .meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.resume-tpl-tech-dark .meta-icon {
+  display: none;
+}
+
+/* Body */
+.resume-tpl-tech-dark .resume-body {
+  padding: 24px 32px;
+}
+
+.resume-tpl-tech-dark .section {
+  margin-bottom: 26px;
+}
+
+/* Section Tab：暗色背景 + 发光左边框 */
+.resume-tpl-tech-dark .section-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  background: rgba(129, 140, 248, 0.06);
+  border-left: 3px solid var(--tpl-accent);
+  border-radius: 0 12px 12px 0;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-tech-dark .section-tab-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tpl-accent);
+  box-shadow: 0 0 6px rgba(129, 140, 248, 0.5);
+  flex-shrink: 0;
+}
+
+.resume-tpl-tech-dark .section-line {
+  display: block;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(129, 140, 248, 0.3), transparent);
+  margin-bottom: 14px;
+  margin-left: 15px;
+}
+
+.resume-tpl-tech-dark .section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tpl-accent);
+  letter-spacing: 1px;
+}
+
+.resume-tpl-tech-dark .summary-text {
+  font-size: 14px;
+  color: #CBD5E1;
+  line-height: 1.8;
+  padding-left: 15px;
+}
+
+/* 技能标签：tech-item样式（圆角方形 + ✓前缀） */
+.resume-tpl-tech-dark .skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-left: 15px;
+}
+
+.resume-tpl-tech-dark .skill-tag {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: var(--tpl-accent-soft);
+  color: var(--tpl-accent);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.resume-tpl-tech-dark .skill-tag::before {
+  content: '✓';
+  color: var(--tpl-accent);
+  font-size: 12px;
+}
+
+/* 经历条目 */
+.resume-tpl-tech-dark .experience-item {
+  margin-bottom: 16px;
+  padding-left: 15px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--tpl-line);
+}
+
+.resume-tpl-tech-dark .experience-item:last-child {
+  border-bottom: none;
+}
+
+.resume-tpl-tech-dark .exp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-tech-dark .exp-company {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tpl-text);
+}
+
+.resume-tpl-tech-dark .exp-date {
+  font-size: 12px;
+  color: var(--tpl-muted);
+  background: rgba(129, 140, 248, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.resume-tpl-tech-dark .exp-position {
+  font-size: 14px;
+  color: var(--tpl-accent);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.resume-tpl-tech-dark .exp-desc {
+  font-size: 13px;
+  color: #94A3B8;
+  margin-top: 4px;
+}
+
+/* 要点：发光箭头 */
+.resume-tpl-tech-dark .exp-highlights {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.resume-tpl-tech-dark .exp-highlights li {
+  font-size: 13px;
+  color: #CBD5E1;
+  padding-left: 16px;
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-tech-dark .exp-highlights li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--tpl-accent);
+}

@@ -1,0 +1,77 @@
+/* ============================================
+ * 大胆营销 - 市场/营销
+ * 设计特点：红色渐变header、大胆撞色、
+ *          圆角标签、实心圆要点、冲击力设计
+ * ============================================ */
+
+.resume-tpl-marketing-bold {
+  --tpl-accent: #EF4444;
+  --tpl-accent-soft: #FEF2F2;
+  --tpl-text: #1F2937;
+  --tpl-muted: #6B7280;
+  --tpl-line: #FECACA;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--tpl-text);
+  line-height: 1.6;
+  padding: 0;
+}
+
+/* Header：红色渐变 */
+.resume-tpl-marketing-bold .resume-header {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  color: white;
+  padding: 28px 32px;
+}
+
+.resume-tpl-marketing-bold .name { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+
+.resume-tpl-marketing-bold .profile-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 3px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+
+.resume-tpl-marketing-bold .meta-list { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; opacity: 0.9; }
+.resume-tpl-marketing-bold .meta-item { display: flex; align-items: center; gap: 4px; }
+.resume-tpl-marketing-bold .meta-icon { display: none; }
+
+.resume-tpl-marketing-bold .resume-body { padding: 24px 32px; }
+.resume-tpl-marketing-bold .section { margin-bottom: 26px; }
+
+/* Section Tab：红色标签 */
+.resume-tpl-marketing-bold .section-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.1), transparent);
+  border-left: 3px solid var(--tpl-accent);
+  border-radius: 0 12px 12px 0;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-marketing-bold .section-tab-dot { display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--tpl-accent); flex-shrink: 0; }
+.resume-tpl-marketing-bold .section-line { display: block; height: 1px; background: linear-gradient(90deg, rgba(239, 68, 68, 0.4), transparent); margin-bottom: 14px; margin-left: 15px; }
+.resume-tpl-marketing-bold .section-title { font-size: 14px; font-weight: 700; color: var(--tpl-accent); letter-spacing: 1px; }
+.resume-tpl-marketing-bold .summary-text { font-size: 14px; color: #4B5563; line-height: 1.8; padding-left: 15px; }
+
+/* 技能标签：红色pill */
+.resume-tpl-marketing-bold .skills-list { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 15px; }
+.resume-tpl-marketing-bold .skill-tag { display: inline-block; background: var(--tpl-accent-soft); color: var(--tpl-accent); padding: 5px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; white-space: normal; word-break: break-word; line-height: 1.5; }
+
+.resume-tpl-marketing-bold .experience-item { margin-bottom: 16px; padding-left: 15px; padding-bottom: 12px; border-bottom: 1px dashed var(--tpl-line); }
+.resume-tpl-marketing-bold .experience-item:last-child { border-bottom: none; }
+.resume-tpl-marketing-bold .exp-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.resume-tpl-marketing-bold .exp-company { font-size: 15px; font-weight: 600; color: var(--tpl-text); }
+.resume-tpl-marketing-bold .exp-date { font-size: 12px; color: var(--tpl-muted); background: var(--tpl-accent-soft); padding: 2px 8px; border-radius: 4px; }
+.resume-tpl-marketing-bold .exp-position { font-size: 14px; color: var(--tpl-accent); font-weight: 500; margin-bottom: 6px; }
+.resume-tpl-marketing-bold .exp-desc { font-size: 13px; color: #6B7280; margin-top: 4px; }
+
+/* 要点：实心圆 */
+.resume-tpl-marketing-bold .exp-highlights { list-style: none; padding: 0; margin: 0; }
+.resume-tpl-marketing-bold .exp-highlights li { font-size: 13px; color: #4B5563; padding-left: 16px; position: relative; margin-bottom: 4px; }
+.resume-tpl-marketing-bold .exp-highlights li::before { content: '●'; position: absolute; left: 0; color: var(--tpl-accent); font-size: 8px; top: 5px; }

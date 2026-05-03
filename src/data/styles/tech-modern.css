@@ -1,0 +1,250 @@
+/* ============================================
+ * 科技现代 - 互联网/IT
+ * 设计特点：渐变header、section-tab标签+圆点标记、
+ *          渐变装饰线、圆角药丸标签、左箭头要点
+ * ============================================ */
+
+/* CSS变量定义 */
+.resume-tpl-tech-modern {
+  --tpl-accent: #3B82F6;
+  --tpl-accent-dark: #1D4ED8;
+  --tpl-accent-soft: #EFF6FF;
+  --tpl-gold: #3B82F6;
+  --tpl-text: #1F2937;
+  --tpl-muted: #6B7280;
+  --tpl-line: #E5E7EB;
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--tpl-text);
+  line-height: 1.6;
+  padding: 0;
+}
+
+/* ===== Header区域 ===== */
+.resume-tpl-tech-modern .resume-header {
+  background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 50%, #1E40AF 100%);
+  color: white;
+  padding: 28px 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 装饰性圆形 */
+.resume-tpl-tech-modern .resume-header::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.resume-tpl-tech-modern .resume-header::after {
+  content: '';
+  position: absolute;
+  bottom: -40px;
+  right: 60px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.resume-tpl-tech-modern .header-main {
+  position: relative;
+  z-index: 1;
+}
+
+.resume-tpl-tech-modern .name {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+
+/* 职位徽章：pill形状 */
+.resume-tpl-tech-modern .profile-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 3px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  backdrop-filter: blur(4px);
+}
+
+.resume-tpl-tech-modern .meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.resume-tpl-tech-modern .meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.resume-tpl-tech-modern .meta-icon {
+  display: inline;
+  font-size: 12px;
+}
+
+/* ===== Body区域 ===== */
+.resume-tpl-tech-modern .resume-body {
+  padding: 24px 32px;
+}
+
+.resume-tpl-tech-modern .section {
+  margin-bottom: 26px;
+}
+
+/* ===== Section Tab标签 + 圆点标记 + 渐变装饰线 ===== */
+.resume-tpl-tech-modern .section-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.04));
+  border-left: 3px solid var(--tpl-accent);
+  border-radius: 0 12px 12px 0;
+  margin-bottom: 4px;
+}
+
+/* 圆点标记 */
+.resume-tpl-tech-modern .section-tab-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tpl-accent);
+  flex-shrink: 0;
+}
+
+/* 渐变装饰线 */
+.resume-tpl-tech-modern .section-line {
+  display: block;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.4), rgba(229, 231, 235, 0.6));
+  margin-bottom: 14px;
+  margin-left: 15px;
+}
+
+.resume-tpl-tech-modern .section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tpl-accent);
+  letter-spacing: 1px;
+}
+
+/* ===== 个人简介 ===== */
+.resume-tpl-tech-modern .summary-text {
+  font-size: 14px;
+  color: #4B5563;
+  line-height: 1.8;
+  padding-left: 15px;
+}
+
+/* ===== 技能标签：tech-item样式（圆角方形 + ✓前缀） ===== */
+.resume-tpl-tech-modern .skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-left: 15px;
+}
+
+.resume-tpl-tech-modern .skill-tag {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: #EFF6FF;
+  color: #1E40AF;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.resume-tpl-tech-modern .skill-tag::before {
+  content: '✓';
+  color: #3B82F6;
+  font-size: 12px;
+}
+
+/* ===== 经历条目 ===== */
+.resume-tpl-tech-modern .experience-item {
+  margin-bottom: 16px;
+  padding-left: 15px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--tpl-line);
+}
+
+.resume-tpl-tech-modern .experience-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.resume-tpl-tech-modern .exp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-tech-modern .exp-company {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tpl-text);
+}
+
+.resume-tpl-tech-modern .exp-date {
+  font-size: 12px;
+  color: var(--tpl-muted);
+  background: var(--tpl-accent-soft);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.resume-tpl-tech-modern .exp-position {
+  font-size: 14px;
+  color: var(--tpl-accent);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.resume-tpl-tech-modern .exp-desc {
+  font-size: 13px;
+  color: #6B7280;
+  margin-top: 4px;
+}
+
+/* 要点列表：左箭头 */
+.resume-tpl-tech-modern .exp-highlights {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.resume-tpl-tech-modern .exp-highlights li {
+  font-size: 13px;
+  color: #4B5563;
+  padding-left: 16px;
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.resume-tpl-tech-modern .exp-highlights li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--tpl-accent);
+  font-size: 12px;
+}

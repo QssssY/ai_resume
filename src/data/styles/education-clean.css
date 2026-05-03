@@ -1,0 +1,76 @@
+/* ============================================
+ * 清新教育 - 教育/培训
+ * 设计特点：无header背景、极简清新、
+ *          细线分隔、方形标签、清爽配色
+ * ============================================ */
+
+.resume-tpl-education-clean {
+  --tpl-accent: #10B981;
+  --tpl-accent-soft: #F0FDF4;
+  --tpl-text: #0F172A;
+  --tpl-muted: #64748B;
+  --tpl-line: #E2E8F0;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--tpl-text);
+  line-height: 1.6;
+  padding: 32px;
+}
+
+/* Header：无背景，底线分隔 */
+.resume-tpl-education-clean .resume-header {
+  padding-bottom: 20px;
+  border-bottom: 3px solid var(--tpl-accent);
+  margin-bottom: 24px;
+}
+
+.resume-tpl-education-clean .name {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--tpl-text);
+  margin-bottom: 4px;
+}
+
+.resume-tpl-education-clean .profile-badge {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tpl-accent);
+  margin-bottom: 12px;
+}
+
+.resume-tpl-education-clean .meta-list { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--tpl-muted); }
+.resume-tpl-education-clean .meta-item { display: flex; align-items: center; gap: 4px; }
+.resume-tpl-education-clean .meta-icon { display: none; }
+
+.resume-tpl-education-clean .section-tab { display: flex; align-items: center; }
+.resume-tpl-education-clean .section-tab-dot { display: none; }
+.resume-tpl-education-clean .section-line { display: none; }
+
+.resume-tpl-education-clean .section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tpl-accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-bottom: 1px solid var(--tpl-line);
+  padding-bottom: 4px;
+  margin-bottom: 14px;
+}
+
+.resume-tpl-education-clean .summary-text { font-size: 14px; color: #475569; line-height: 1.8; }
+
+/* 技能：简约文字列 */
+.resume-tpl-education-clean .skills-list { display: flex; flex-direction: column; gap: 4px; }
+.resume-tpl-education-clean .skill-tag { background: none; border: none; padding: 0; font-size: 13px; color: #475569; line-height: 1.7; }
+
+.resume-tpl-education-clean .experience-item { margin-bottom: 14px; }
+.resume-tpl-education-clean .exp-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+.resume-tpl-education-clean .exp-company { font-size: 14px; font-weight: 700; color: var(--tpl-text); }
+.resume-tpl-education-clean .exp-date { font-size: 12px; color: #64748B; background: var(--tpl-accent-soft); padding: 2px 8px; border-radius: 4px; }
+.resume-tpl-education-clean .exp-position { font-size: 13px; color: var(--tpl-accent); margin-bottom: 4px; }
+.resume-tpl-education-clean .exp-desc { font-size: 13px; color: #64748B; margin-top: 4px; }
+
+/* 要点：短横线 */
+.resume-tpl-education-clean .exp-highlights { list-style: none; padding: 0; margin: 0; }
+.resume-tpl-education-clean .exp-highlights li { font-size: 13px; color: #475569; padding-left: 14px; position: relative; margin-bottom: 3px; }
+.resume-tpl-education-clean .exp-highlights li::before { content: '–'; position: absolute; left: 0; color: var(--tpl-accent); }
