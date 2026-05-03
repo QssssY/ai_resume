@@ -41,7 +41,7 @@
             </div>
             <div class="upload-text">
               <div class="upload-title">点击或拖拽文件至此处上传</div>
-              <div class="upload-hint">支持 PDF 格式，文件大小不超过 10MB</div>
+              <div class="upload-hint">支持文本型 PDF 格式，文件大小不超过 10MB</div>
             </div>
           </div>
           <div v-else class="upload-selected">
@@ -66,10 +66,14 @@
         <div class="file-requirements">
           <div class="req-title">文件要求</div>
           <ul class="req-list">
-            <li>文件格式：仅支持 PDF</li>
+            <li>文件格式：仅支持 <strong>文本型 PDF</strong></li>
             <li>文件大小：不超过 10MB</li>
-            <li>请确保简历内容清晰可识别</li>
+            <li>推荐使用 Word/WPS 导出的 PDF，或 Chrome「打印 → 另存为 PDF」</li>
           </ul>
+          <div class="req-warning">
+            <el-icon><WarningFilled /></el-icon>
+            <span>不支持扫描件/图片型 PDF（需包含可选择的文字）</span>
+          </div>
         </div>
 
         <!-- 提交按钮 -->
@@ -135,6 +139,13 @@ import { Upload, Document, WarningFilled, CircleClose } from '@element-plus/icon
 import { uploadResume } from '@/api/resume'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { isLoggedIn } from '@/utils/auth'
+import * as pdfjsLib from 'pdfjs-dist'
+
+// 设置 PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).href
 
 const router = useRouter()
 
@@ -210,6 +221,30 @@ const goToLogin = () => {
   })
 }
 
+// 检测PDF是否为图片型（扫描件）
+const checkPdfHasText = async (file) => {
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+
+    let totalTextLength = 0
+    // 检查前5页
+    const pagesToCheck = Math.min(pdf.numPages, 5)
+
+    for (let i = 1; i <= pagesToCheck; i++) {
+      const page = await pdf.getPage(i)
+      const textContent = await page.getTextContent()
+      totalTextLength += textContent.items.map(item => item.str).join('').length
+    }
+
+    // 如果前5页文本少于50个字符，认为是图片型PDF
+    return totalTextLength >= 50
+  } catch (err) {
+    console.warn('PDF检测失败，允许上传:', err)
+    return true // 检测失败时允许上传，让后端处理
+  }
+}
+
 // 提交
 const handleSubmit = async () => {
   // 未登录时提示先登录
@@ -237,6 +272,14 @@ const handleSubmit = async () => {
 
   submitting.value = true
   submitError.value = ''
+
+  // 前置检测：检查是否为图片型PDF
+  const hasText = await checkPdfHasText(selectedFile.value)
+  if (!hasText) {
+    submitting.value = false
+    submitError.value = '当前 PDF 似乎是图片型/扫描件，无法提取文本。请上传由 Word、WPS 等软件直接导出的文本型 PDF，或使用 Chrome 浏览器「打印 → 另存为 PDF」生成的文件'
+    return
+  }
 
   try {
     const res = await uploadResume(selectedFile.value)
@@ -428,6 +471,19 @@ const retrySubmit = () => {
   height: 4px;
   border-radius: 50%;
   background-color: var(--orange-main);
+}
+
+.req-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: #FEF0F0;
+  border: 1px solid #fde2e2;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-danger);
 }
 
 /* 提交按钮区 */
