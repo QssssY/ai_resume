@@ -1330,7 +1330,7 @@ onUnmounted(() => {
   line-height: 1.7;
   color: var(--text-title);
   word-break: break-all;
-  white-space: normal;
+  white-space: pre-wrap;
 }
 
 .summary-text.processing {

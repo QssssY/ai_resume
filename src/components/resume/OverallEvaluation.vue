@@ -11,9 +11,6 @@
           <div class="grade-label">综合等级</div>
         </div>
       </div>
-      <div v-if="evaluation" class="score-right">
-        <div class="evaluation-content">{{ evaluation }}</div>
-      </div>
     </div>
     <div v-if="summary" class="summary-section">
       <div class="summary-label">总体评价</div>
@@ -24,8 +21,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Trophy, Medal } from '@element-plus/icons-vue'
-
 const props = defineProps({
   data: {
     type: Object,
@@ -48,10 +43,6 @@ const summary = computed(() => {
   return props.data?.summary ?? props.data?.overallComment ?? props.data?.comment ?? ''
 })
 
-const evaluation = computed(() => {
-  return props.data?.evaluation ?? ''
-})
-
 // 等级样式类
 const gradeClass = computed(() => {
   const g = grade.value?.toLowerCase()
@@ -70,8 +61,8 @@ const gradeClass = computed(() => {
 
 .score-section {
   display: flex;
-  align-items: flex-start;
-  gap: 32px;
+  align-items: center;
+  gap: 40px;
   margin-bottom: 24px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-divider, #f0f0f0);
@@ -81,19 +72,6 @@ const gradeClass = computed(() => {
   display: flex;
   gap: 40px;
   flex-shrink: 0;
-}
-
-.score-right {
-  flex: 1;
-  min-width: 0;
-}
-
-.evaluation-content {
-  font-size: 13px;
-  color: var(--text-body, #606266);
-  line-height: 1.7;
-  text-align: justify;
-  padding-top: 4px;
 }
 
 .score-display {
