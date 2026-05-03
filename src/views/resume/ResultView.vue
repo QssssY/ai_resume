@@ -82,8 +82,8 @@
             </div>
             <p class="summary-text">{{ parsedResult.overallEvaluation.summary }}</p>
           </div>
-          <div class="ai-summary" v-else-if="isProcessing">
-            <p class="summary-text processing">AI 正在深度分析你的简历，请稍候...</p>
+          <div class="ai-summary" v-else-if="isPending || isProcessing">
+            <p class="summary-text processing">{{ processingSummaryText }}</p>
           </div>
           <div class="status-row">
             <span class="status-badge" :class="`status-${task.status}`">
@@ -94,7 +94,7 @@
               {{ formatTime(task.updateTime) }}
             </span>
           </div>
-          <div v-if="isProcessing" class="refresh-hint">
+          <div v-if="isPending || isProcessing" class="refresh-hint">
             <el-button size="small" :loading="refreshing" @click="fetchTaskDetail">
               {{ refreshing ? '刷新中...' : '刷新状态' }}
             </el-button>
@@ -575,6 +575,7 @@ const refreshing = ref(false)
 const error = ref('')
 const task = ref(null)
 const pollTimer = ref(null)
+const pollRequestInFlight = ref(false)
 const hasRefreshedUserInfo = ref(false)
 const jobMatchVisible = ref(false)
 const jobDescriptionText = ref('')
@@ -593,8 +594,13 @@ const isPending = computed(() => task.value?.status === 0)
 const isProcessing = computed(() => task.value?.status === 1)
 const isCompleted = computed(() => task.value?.status === 2)
 const isFailed = computed(() => task.value?.status === 3)
+const PENDING_POLL_INTERVAL = 5000
+const PROCESSING_POLL_INTERVAL = 7000
 
 const statusText = computed(() => {
+  if (task.value?.statusDesc) {
+    return task.value.statusDesc
+  }
   switch (task.value?.status) {
     case 0: return '排队中'
     case 1: return '分析中'
@@ -602,6 +608,16 @@ const statusText = computed(() => {
     case 3: return '已失败'
     default: return '未知'
   }
+})
+
+const processingSummaryText = computed(() => {
+  if (isPending.value) {
+    return '当前任务正在排队，系统会自动刷新状态。'
+  }
+  if (isProcessing.value) {
+    return '系统正在提取简历文本并进行 AI 分析，请稍候。'
+  }
+  return ''
 })
 
 const levelClass = computed(() => {
@@ -766,59 +782,74 @@ const formatRawResult = (result) => {
   }
 }
 
-const fetchTaskDetail = async () => {
+const fetchTaskDetail = async (options = {}) => {
+  const { silent = false } = options
   if (!taskId.value) {
     error.value = '任务ID不存在'
     loading.value = false
+    refreshing.value = false
     return
   }
 
-  if (refreshing.value) return
-  if (!loading.value) {
-    refreshing.value = true
+  // 轮询和手动刷新共用一个请求锁，避免慢接口叠加触发多次详情查询。
+  if (pollRequestInFlight.value) {
+    return
   }
 
+  if (!loading.value && !silent) {
+    refreshing.value = true
+  }
+  pollRequestInFlight.value = true
   error.value = ''
 
   try {
     const res = await getResumeTask(taskId.value)
     const previousStatus = task.value?.status
     task.value = res.data
+
     if (task.value?.latestJobMatchAnalysis) {
       jobMatchResult.value = task.value.latestJobMatchAnalysis
     }
     if (task.value?.latestPolishResult) {
       polishResult.value = task.value.latestPolishResult
     }
-    loading.value = false
-    refreshing.value = false
 
-    if (isCompleted.value && previousStatus !== 2 && !hasRefreshedUserInfo.value) {
+    if (task.value?.status === 2 && previousStatus !== 2 && !hasRefreshedUserInfo.value) {
       hasRefreshedUserInfo.value = true
       await userStore.fetchUserInfo()
       ElMessage.success('简历诊断已完成')
     }
   } catch (err) {
     error.value = err.message || '获取任务详情失败，请稍后重试'
+  } finally {
     loading.value = false
     refreshing.value = false
+    pollRequestInFlight.value = false
   }
 }
 
 const startPolling = () => {
-  if (pollTimer.value) clearInterval(pollTimer.value)
-  pollTimer.value = setInterval(() => {
-    if (isProcessing.value || isPending.value) {
-      fetchTaskDetail()
-    } else {
-      stopPolling()
-    }
-  }, 3000)
+  stopPolling()
+  scheduleNextPoll()
+}
+
+// 轮询改为递归 setTimeout，只在上一轮完成后再安排下一轮，避免持续打满慢接口。
+const scheduleNextPoll = () => {
+  if (!isPending.value && !isProcessing.value) {
+    stopPolling()
+    return
+  }
+
+  const nextInterval = isPending.value ? PENDING_POLL_INTERVAL : PROCESSING_POLL_INTERVAL
+  pollTimer.value = setTimeout(async () => {
+    await fetchTaskDetail({ silent: true })
+    scheduleNextPoll()
+  }, nextInterval)
 }
 
 const stopPolling = () => {
   if (pollTimer.value) {
-    clearInterval(pollTimer.value)
+    clearTimeout(pollTimer.value)
     pollTimer.value = null
   }
 }
@@ -938,15 +969,15 @@ const submitJobMatchAnalysis = async () => {
 }
 
 onMounted(() => {
-  fetchTaskDetail()
+  fetchTaskDetail({ silent: true })
 })
 
 onUnmounted(() => {
   stopPolling()
 })
 
-const unwatch = watch(isProcessing, (newVal) => {
-  if (newVal || isPending.value) {
+const unwatch = watch(() => task.value?.status, (newStatus) => {
+  if (newStatus === 0 || newStatus === 1) {
     startPolling()
   } else {
     stopPolling()
