@@ -69,3 +69,32 @@ export function updatePassword(data) {
     data
   })
 }
+
+/**
+ * 获取用户的安全问题（忘记密码流程）
+ * @param {string} username - 用户名
+ * @returns {Promise}
+ */
+export function getSecurityQuestion(username) {
+  return request({
+    url: '/api/auth/security-question',
+    method: 'get',
+    params: { username }
+  })
+}
+
+/**
+ * 通过安全问题验证重置密码
+ * @param {Object} data - 重置参数
+ * @param {string} data.username - 用户名
+ * @param {string} data.securityAnswer - 安全问题答案
+ * @param {string} data.newPassword - 新密码
+ * @returns {Promise}
+ */
+export function resetPasswordBySecurity(data) {
+  return request({
+    url: '/api/auth/reset-password',
+    method: 'post',
+    data
+  })
+}

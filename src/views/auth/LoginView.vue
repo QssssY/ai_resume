@@ -45,11 +45,18 @@
         </div>
 
       <div class="auth-card">
-        <div class="card-tabs">
+        <router-link to="/" class="back-home">
+          <el-icon><ArrowLeft /></el-icon>
+          <span>返回首页</span>
+        </router-link>
+
+        <!-- 登录/注册标签栏（忘记密码时隐藏） -->
+        <div v-if="authMode !== 'forgot'" class="card-tabs">
           <button class="tab" :class="{ active: authMode === 'login' }" @click="switchMode('login')">登录</button>
           <button class="tab" :class="{ active: authMode === 'register' }" @click="switchMode('register')">注册</button>
         </div>
 
+        <!-- 登录表单 -->
         <template v-if="authMode === 'login'">
           <div class="card-body">
             <h2 class="card-title">欢迎回来</h2>
@@ -61,8 +68,12 @@
               </el-form-item>
 
               <el-form-item prop="password">
-                <el-input id="login-password" v-model="loginForm.password" type="password" placeholder="密码" :prefix-icon="Lock" show-password clearable @keyup.enter="handleLogin" />
+                <el-input id="login-password" v-model="loginForm.password" type="password" placeholder="密码" :prefix-icon="Lock" show-password clearable />
               </el-form-item>
+
+              <div class="forgot-row">
+                <el-button class="btn-link btn-forgot" @click="switchMode('forgot')">忘记密码？</el-button>
+              </div>
 
               <el-form-item>
                 <el-button class="btn-primary" :loading="loading" :disabled="loading" @click="handleLogin">{{ loading ? '登录中...' : '登 录' }}</el-button>
@@ -76,7 +87,8 @@
           </div>
         </template>
 
-        <template v-else>
+        <!-- 注册表单 -->
+        <template v-else-if="authMode === 'register'">
           <div class="card-body">
             <h2 class="card-title">创建账号</h2>
             <p class="card-subtitle">注册享受更多服务</p>
@@ -91,7 +103,24 @@
               </el-form-item>
 
               <el-form-item prop="confirmPassword">
-                <el-input id="register-confirm" v-model="registerForm.confirmPassword" type="password" placeholder="确认密码" :prefix-icon="Lock" show-password clearable @keyup.enter="handleRegister" />
+                <el-input id="register-confirm" v-model="registerForm.confirmPassword" type="password" placeholder="确认密码" :prefix-icon="Lock" show-password clearable />
+              </el-form-item>
+
+              <el-form-item prop="securityQuestion">
+                <el-select
+                  v-model="registerForm.securityQuestion"
+                  placeholder="选择安全问题（忘记密码时使用）"
+                  filterable
+                  allow-create
+                  default-first-option
+                  style="width: 100%"
+                >
+                  <el-option v-for="q in presetSecurityQuestions" :key="q" :label="q" :value="q" />
+                </el-select>
+              </el-form-item>
+
+              <el-form-item prop="securityAnswer">
+                <el-input v-model="registerForm.securityAnswer" placeholder="安全问题答案" :prefix-icon="Key" clearable @keyup.enter="handleRegister" />
               </el-form-item>
 
               <el-form-item>
@@ -102,6 +131,54 @@
             <div class="card-footer">
               <span>已有账号？</span>
               <el-button class="btn-link" @click="switchMode('login')">立即登录</el-button>
+            </div>
+          </div>
+        </template>
+
+        <!-- 忘记密码流程 -->
+        <template v-if="authMode === 'forgot'">
+          <div class="card-body">
+            <h2 class="card-title">找回密码</h2>
+            <p class="card-subtitle">{{ forgotStep === 1 ? '请输入您的用户名' : '请回答安全问题并设置新密码' }}</p>
+
+            <!-- Step 1: 输入用户名 -->
+            <el-form v-if="forgotStep === 1" ref="forgotStep1FormRef" :model="forgotForm" :rules="forgotStep1Rules" class="auth-form" size="large" @keyup.enter="handleFetchQuestion">
+              <el-form-item prop="username">
+                <el-input v-model="forgotForm.username" placeholder="请输入用户名" :prefix-icon="User" clearable />
+              </el-form-item>
+
+              <el-form-item>
+                <el-button class="btn-primary" :loading="forgotLoading" :disabled="forgotLoading" @click="handleFetchQuestion">{{ forgotLoading ? '查询中...' : '下一步' }}</el-button>
+              </el-form-item>
+            </el-form>
+
+            <!-- Step 2: 回答安全问题 + 设置新密码 -->
+            <el-form v-else ref="forgotStep2FormRef" :model="forgotForm" :rules="forgotStep2Rules" class="auth-form" size="large">
+              <div class="security-question-display">
+                <span class="question-label">安全问题：</span>
+                <span class="question-text">{{ forgotForm.securityQuestion }}</span>
+              </div>
+
+              <el-form-item prop="securityAnswer">
+                <el-input v-model="forgotForm.securityAnswer" placeholder="请输入安全问题答案" :prefix-icon="Key" clearable />
+              </el-form-item>
+
+              <el-form-item prop="newPassword">
+                <el-input v-model="forgotForm.newPassword" type="password" placeholder="新密码（6-100个字符）" :prefix-icon="Lock" show-password clearable />
+              </el-form-item>
+
+              <el-form-item prop="confirmPassword">
+                <el-input v-model="forgotForm.confirmPassword" type="password" placeholder="确认新密码" :prefix-icon="Lock" show-password clearable @keyup.enter="handleResetPassword" />
+              </el-form-item>
+
+              <el-form-item>
+                <el-button class="btn-primary" :loading="forgotLoading" :disabled="forgotLoading" @click="handleResetPassword">{{ forgotLoading ? '重置中...' : '重置密码' }}</el-button>
+              </el-form-item>
+            </el-form>
+
+            <div class="card-footer">
+              <span>想起密码了？</span>
+              <el-button class="btn-link" @click="switchMode('login')">返回登录</el-button>
             </div>
           </div>
         </template>
@@ -123,10 +200,10 @@
 <script setup>
 import { ref, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { User, Lock, WarningFilled, CircleCheck } from "@element-plus/icons-vue";
+import { User, Lock, Key, ArrowLeft, WarningFilled, CircleCheck } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
-import { register } from "@/api/auth";
+import { register, getSecurityQuestion, resetPasswordBySecurity } from "@/api/auth";
 import brandLogo from "@/assets/logo.jpg";
 
 const router = useRouter();
@@ -142,7 +219,19 @@ const loginFormRef = ref(null);
 const registerFormRef = ref(null);
 
 const loginForm = reactive({ username: "", password: "" });
-const registerForm = reactive({ username: "", password: "", confirmPassword: "" });
+const registerForm = reactive({ username: "", password: "", confirmPassword: "", securityQuestion: "", securityAnswer: "" });
+
+// 预设安全问题列表
+const presetSecurityQuestions = [
+  "你的第一只宠物叫什么名字？",
+  "你的出生城市是哪里？",
+  "你小学班主任叫什么名字？",
+  "你最喜欢的电影是什么？",
+  "你母亲的名字是什么？",
+  "你的第一辆车是什么品牌？",
+  "你高中学校的名称是什么？",
+  "你最好的朋友叫什么名字？"
+];
 
 const loginRules = {
   username: [
@@ -176,6 +265,57 @@ const registerRules = {
       },
       trigger: "blur"
     }
+  ],
+  securityQuestion: [
+    { required: true, message: "请选择或输入安全问题", trigger: "change" },
+    { max: 50, message: "安全问题长度不能超过50个字符", trigger: "change" }
+  ],
+  securityAnswer: [
+    { required: true, message: "请输入安全问题答案", trigger: "blur" },
+    { max: 100, message: "答案长度不能超过100个字符", trigger: "blur" }
+  ]
+};
+
+// 忘记密码相关状态
+const forgotStep = ref(1);
+const forgotLoading = ref(false);
+const forgotStep1FormRef = ref(null);
+const forgotStep2FormRef = ref(null);
+const forgotForm = reactive({
+  username: "",
+  securityQuestion: "",
+  securityAnswer: "",
+  newPassword: "",
+  confirmPassword: ""
+});
+
+const forgotStep1Rules = {
+  username: [
+    { required: true, message: "请输入用户名", trigger: "blur" },
+    { min: 3, max: 50, message: "用户名长度为 3-50 个字符", trigger: "blur" }
+  ]
+};
+
+const forgotStep2Rules = {
+  securityAnswer: [
+    { required: true, message: "请输入安全问题答案", trigger: "blur" }
+  ],
+  newPassword: [
+    { required: true, message: "请输入新密码", trigger: "blur" },
+    { min: 6, max: 100, message: "密码长度为 6-100 个字符", trigger: "blur" }
+  ],
+  confirmPassword: [
+    { required: true, message: "请再次输入新密码", trigger: "blur" },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== forgotForm.newPassword) {
+          callback(new Error("两次输入的密码不一致"));
+        } else {
+          callback();
+        }
+      },
+      trigger: "blur"
+    }
   ]
 };
 
@@ -183,6 +323,13 @@ const switchMode = (mode) => {
   authMode.value = mode;
   errorMessage.value = "";
   registerSuccess.value = "";
+  // 重置忘记密码状态
+  forgotStep.value = 1;
+  forgotForm.username = "";
+  forgotForm.securityQuestion = "";
+  forgotForm.securityAnswer = "";
+  forgotForm.newPassword = "";
+  forgotForm.confirmPassword = "";
 };
 
 const handleLogin = async () => {
@@ -220,6 +367,49 @@ const handleRegister = async () => {
     errorMessage.value = err.message || "注册失败，请稍后重试";
   } finally {
     loading.value = false;
+  }
+};
+
+// 忘记密码 Step 1：获取安全问题
+const handleFetchQuestion = async () => {
+  if (!forgotStep1FormRef.value) return;
+  const isValid = await forgotStep1FormRef.value.validate().catch(() => false);
+  if (!isValid) return;
+
+  forgotLoading.value = true;
+  errorMessage.value = "";
+  try {
+    const res = await getSecurityQuestion(forgotForm.username);
+    forgotForm.securityQuestion = res.data.securityQuestion;
+    forgotStep.value = 2;
+  } catch (err) {
+    errorMessage.value = err.message || "查询失败，请检查用户名";
+  } finally {
+    forgotLoading.value = false;
+  }
+};
+
+// 忘记密码 Step 2：验证答案并重置密码
+const handleResetPassword = async () => {
+  if (!forgotStep2FormRef.value) return;
+  const isValid = await forgotStep2FormRef.value.validate().catch(() => false);
+  if (!isValid) return;
+
+  forgotLoading.value = true;
+  errorMessage.value = "";
+  try {
+    await resetPasswordBySecurity({
+      username: forgotForm.username,
+      securityAnswer: forgotForm.securityAnswer,
+      newPassword: forgotForm.newPassword
+    });
+    ElMessage.success("密码重置成功，请登录");
+    switchMode("login");
+    loginForm.username = forgotForm.username;
+  } catch (err) {
+    errorMessage.value = err.message || "密码重置失败";
+  } finally {
+    forgotLoading.value = false;
   }
 };
 </script>
@@ -318,6 +508,21 @@ const handleRegister = async () => {
   background-image: radial-gradient(circle, rgba(255, 103, 0, 0.1) 1px, transparent 1px);
   background-size: 30px 30px;
   opacity: 0.3;
+}
+
+.back-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-muted, #7f8c8d);
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: color 0.2s;
+}
+
+.back-home:hover {
+  color: var(--orange-main, #ff6700);
 }
 
 .auth-wrapper {
@@ -513,6 +718,55 @@ const handleRegister = async () => {
   text-align: center;
   font-size: 14px;
   color: var(--text-muted);
+}
+
+.forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -8px 0 12px;
+}
+
+.btn-forgot {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.btn-forgot:hover {
+  color: var(--orange-main);
+}
+
+.security-question-display {
+  background: var(--bg-page, #f5f5f5);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.question-label {
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.question-text {
+  color: var(--text-title);
+  font-weight: 500;
+}
+
+/* 注册表单中的 el-select 样式适配 */
+.auth-form :deep(.el-select) {
+  width: 100%;
+}
+
+.auth-form :deep(.el-select .el-input__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--border-input) inset;
+  padding: 4px 12px;
+}
+
+.auth-form :deep(.el-select .el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--orange-main) inset;
 }
 
 .btn-link {
