@@ -16,8 +16,8 @@
 import { ref } from 'vue'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
-import { ElMessage } from 'element-plus'
-import { exportPdfFromHtml, serializeElementToHtml, stripScopedSelectors } from '@/api/resumePdf'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { exportPdfFromHtml, downloadPdfFile, serializeElementToHtml, stripScopedSelectors } from '@/api/resumePdf'
 import resumeExportCss from '@/components/resume/resumeExportStyles'
 
 const props = defineProps({
@@ -86,29 +86,68 @@ async function exportImagePdf() {
   }
 }
 
-// 文字型 PDF：序列化 HTML → 后端 Chrome headless 渲染
+/**
+ * 文字型 PDF 导出（两步式：生成 → 确认 → 下载）
+ *
+ * 步骤一：调用后端生成 PDF，拿到 fileId
+ * 步骤二：弹窗询问用户"PDF 制作完成，是否下载到本地？"
+ *   - 用户点击"是" → 调用下载接口，通过临时 <a> 标签触发浏览器保存
+ *   - 用户点击"否" → 仅提示"已保存"，后续可在其他地方下载（预留扩展）
+ *
+ * 与旧实现的区别：
+ * - 旧：后端直接返回 Blob 文件流，前端创建 Blob URL 下载
+ * - 新：后端返回 JSON（含 fileId），前端二次请求下载接口
+ *
+ * 优势：
+ * - 生成失败时前端能收到明确的错误 JSON，而非空白 Blob
+ * - 用户可以在下载前确认，提升体验
+ * - fileId 可用于后续的分享、重新下载等扩展功能
+ */
 async function exportTextPdf() {
   if (!props.targetRef) {
     ElMessage.warning('预览内容未就绪，请稍后重试')
     return
   }
   textPdfExporting.value = true
+
   try {
+    // 1. 准备 HTML：合并模板 CSS + 简历导出样式的 scoped 选择器已被清除
     const extraCss = props.templateCss ? stripScopedSelectors(props.templateCss) : ''
     const html = serializeElementToHtml(props.targetRef, resumeExportCss + '\n' + extraCss)
-    const blob = await exportPdfFromHtml(html)
 
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${props.fileName}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
+    // 2. 调用后端生成 PDF（返回 JSON，不再是 Blob）
+    const result = await exportPdfFromHtml(html)
+    // result 结构: { fileId: "uuid", fileName: "uuid.pdf", fileSize: 12345 }
 
-    ElMessage.success('PDF 已导出（文字型，可选中复制）')
+    // 3. 弹窗确认：询问用户是否要下载到本地
+    //    ElMessageBox.confirm 返回 Promise：
+    //    - 点击"确认" → resolve → 执行下载
+    //    - 点击"取消" → reject → 进入 catch 提示已保存
+    await ElMessageBox.confirm(
+      `PDF 制作完成！（文件大小：${(result.fileSize / 1024).toFixed(1)} KB）<br/>是否下载到本地？`,
+      '导出成功',
+      {
+        dangerouslyUseHTMLString: true,             // 允许消息中嵌入 HTML（用于换行）
+        confirmButtonText: '下载',
+        cancelButtonText: '暂不下载',
+        type: 'success',
+      }
+    )
+
+    // 4. 用户确认 → 直接用 <a> 标签导航下载（非 XHR，避免 IDM 拦截产生双重下载）
+    downloadPdfFile(result.fileId, result.fileName)
+    ElMessage.success('PDF 已下载（文字型，可选中复制）')
+
   } catch (err) {
+    // ElMessageBox 取消时会抛出 'cancel'，这不是错误，给个提示即可
+    if (err === 'cancel' || err === 'close') {
+      ElMessage.info('PDF 已生成并保存在服务器，需要时可重新导出')
+      return
+    }
+
     console.error('[PDF导出-文字型] 失败:', err)
-    ElMessage.error('PDF 导出失败，请稍后重试')
+    // 如果错误消息是字符串则直接展示，否则用通用提示
+    ElMessage.error(typeof err === 'string' ? err : (err?.message || 'PDF 导出失败，请稍后重试'))
   } finally {
     textPdfExporting.value = false
   }
