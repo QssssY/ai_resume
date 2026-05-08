@@ -59,6 +59,12 @@ export function connectNotificationStream({ onNotification, onUnreadCount, onErr
   const tokenType = getTokenType() || 'Bearer';
   const controller = new AbortController();
   let reconnectTimer = null;
+  /** 当前重连延迟（指数退避：5s → 10s → 20s → 40s → 60s 封顶） */
+  let reconnectDelay = 5000;
+  const MAX_RECONNECT_DELAY = 60000;
+  /** 已连续重连次数 */
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT_ATTEMPTS = 20;
 
   const connect = async () => {
     try {
@@ -73,6 +79,10 @@ export function connectNotificationStream({ onNotification, onUnreadCount, onErr
       if (!response.ok) {
         throw new Error(`SSE 连接失败: ${response.status}`);
       }
+
+      // 连接成功，重置重连计数和延迟
+      reconnectAttempts = 0;
+      reconnectDelay = 5000;
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -90,7 +100,10 @@ export function connectNotificationStream({ onNotification, onUnreadCount, onErr
         let eventData = '';
 
         for (const line of lines) {
-          if (line.startsWith('event:')) {
+          if (line.startsWith(':')) {
+            // SSE 注释行（心跳），忽略
+            continue;
+          } else if (line.startsWith('event:')) {
             eventType = line.slice(6).trim();
           } else if (line.startsWith('data:')) {
             eventData = line.slice(5).trim();
@@ -114,14 +127,20 @@ export function connectNotificationStream({ onNotification, onUnreadCount, onErr
     } catch (e) {
       if (e.name !== 'AbortError') {
         console.error('[SSE] 连接错误:', e);
-        // 断线后 5 秒自动重连（如果未被主动中断）
-        if (!controller.signal.aborted) {
+        // 指数退避自动重连（如果未被主动中断且未超过最大重试次数）
+        if (!controller.signal.aborted && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          const delay = reconnectDelay;
+          // 下次延迟翻倍，封顶 60s
+          reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
+          console.log(`[SSE] ${delay / 1000}s 后尝试第 ${reconnectAttempts} 次重连...`);
           reconnectTimer = setTimeout(() => {
             if (!controller.signal.aborted) {
-              console.log('[SSE] 尝试重连...');
               connect();
             }
-          }, 5000);
+          }, delay);
+        } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+          console.warn('[SSE] 已达最大重连次数，停止重连');
         }
         if (onError) onError(e);
       }

@@ -1071,11 +1071,8 @@ watch(isLoggedIn, (loggedIn) => {
         }
       },
       onError() {
-        // SSE 断线时降级为轮询（5 分钟间隔）
+        // SSE 断线时降级为轮询（由外层统一管理定时器，此处仅记录日志）
         console.warn("[SSE] 连接断开，降级为轮询模式");
-        if (!notificationTimer) {
-          notificationTimer = setInterval(fetchUnreadCount, 300000);
-        }
       }
     });
     // 降级轮询：每 5 分钟同步一次（防止 SSE 丢失事件）
