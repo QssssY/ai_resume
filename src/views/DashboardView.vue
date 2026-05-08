@@ -574,6 +574,7 @@ const recentResumeRecords = computed(() => {
     taskId: item.taskId,
     fileName: extractFileName(item.fileUrl),
     time: formatTime(extractTimeFromRecord(item)),
+    status: item.status,
     statusText: getStatusText(item.status),
     statusClass: getStatusClass(item.status),
   }));
