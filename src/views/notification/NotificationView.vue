@@ -155,7 +155,7 @@ const fetchNotifications = async () => {
     if (res.code === 200) {
       notifications.value = res.data.records || []
       total.value = res.data.total || 0
-      unreadCount.value = res.data.unreadCount || 0
+      unreadCount.value = Number(res.data.unreadCount) || 0
     }
   } catch (e) {
     console.error('获取通知列表失败', e)
@@ -171,7 +171,7 @@ const fetchUnreadCount = async () => {
   try {
     const res = await getUnreadCount()
     if (res.code === 200) {
-      unreadCount.value = res.data.unreadCount || 0
+      unreadCount.value = Number(res.data.unreadCount) || 0
     }
   } catch (e) {
     console.error('获取未读数量失败', e)
@@ -200,14 +200,17 @@ const handlePageChange = (page) => {
 const handleItemClick = async (item) => {
   // 未读时标记已读
   if (item.readStatus === 0) {
-    try {
-      await markAsRead(item.id)
-      item.readStatus = 1
-      item.readTime = new Date().toISOString()
-      unreadCount.value = Math.max(0, unreadCount.value - 1)
-    } catch (e) {
-      console.error('标记已读失败', e)
-    }
+    // 乐观更新 UI
+    item.readStatus = 1
+    item.readTime = new Date().toISOString()
+    unreadCount.value = Math.max(0, unreadCount.value - 1)
+    // 发送已读请求（不阻塞导航，失败时回滚 UI）
+    markAsRead(item.id).catch((e) => {
+      console.error('标记已读失败，回滚状态', e)
+      item.readStatus = 0
+      item.readTime = null
+      unreadCount.value += 1
+    })
   }
 
   // 根据业务类型跳转

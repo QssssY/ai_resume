@@ -98,3 +98,19 @@ export function resetPasswordBySecurity(data) {
     data
   })
 }
+
+/**
+ * 修改安全问题和答案（需登录）
+ * @param {Object} data - 修改参数
+ * @param {string} data.oldPassword - 原密码
+ * @param {string} data.securityQuestion - 安全问题
+ * @param {string} data.securityAnswer - 安全答案
+ * @returns {Promise}
+ */
+export function updateSecurityQuestion(data) {
+  return request({
+    url: '/api/auth/security-question',
+    method: 'put',
+    data
+  })
+}
