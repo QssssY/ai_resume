@@ -269,6 +269,7 @@ const tagStyleTemplateOptions = [
   { value: 'gray-muted', className: 'tag-style-gray' },
   { value: 'outline', className: 'tag-style-outline' },
   { value: 'pill', className: 'tag-style-pill' },
+  { value: 'pink-rose', className: 'tag-style-pink' },
 ]
 
 // 历史值兼容映射（与管理端保持一致）
@@ -366,12 +367,6 @@ const buildCreatePayload = () => {
 };
 
 const handleStart = async () => {
-  if (!userStore.isLoggedIn()) {
-    ElMessage.warning("请先登录");
-    router.push("/login");
-    return;
-  }
-
   if (!selectedJob.value) {
     ElMessage.warning("请选择面试岗位");
     return;
@@ -406,6 +401,28 @@ const handleStart = async () => {
 onMounted(async () => {
   await fetchJobOptions();
   await fetchResumeTaskDetail();
+
+  // 从面试报告页"再来一次"时，预填上次面试配置
+  const q = route.query;
+  if (q.difficulty && ["primary", "intermediate", "advanced"].includes(q.difficulty)) {
+    selectedDifficulty.value = q.difficulty;
+  }
+  if (q.mode && ["normal", "stress"].includes(q.mode)) {
+    selectedMode.value = q.mode;
+  }
+  if (q.jobTargeted === "1") {
+    jobTargeted.value = true;
+  }
+  // 岗位需要匹配 jobOptions，确保选项已加载后再设置
+  if (q.jobRole && jobOptions.value.length > 0) {
+    const matched = jobOptions.value.find(
+      (opt) => opt.roleCode === q.jobRole || opt.label === q.jobRole
+    );
+    if (matched) {
+      selectedJob.value = matched.label;
+      selectedRoleCode.value = matched.roleCode || "";
+    }
+  }
 });
 </script>
 
@@ -599,6 +616,11 @@ onMounted(async () => {
   background-color: rgba(255, 140, 66, 0.12);
   color: #b35f2b;
   border-radius: 999px;
+}
+
+.tag-style-pink {
+  background-color: rgba(236, 113, 147, 0.12);
+  color: #d64575;
 }
 
 .empty-options {
