@@ -189,8 +189,15 @@
             >
               <template #title>
                 <div class="collapse-title">
-                  <span class="collapse-question">Q{{ index + 1 }} · {{ item.question || "未记录问题" }}</span>
-                  <el-tag v-if="item.score != null" size="small" type="warning" effect="plain" class="collapse-score">{{ item.score }}分</el-tag>
+                  <div class="collapse-title-left">
+                    <span
+                      class="collapse-question"
+                      :title="`Q${index + 1} · ${item.question || '未记录问题'}`"
+                    >Q{{ index + 1 }} · {{ item.question || "未记录问题" }}</span>
+                  </div>
+                  <div v-if="item.score != null" class="collapse-title-right">
+                    <el-tag size="small" type="warning" effect="plain" class="collapse-score">{{ item.score }}分</el-tag>
+                  </div>
                 </div>
               </template>
               <div class="question-answer">{{ item.answer || "未记录回答" }}</div>
@@ -752,28 +759,83 @@ onUnmounted(() => {
   margin-bottom: 0;
 }
 
-/* 折叠面板标题样式 */
-.collapse-title {
-  display: flex;
+/* ---- 折叠面板标题：Grid 双列，左侧文本省略，右侧得分固定 ---- */
+:deep(.el-collapse-item__header) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  width: 100%;
+  column-gap: 8px;
   min-width: 0;
+  overflow: hidden;
+}
+
+:deep(.el-collapse-item__arrow) {
+  grid-column: 2;
+  flex: none;
+  margin-left: 0;
+}
+
+.collapse-title {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.collapse-title-left {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .collapse-question {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-title, #2f2f2f);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
+}
+
+.collapse-title-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: max-content;
 }
 
 .collapse-score {
-  flex-shrink: 0;
+  flex: none;
+  white-space: nowrap;
+}
+
+/* ---- 防溢出：外层容器约束 ---- */
+.report-content,
+.section-card,
+.section-body,
+:deep(.el-collapse),
+:deep(.el-collapse-item),
+:deep(.el-collapse-item__wrap),
+:deep(.el-collapse-item__content) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.section-card {
+  overflow: hidden;
+}
+
+/* 展开内容长文本自然换行 */
+.question-answer,
+.question-comment {
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .question-title {
