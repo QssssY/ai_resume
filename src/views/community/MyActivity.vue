@@ -1,0 +1,1314 @@
+<template>
+  <div class="my-activity-page">
+    <!-- 顶部导航 -->
+    <div class="top-bar">
+      <button class="back-btn" @click="goBack">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        <span>返回</span>
+      </button>
+      <h1 class="page-title">个人动态中心</h1>
+    </div>
+
+    <!-- 标签栏 -->
+    <div class="tab-bar">
+      <button
+        v-for="tab in tabs"
+        :key="tab.key"
+        class="tab-btn"
+        :class="{ active: activeTab === tab.key }"
+        @click="switchTab(tab.key)"
+      >
+        {{ tab.label }}
+        <span v-if="tab.key === 'interactions' && unreadCount > 0" class="unread-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+      </button>
+      <div class="tab-indicator" :style="indicatorStyle"></div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div v-if="isLoading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <span>加载中...</span>
+    </div>
+
+    <!-- 评论列表（评论过的帖子标签） -->
+    <div v-else-if="activeTab === 'commented' && commentedState.comments.value.length > 0" class="post-list">
+      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
+        <div v-for="item in commentedState.comments.value" :key="item.commentId" class="my-comment-card" :class="{ 'post-deleted': item.postDeleted }" @click="!item.postDeleted && goToDetail(item.postId)">
+          <!-- 我的评论（主要） -->
+          <div class="comment-primary">
+            <div class="comment-primary-header">
+              <svg class="comment-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span class="comment-label">我的评论</span>
+              <span class="comment-time">{{ formatTime(item.commentTime) }}</span>
+            </div>
+            <p class="comment-text">{{ item.commentContent }}</p>
+          </div>
+          <!-- 所属帖子（次要） -->
+          <div v-if="item.postDeleted" class="comment-post-ref deleted">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+            <span class="deleted-text">原帖已被删除</span>
+          </div>
+          <div v-else class="comment-post-ref">
+            <span class="category-dot" :class="item.postCategory"></span>
+            <span class="category-label">{{ categoryLabel(item.postCategory) }}</span>
+            <span class="post-author">@{{ item.postAuthorName }}</span>
+            <span class="post-snippet">{{ item.postContent?.slice(0, 60) }}{{ (item.postContent?.length || 0) > 60 ? '...' : '' }}</span>
+            <span v-if="getImageCount(item.postImages) > 0" class="post-img-count">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              {{ getImageCount(item.postImages) }}
+            </span>
+          </div>
+        </div>
+      </TransitionGroup>
+
+      <!-- 加载更多 -->
+      <div v-if="commentedState.hasMore.value" class="load-more">
+        <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+          <span v-if="loadingMore" class="btn-spinner"></span>
+          <span v-else>加载更多</span>
+        </button>
+      </div>
+
+      <div v-if="!commentedState.hasMore.value && commentedState.comments.value.length > 0" class="no-more">
+        <span class="no-more-line"></span>
+        <span class="no-more-text">没有更多了</span>
+        <span class="no-more-line"></span>
+      </div>
+    </div>
+
+    <!-- 帖子列表（我的帖子 / 点赞过的帖子标签） -->
+    <div v-else-if="activeTab !== 'commented' && activeTab !== 'interactions' && currentTabState.posts.value.length > 0" class="post-list">
+      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
+        <div v-for="post in currentTabState.posts.value" :key="post.id" class="my-post-card">
+          <div class="card-main" @click="goToDetail(post.id)">
+            <div class="card-header">
+              <span class="category-dot" :class="post.category"></span>
+              <span class="category-label">{{ categoryLabel(post.category) }}</span>
+              <span class="card-time">{{ formatTime(post.createTime) }}</span>
+            </div>
+            <p class="card-content">{{ post.content }}</p>
+            <div v-if="post.images && post.images.length > 0" class="card-image-hint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              <span>{{ post.images.length }}张图片</span>
+            </div>
+            <div class="card-stats">
+              <span class="stat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                {{ post.likeCount || 0 }}
+              </span>
+              <span class="stat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                {{ post.commentCount || 0 }}
+              </span>
+            </div>
+          </div>
+          <button v-if="activeTab === 'mine'" class="delete-btn" @click.stop="confirmDelete(post)" title="删除帖子">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        </div>
+      </TransitionGroup>
+
+      <!-- 加载更多 -->
+      <div v-if="currentTabState.hasMore.value" class="load-more">
+        <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+          <span v-if="loadingMore" class="btn-spinner"></span>
+          <span v-else>加载更多</span>
+        </button>
+      </div>
+
+      <div v-if="!currentTabState.hasMore.value && currentTabState.posts.value.length > 0" class="no-more">
+        <span class="no-more-line"></span>
+        <span class="no-more-text">没有更多了</span>
+        <span class="no-more-line"></span>
+      </div>
+    </div>
+
+    <!-- 互动信息列表 -->
+    <div v-else-if="activeTab === 'interactions' && hasInteractions" class="interactions-page">
+      <!-- 点赞分组 -->
+      <div v-if="interactionsState.likes.value.length > 0" class="interaction-section">
+        <div class="interaction-section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          <span>点赞 ({{ interactionsState.totalLikes.value }})</span>
+        </div>
+        <div class="interaction-list">
+          <div v-for="item in interactionsState.likes.value" :key="`like-${item.userId}-${item.postId}`" class="interaction-card" @click="goToDetail(item.postId)">
+            <div class="interaction-card-main">
+              <span class="actor-name">{{ item.userName }}</span>
+              <span class="action-text">赞了你的帖子</span>
+              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
+            </div>
+            <div class="interaction-post-ref">
+              <span class="category-dot" :class="item.postCategory"></span>
+              <span class="post-snippet">{{ item.postContent }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 评论分组 -->
+      <div v-if="interactionsState.comments.value.length > 0" class="interaction-section">
+        <div class="interaction-section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span>评论 ({{ interactionsState.totalComments.value }})</span>
+        </div>
+        <div class="interaction-list">
+          <div v-for="item in interactionsState.comments.value" :key="`comment-${item.userId}-${item.createTime}`" class="interaction-card" @click="goToDetail(item.postId)">
+            <div class="interaction-card-main">
+              <span class="actor-name">{{ item.userName }}</span>
+              <span class="action-text">评论了你的帖子</span>
+              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
+            </div>
+            <p class="comment-content">{{ item.commentContent }}</p>
+            <div class="interaction-post-ref">
+              <span class="category-dot" :class="item.postCategory"></span>
+              <span class="post-snippet">{{ item.postContent }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 回复分组 -->
+      <div v-if="interactionsState.replies.value.length > 0" class="interaction-section">
+        <div class="interaction-section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 17 4 12 9 7" />
+            <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+          </svg>
+          <span>回复 ({{ interactionsState.totalReplies.value }})</span>
+        </div>
+        <div class="interaction-list">
+          <div v-for="item in interactionsState.replies.value" :key="`reply-${item.userId}-${item.createTime}`" class="interaction-card" @click="goToDetail(item.postId)">
+            <div class="interaction-card-main">
+              <span class="actor-name">{{ item.userName }}</span>
+              <span class="action-text">回复了你的评论</span>
+              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
+            </div>
+            <p class="comment-content">{{ item.replyContent }}</p>
+            <div v-if="item.parentCommentContent" class="reply-parent">
+              <span class="reply-parent-label">原评论：</span>
+              <span class="reply-parent-text">{{ item.parentCommentContent }}</span>
+            </div>
+            <div class="interaction-post-ref">
+              <span class="category-dot" :class="item.postCategory"></span>
+              <span class="post-snippet">{{ item.postContent }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 加载更多 -->
+      <div v-if="interactionsState.hasMore.value" class="load-more">
+        <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+          <span v-if="loadingMore" class="btn-spinner"></span>
+          <span v-else>加载更多</span>
+        </button>
+      </div>
+
+      <div v-if="!interactionsState.hasMore.value && hasInteractions" class="no-more">
+        <span class="no-more-line"></span>
+        <span class="no-more-text">没有更多了</span>
+        <span class="no-more-line"></span>
+      </div>
+    </div>
+
+    <!-- 空状态 -->
+    <div v-else class="empty-state">
+      <div class="empty-icon-wrapper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="12" y1="18" x2="12" y2="12" />
+          <line x1="9" y1="15" x2="15" y2="15" />
+        </svg>
+      </div>
+      <h3 class="empty-title">{{ emptyInfo.title }}</h3>
+      <p class="empty-desc">{{ emptyInfo.desc }}</p>
+      <button v-if="activeTab === 'mine'" class="empty-action" @click="goToCommunity">去发帖</button>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <el-dialog
+      v-model="showDeleteDialog"
+      title="删除帖子"
+      width="400px"
+      :append-to-body="true"
+    >
+      <div class="delete-dialog-body">
+        <p class="delete-warning">确定要删除这条帖子吗？删除后无法恢复。</p>
+        <p v-if="deletingPost" class="delete-preview">{{ deletingPost.content?.slice(0, 80) }}{{ (deletingPost.content?.length || 0) > 80 ? '...' : '' }}</p>
+      </div>
+      <template #footer>
+        <el-button @click="showDeleteDialog = false">取消</el-button>
+        <el-button type="danger" :loading="deleting" @click="handleDelete">确认删除</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { getMyPosts, getLikedPosts, getMyComments, deletePost, getMyInteractions, getInteractionUnreadCount } from '@/api/community'
+
+const router = useRouter()
+
+// 标签页配置
+const tabs = [
+  { key: 'mine', label: '我的帖子' },
+  { key: 'liked', label: '点赞过的帖子' },
+  { key: 'commented', label: '评论过的帖子' },
+  { key: 'interactions', label: '互动信息' }
+]
+
+const activeTab = ref('mine')
+
+// 每个标签独立的状态
+const mineState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const likedState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const commentedState = { comments: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const interactionsState = {
+  likes: ref([]),
+  comments: ref([]),
+  replies: ref([]),
+  totalLikes: ref(0),
+  totalComments: ref(0),
+  totalReplies: ref(0),
+  pageNum: ref(1),
+  hasMore: ref(false),
+  loading: ref(false)
+}
+
+// 未读互动数量
+const unreadCount = ref(0)
+const LAST_SEEN_KEY = 'community_last_interaction_seen'
+
+const postStateMap = { mine: mineState, liked: likedState }
+const currentTabState = computed(() => activeTab.value === 'commented' ? commentedState : postStateMap[activeTab.value])
+
+const pageSize = 15
+const loadingMore = ref(false)
+
+// 标签下划线指示器位置
+const indicatorStyle = computed(() => {
+  const idx = tabs.findIndex(t => t.key === activeTab.value)
+  return { transform: `translateX(${idx * 100}%)` }
+})
+
+// 加载状态判断
+const isLoading = computed(() => {
+  if (activeTab.value === 'commented') return commentedState.loading.value && commentedState.comments.value.length === 0
+  if (activeTab.value === 'interactions') return interactionsState.loading.value && interactionsState.likes.value.length === 0 && interactionsState.comments.value.length === 0 && interactionsState.replies.value.length === 0
+  return currentTabState.value.loading.value && currentTabState.value.posts.value.length === 0
+})
+
+// 互动信息是否有数据
+const hasInteractions = computed(() => interactionsState.likes.value.length > 0 || interactionsState.comments.value.length > 0 || interactionsState.replies.value.length > 0)
+
+// 空状态文案
+const emptyInfo = computed(() => {
+  const map = {
+    mine: { title: '还没有发布过帖子', desc: '去社区分享你的面试经验吧' },
+    liked: { title: '还没有点赞过帖子', desc: '去社区浏览并点赞感兴趣的帖子吧' },
+    commented: { title: '还没有评论过帖子', desc: '去社区参与讨论吧' },
+    interactions: { title: '还没有收到互动', desc: '发布帖子后，其他用户的点赞和评论会显示在这里' }
+  }
+  return map[activeTab.value]
+})
+
+const getImageCount = (imagesJson) => {
+  if (!imagesJson) return 0
+  try {
+    const arr = JSON.parse(imagesJson)
+    return Array.isArray(arr) ? arr.length : 0
+  } catch { return 0 }
+}
+
+const categoryLabel = (cat) => {
+  const map = { interview_exp: '面试经验', referral: '内推信息' }
+  return map[cat] || cat
+}
+
+const formatTime = (time) => {
+  if (!time) return ''
+  const date = new Date(time)
+  const now = new Date()
+  const diff = now - date
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}天前`
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${month}-${day}`
+}
+
+// 获取指定标签的数据
+const fetchTabData = async (tab, page = 1, append = false) => {
+  if (tab === 'commented') {
+    // 评论标签：获取我的评论列表
+    const state = commentedState
+    if (page === 1) state.loading.value = true
+    else loadingMore.value = true
+    try {
+      const res = await getMyComments({ pageNum: page, pageSize })
+      if (res.code === 200) {
+        const records = res.data?.list || []
+        const total = res.data?.total || 0
+        if (append) {
+          state.comments.value.push(...records)
+        } else {
+          state.comments.value = records
+        }
+        state.hasMore.value = state.comments.value.length < total
+        state.pageNum.value = page
+      }
+    } catch (err) {
+      console.error('[个人动态] 获取评论失败:', err)
+    } finally {
+      state.loading.value = false
+      loadingMore.value = false
+    }
+  } else if (tab === 'interactions') {
+    // 互动信息标签：获取收到的点赞、评论和回复
+    const state = interactionsState
+    if (page === 1) state.loading.value = true
+    else loadingMore.value = true
+    try {
+      const res = await getMyInteractions({ pageNum: page, pageSize })
+      if (res.code === 200) {
+        const data = res.data || {}
+        if (append) {
+          state.likes.value.push(...(data.likes || []))
+          state.comments.value.push(...(data.comments || []))
+          state.replies.value.push(...(data.replies || []))
+        } else {
+          state.likes.value = data.likes || []
+          state.comments.value = data.comments || []
+          state.replies.value = data.replies || []
+        }
+        state.totalLikes.value = data.totalLikes || 0
+        state.totalComments.value = data.totalComments || 0
+        state.totalReplies.value = data.totalReplies || 0
+        const loadedTotal = state.likes.value.length + state.comments.value.length + state.replies.value.length
+        const actualTotal = state.totalLikes.value + state.totalComments.value + state.totalReplies.value
+        state.hasMore.value = loadedTotal < actualTotal
+        state.pageNum.value = page
+      }
+    } catch (err) {
+      console.error('[个人动态] 获取互动信息失败:', err)
+    } finally {
+      state.loading.value = false
+      loadingMore.value = false
+    }
+  } else {
+    // 帖子标签：获取帖子列表
+    const state = postStateMap[tab]
+    const apiMap = { mine: getMyPosts, liked: getLikedPosts }
+    if (page === 1) state.loading.value = true
+    else loadingMore.value = true
+    try {
+      const res = await apiMap[tab]({ pageNum: page, pageSize })
+      if (res.code === 200) {
+        const records = res.data?.list || []
+        const total = res.data?.total || 0
+        if (append) {
+          state.posts.value.push(...records)
+        } else {
+          state.posts.value = records
+        }
+        state.hasMore.value = state.posts.value.length < total
+        state.pageNum.value = page
+      }
+    } catch (err) {
+      console.error('[个人动态] 获取帖子失败:', err)
+    } finally {
+      state.loading.value = false
+      loadingMore.value = false
+    }
+  }
+}
+
+// 切换标签（懒加载）
+const switchTab = (tab) => {
+  activeTab.value = tab
+  if (tab === 'commented') {
+    if (commentedState.comments.value.length === 0 && !commentedState.loading.value) {
+      fetchTabData(tab, 1)
+    }
+  } else if (tab === 'interactions') {
+    // 清除未读标记
+    localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString())
+    unreadCount.value = 0
+    if (interactionsState.likes.value.length === 0 && interactionsState.comments.value.length === 0 && interactionsState.replies.value.length === 0 && !interactionsState.loading.value) {
+      fetchTabData(tab, 1)
+    }
+  } else {
+    const state = postStateMap[tab]
+    if (state.posts.value.length === 0 && !state.loading.value) {
+      fetchTabData(tab, 1)
+    }
+  }
+}
+
+const loadMore = () => {
+  if (activeTab.value === 'interactions') {
+    fetchTabData('interactions', interactionsState.pageNum.value + 1, true)
+  } else {
+    const state = currentTabState.value
+    fetchTabData(activeTab.value, state.pageNum.value + 1, true)
+  }
+}
+
+const goToDetail = (postId) => {
+  router.push(`/community/post/${postId}`)
+}
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/community')
+  }
+}
+
+const goToCommunity = () => {
+  router.push('/community')
+}
+
+// 删除帖子相关（仅 mine 标签）
+const showDeleteDialog = ref(false)
+const deletingPost = ref(null)
+const deleting = ref(false)
+
+const confirmDelete = (post) => {
+  deletingPost.value = post
+  showDeleteDialog.value = true
+}
+
+const handleDelete = async () => {
+  if (!deletingPost.value) return
+  deleting.value = true
+  try {
+    await deletePost(deletingPost.value.id)
+    ElMessage.success('帖子已删除')
+    mineState.posts.value = mineState.posts.value.filter(p => p.id !== deletingPost.value.id)
+    showDeleteDialog.value = false
+    deletingPost.value = null
+  } catch (err) {
+    console.error('删除失败:', err)
+  } finally {
+    deleting.value = false
+  }
+}
+
+onMounted(() => {
+  fetchTabData('mine', 1)
+  // 查询未读互动数量
+  const lastSeen = localStorage.getItem(LAST_SEEN_KEY)
+  if (lastSeen) {
+    getInteractionUnreadCount(lastSeen).then(res => {
+      if (res.code === 200) {
+        unreadCount.value = res.data || 0
+      }
+    }).catch(() => {})
+  }
+})
+</script>
+
+<style scoped>
+.my-activity-page {
+  min-height: 100%;
+  padding: 0 0 40px;
+  animation: pageIn 0.35s ease both;
+}
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== 顶部导航 ===== */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  background: var(--bg-card);
+  color: var(--text-body);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
+  transition: all 0.25s;
+}
+
+.back-btn:hover {
+  color: var(--orange-main);
+  background: var(--orange-light-bg);
+  border-color: var(--orange-border);
+  gap: 10px;
+}
+
+.back-btn svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.25s;
+}
+
+.back-btn:hover svg {
+  transform: translateX(-2px);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-title);
+  letter-spacing: 0.3px;
+}
+
+/* ===== 标签栏 ===== */
+.tab-bar {
+  display: flex;
+  position: relative;
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
+}
+
+.tab-btn {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 9px;
+  transition: color 0.25s;
+  white-space: nowrap;
+}
+
+.tab-btn.active {
+  color: #fff;
+  font-weight: 600;
+}
+
+.tab-btn {
+  position: relative;
+}
+
+.unread-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #f53f3f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 10px;
+  z-index: 2;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(245, 63, 63, 0.4);
+}
+
+.tab-indicator {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 4);
+  height: calc(100% - 8px);
+  background: linear-gradient(135deg, var(--orange-main), var(--orange-deep));
+  border-radius: 9px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(255, 140, 66, 0.3);
+}
+
+/* ===== 加载状态 ===== */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 0;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-divider);
+  border-top-color: var(--orange-main);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== 帖子列表 ===== */
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.post-list-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ===== 评论卡片（评论过的帖子） ===== */
+.my-comment-card {
+  background: var(--bg-card);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.my-comment-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border-color: var(--orange-border);
+}
+
+.my-comment-card.post-deleted {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.my-comment-card.post-deleted:hover {
+  box-shadow: var(--shadow-card);
+  border-color: var(--border-card);
+}
+
+.comment-primary {
+  padding: 18px 20px 14px;
+}
+
+.comment-primary-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.comment-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--orange-main);
+  flex-shrink: 0;
+}
+
+.comment-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--orange-main);
+}
+
+.comment-time {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  margin-left: auto;
+}
+
+.comment-text {
+  font-size: 14px;
+  color: var(--text-title);
+  line-height: 1.7;
+  margin: 0;
+  word-break: break-all;
+}
+
+.comment-post-ref {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-divider);
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+}
+
+.comment-post-ref.deleted {
+  gap: 6px;
+  color: var(--text-placeholder);
+}
+
+.deleted-text {
+  font-size: 12px;
+  color: var(--text-placeholder);
+}
+
+.comment-post-ref .category-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.comment-post-ref .category-dot.interview_exp {
+  background: var(--orange-main);
+}
+
+.comment-post-ref .category-dot.referral {
+  background: var(--color-success);
+}
+
+.comment-post-ref .category-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.post-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-body);
+  flex-shrink: 0;
+}
+
+.post-snippet {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.post-img-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-placeholder);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ===== 帖子卡片 ===== */
+.my-post-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-card);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
+  overflow: hidden;
+  transition: all 0.25s;
+}
+
+.my-post-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border-color: var(--orange-border);
+}
+
+.card-main {
+  flex: 1;
+  min-width: 0;
+  padding: 18px 20px;
+  cursor: pointer;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.category-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.category-dot.interview_exp {
+  background: var(--orange-main);
+}
+
+.category-dot.referral {
+  background: var(--color-success);
+}
+
+.category-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+.card-time {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  margin-left: auto;
+}
+
+.card-content {
+  font-size: 14px;
+  color: var(--text-body);
+  line-height: 1.7;
+  margin: 0 0 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-all;
+}
+
+.card-image-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  padding: 3px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.card-image-hint svg {
+  width: 14px;
+  height: 14px;
+}
+
+.card-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stat svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== 互动信息页面 ===== */
+.interactions-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.interaction-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.interaction-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-title);
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--orange-border);
+}
+
+.interaction-section-header svg {
+  width: 18px;
+  height: 18px;
+  color: var(--orange-main);
+}
+
+.interaction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.interaction-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-card);
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.interaction-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: var(--orange-border);
+}
+
+.interaction-card-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.actor-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--orange-main);
+}
+
+.action-text {
+  font-size: 13px;
+  color: var(--text-body);
+}
+
+.interaction-time {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  margin-left: auto;
+}
+
+.comment-content {
+  font-size: 13px;
+  color: var(--text-title);
+  line-height: 1.6;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  word-break: break-all;
+}
+
+.interaction-post-ref {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.interaction-post-ref .category-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.interaction-post-ref .category-dot.interview_exp {
+  background: var(--orange-main);
+}
+
+.interaction-post-ref .category-dot.referral {
+  background: var(--color-success);
+}
+
+.reply-parent {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.reply-parent-label {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--text-placeholder);
+}
+
+.reply-parent-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.post-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ===== 删除按钮 ===== */
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--text-placeholder);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 1px solid var(--border-divider);
+}
+
+.delete-btn:hover {
+  background: rgba(245, 63, 63, 0.06);
+  color: var(--color-danger);
+}
+
+.delete-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ===== 列表动画 ===== */
+.post-card-enter-active {
+  animation: cardIn 0.3s ease both;
+}
+
+.post-card-leave-active {
+  animation: cardOut 0.25s ease both;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cardOut {
+  from { opacity: 1; transform: translateX(0); max-height: 200px; }
+  to { opacity: 0; transform: translateX(30px); max-height: 0; margin: 0; padding: 0; }
+}
+
+/* ===== 加载更多 ===== */
+.load-more {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.load-more-btn {
+  padding: 8px 24px;
+  border: 1px solid var(--border-divider);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 20px;
+  transition: all 0.25s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  border-color: var(--orange-border);
+  color: var(--orange-main);
+  background: var(--orange-light-bg);
+}
+
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-divider);
+  border-top-color: var(--orange-main);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.no-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 0;
+}
+
+.no-more-line {
+  display: block;
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--orange-border), transparent);
+}
+
+.no-more-text {
+  font-size: 13px;
+  color: var(--text-placeholder);
+  letter-spacing: 2px;
+}
+
+/* ===== 空状态 ===== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 0;
+  text-align: center;
+}
+
+.empty-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--orange-light-bg) 0%, var(--orange-border) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  animation: floatBreathe 3s ease-in-out infinite;
+}
+
+@keyframes floatBreathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.empty-icon-wrapper svg {
+  width: 40px;
+  height: 40px;
+  color: var(--orange-main);
+}
+
+.empty-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.empty-desc {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.empty-action {
+  padding: 10px 28px;
+  border: none;
+  background: linear-gradient(135deg, var(--orange-main), var(--orange-deep));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.3);
+  transition: all 0.25s;
+}
+
+.empty-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(255, 140, 66, 0.4);
+}
+
+/* ===== 删除弹窗 ===== */
+.delete-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.delete-warning {
+  font-size: 14px;
+  color: var(--text-body);
+  margin: 0;
+}
+
+.delete-preview {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border-radius: 10px;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 600px) {
+  .top-bar {
+    margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-size: 17px;
+  }
+
+  .tab-btn {
+    font-size: 13px;
+    padding: 9px 0;
+  }
+
+  .card-main {
+    padding: 14px 16px;
+  }
+
+  .delete-btn {
+    width: 40px;
+  }
+}
+</style>

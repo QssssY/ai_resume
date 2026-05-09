@@ -206,9 +206,25 @@
         <div class="action-group">
           <el-button @click="goBack" class="action-btn secondary">返回历史</el-button>
           <el-button @click="goToSession" class="action-btn secondary">查看会话</el-button>
+          <el-button class="action-btn share-btn" @click="showShareDialog = true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="share-icon">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            分享到社区
+          </el-button>
           <el-button type="primary" class="action-btn primary" @click="goToEntry">再来一次</el-button>
         </div>
       </div>
+
+      <ShareReportDialog
+        v-model:visible="showShareDialog"
+        :session-data="sessionData"
+        @success="onShareSuccess"
+      />
     </div>
 
     <div v-else class="empty-section">
@@ -230,6 +246,7 @@ import { getInterviewSession } from "@/api/interview";
 import RadarChart from "@/components/resume/RadarChart.vue";
 import RadarScorePanel from "@/components/resume/RadarScorePanel.vue";
 import AiLoadingState from "@/components/common/AiLoadingState.vue";
+import ShareReportDialog from "@/components/community/ShareReportDialog.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -244,6 +261,12 @@ const reportPollRounds = ref(0);
 const REPORT_POLL_INTERVAL_MS = 3000;
 const REPORT_POLL_MAX_ROUNDS = 120;
 let reportPollingTimer = null;
+
+const showShareDialog = ref(false);
+
+const onShareSuccess = () => {
+  ElMessage.success("分享成功");
+};
 
 const isEnded = computed(() => sessionData.value?.status === 1);
 
@@ -759,6 +782,25 @@ onUnmounted(() => {
   background: linear-gradient(135deg, var(--orange-main, #ff8c42) 0%, #ff7a30 100%);
   border: none;
   color: var(--bg-card, #ffffff);
+}
+
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: var(--orange-main, #ff8c42);
+  color: var(--orange-main, #ff8c42);
+}
+
+.share-btn:hover {
+  background: var(--orange-light-bg, #fff8f3);
+  border-color: var(--orange-main, #ff8c42);
+  color: var(--orange-main, #ff8c42);
+}
+
+.share-icon {
+  width: 16px;
+  height: 16px;
 }
 
 @media (max-width: 900px) {

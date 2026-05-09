@@ -1,0 +1,1231 @@
+<template>
+  <div class="comment-section">
+    <!-- 评论区标题 -->
+    <div class="section-header">
+      <div class="header-left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-icon">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <h3 class="header-title">评论</h3>
+        <span v-if="total > 0" class="header-count">{{ total }}</span>
+      </div>
+      <div class="header-line"></div>
+    </div>
+
+    <!-- 评论输入框 -->
+    <div class="composer">
+      <div class="composer-avatar">
+        <img :src="userAvatar" alt="avatar" />
+      </div>
+      <div class="composer-body">
+        <textarea
+          ref="textareaRef"
+          v-model="commentText"
+          class="composer-input"
+          placeholder="说点什么吧..."
+          rows="1"
+          maxlength="500"
+          @focus="composerFocused = true"
+          @blur="onComposerBlur"
+          @input="autoResize"
+        />
+        <Transition name="toolbar-slide">
+          <div v-if="composerFocused || commentText.trim()" class="composer-toolbar">
+            <span class="char-count" :class="{ warn: commentText.length > 450 }">
+              {{ commentText.length }}<span class="char-sep">/</span>500
+            </span>
+            <div class="toolbar-actions">
+              <button class="btn-cancel" @click="cancelComment">取消</button>
+              <button
+                class="btn-submit"
+                :disabled="!commentText.trim() || submitting"
+                @click="handleSubmit"
+              >
+                <span v-if="submitting" class="btn-spinner"></span>
+                <span v-else>发布</span>
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-state">
+      <div class="loading-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <span class="loading-text">加载评论中</span>
+    </div>
+
+    <!-- 评论列表 -->
+    <TransitionGroup v-else-if="comments.length > 0" name="comment-list" tag="div" class="comment-list">
+      <div v-for="(comment, index) in comments" :key="comment.id" class="comment-card" :style="{ '--delay': index * 0.04 + 's' }">
+        <div class="comment-avatar">
+          <img :src="comment.authorAvatar || defaultAvatar" alt="avatar" />
+        </div>
+        <div class="comment-body">
+          <div class="comment-meta">
+            <span class="comment-author">{{ comment.authorName || '匿名用户' }}</span>
+            <span v-if="comment.isPostAuthor" class="author-badge">作者</span>
+            <span class="comment-dot">·</span>
+            <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
+            <button class="btn-reply" @click="startReply(comment)">回复</button>
+            <button
+              v-if="comment.deletable"
+              class="btn-delete-comment"
+              @click="handleDeleteComment(comment)"
+              title="删除评论"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
+          <p class="comment-content">{{ comment.content }}</p>
+
+          <!-- 展开/收起回复 -->
+          <button
+            v-if="comment.replyCount > 0"
+            class="btn-toggle-replies"
+            @click="toggleReplies(comment)"
+          >
+            <svg :class="{ rotated: expandedReplies.has(comment.id) }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+            <span v-if="!expandedReplies.has(comment.id)">共{{ comment.replyCount }}条回复，点击查看</span>
+            <span v-else>收起回复</span>
+          </button>
+
+          <!-- 回复列表 -->
+          <Transition name="reply-expand">
+            <div v-if="expandedReplies.has(comment.id) && repliesMap[comment.id]" class="reply-list">
+              <!-- 显示的回复（默认3条或全部） -->
+              <div
+                v-for="reply in getVisibleReplies(comment)"
+                :key="reply.id"
+                class="reply-card"
+              >
+                <div class="reply-avatar">
+                  <img :src="reply.authorAvatar || defaultAvatar" alt="avatar" />
+                </div>
+                <div class="reply-body">
+                  <div class="reply-meta">
+                    <span class="reply-author">{{ reply.authorName || '匿名用户' }}</span>
+                    <span v-if="reply.isPostAuthor" class="author-badge sm">作者</span>
+                    <span v-if="reply.replyToUserName" class="reply-to">
+                      回复 <span class="reply-to-name">@{{ reply.replyToUserName }}</span>
+                    </span>
+                    <span class="reply-dot">·</span>
+                    <span class="reply-time">{{ formatTime(reply.createTime) }}</span>
+                    <button
+                      v-if="reply.deletable"
+                      class="btn-delete-comment"
+                      @click="handleDeleteReply(comment, reply)"
+                      title="删除回复"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p class="reply-content">{{ reply.content }}</p>
+                </div>
+              </div>
+              <!-- 展开剩余回复 -->
+              <button
+                v-if="!showAllReplies.has(comment.id) && repliesMap[comment.id].length > 3"
+                class="btn-expand-more"
+                @click="showAllReplies.add(comment.id)"
+              >
+                展开剩余{{ repliesMap[comment.id].length - 3 }}条回复
+              </button>
+            </div>
+          </Transition>
+
+          <!-- 回复输入框（内联，出现在回复列表下方） -->
+          <Transition name="reply-expand">
+            <div v-if="replyTarget && replyTarget.id === comment.id" class="reply-composer">
+              <div class="reply-composer-header">
+                <span class="reply-to-hint">回复 @{{ replyTarget._replyToName || replyTarget.authorName }}</span>
+                <button class="btn-cancel-reply" @click="cancelReply">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div class="reply-composer-body">
+                <textarea
+                  ref="replyInputRef"
+                  v-model="replyText"
+                  class="reply-input"
+                  :placeholder="`回复 @${replyTarget._replyToName || replyTarget.authorName}...`"
+                  rows="1"
+                  maxlength="500"
+                  @input="autoResizeReply"
+                />
+                <div class="reply-composer-actions">
+                  <span class="char-count" :class="{ warn: replyText.length > 450 }">
+                    {{ replyText.length }}<span class="char-sep">/</span>500
+                  </span>
+                  <button
+                    class="btn-submit"
+                    :disabled="!replyText.trim() || submittingReply"
+                    @click="submitReply"
+                  >
+                    <span v-if="submittingReply" class="btn-spinner"></span>
+                    <span v-else>回复</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </div>
+    </TransitionGroup>
+
+    <!-- 加载更多 -->
+    <div v-if="hasMore && comments.length > 0" class="load-more">
+      <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+        <span v-if="loadingMore" class="btn-spinner sm"></span>
+        <span v-else>加载更多评论</span>
+      </button>
+    </div>
+
+    <!-- 空评论状态 -->
+    <div v-else-if="!loading && comments.length === 0" class="empty-state">
+      <div class="empty-illustration">
+        <svg viewBox="0 0 80 80" fill="none" class="empty-svg">
+          <rect x="12" y="16" width="56" height="40" rx="8" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3" opacity="0.3" />
+          <path d="M28 44l8-8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5" />
+          <circle cx="40" cy="32" r="2" fill="currentColor" opacity="0.3" />
+        </svg>
+      </div>
+      <p class="empty-title">还没有评论</p>
+      <p class="empty-desc">快来发表第一条评论吧</p>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted, computed, nextTick } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getComments, createComment, deleteComment, getReplies } from '@/api/community'
+import { useUserStore } from '@/stores/user'
+import defaultAvatar from '@/assets/user.png'
+
+const props = defineProps({
+  postId: {
+    type: [String, Number],
+    required: true
+  },
+  postUserId: {
+    type: [String, Number],
+    default: null
+  }
+})
+
+const currentUserId = computed(() => userStore.userInfo?.id)
+
+const userStore = useUserStore()
+const userAvatar = computed(() => userStore.userInfo?.avatar || defaultAvatar)
+
+const comments = ref([])
+const total = ref(0)
+const loading = ref(false)
+const loadingMore = ref(false)
+const submitting = ref(false)
+const commentText = ref('')
+const composerFocused = ref(false)
+const pageNum = ref(1)
+const pageSize = 20
+const hasMore = ref(false)
+const textareaRef = ref(null)
+
+// 回复相关状态
+const replyTarget = ref(null)
+const replyText = ref('')
+const replyInputRef = ref(null)
+const submittingReply = ref(false)
+const repliesMap = reactive({})
+const expandedReplies = reactive(new Set())
+const showAllReplies = reactive(new Set())
+const DEFAULT_VISIBLE_REPLIES = 3
+
+const getVisibleReplies = (comment) => {
+  const replies = repliesMap[comment.id]
+  if (!replies) return []
+  if (showAllReplies.has(comment.id)) return replies
+  return replies.slice(0, DEFAULT_VISIBLE_REPLIES)
+}
+
+const fetchComments = async (page = 1) => {
+  if (page === 1) loading.value = true
+  else loadingMore.value = true
+
+  try {
+    const res = await getComments(props.postId, { pageNum: page, pageSize })
+    if (res.code === 200) {
+      const records = res.data?.list || []
+      total.value = res.data?.total || 0
+      if (page === 1) {
+        comments.value = records
+      } else {
+        comments.value.push(...records)
+      }
+      hasMore.value = comments.value.length < total.value
+      pageNum.value = page
+    }
+  } catch (err) {
+    console.error('获取评论失败:', err)
+  } finally {
+    loading.value = false
+    loadingMore.value = false
+  }
+}
+
+const loadMore = () => {
+  fetchComments(pageNum.value + 1)
+}
+
+const autoResize = () => {
+  const el = textareaRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+}
+
+const onComposerBlur = () => {
+  if (!commentText.value.trim()) {
+    composerFocused.value = false
+  }
+}
+
+const cancelComment = () => {
+  commentText.value = ''
+  composerFocused.value = false
+  if (textareaRef.value) {
+    textareaRef.value.style.height = 'auto'
+    textareaRef.value.blur()
+  }
+}
+
+const handleSubmit = async () => {
+  const content = commentText.value.trim()
+  if (!content) return
+
+  submitting.value = true
+  try {
+    await createComment(props.postId, { content })
+    ElMessage.success('评论发布成功')
+    commentText.value = ''
+    composerFocused.value = false
+    if (textareaRef.value) textareaRef.value.style.height = 'auto'
+    fetchComments(1)
+  } catch (err) {
+    console.error('评论失败:', err)
+  } finally {
+    submitting.value = false
+  }
+}
+
+const handleDeleteComment = async (comment) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这条评论吗？', '删除评论', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await deleteComment(props.postId, comment.id)
+    ElMessage.success('评论已删除')
+    fetchComments(1)
+  } catch (err) {
+    if (err !== 'cancel') {
+      console.error('删除评论失败:', err)
+    }
+  }
+}
+
+const startReply = (comment, replyTo) => {
+  // 切换行为：点击同一评论的回复按钮则关闭，点击其他评论则切换
+  if (replyTarget.value && replyTarget.value.id === comment.id) {
+    cancelReply()
+    return
+  }
+  replyTarget.value = {
+    ...comment,
+    _replyToName: replyTo ? replyTo.authorName : comment.authorName,
+    _replyToUserId: replyTo ? replyTo.userId : comment.userId
+  }
+  replyText.value = ''
+  nextTick(() => {
+    replyInputRef.value?.focus()
+    autoResizeReply()
+  })
+}
+
+const cancelReply = () => {
+  replyTarget.value = null
+  replyText.value = ''
+}
+
+const submitReply = async () => {
+  const content = replyText.value.trim()
+  if (!content || !replyTarget.value) return
+
+  submittingReply.value = true
+  try {
+    const parentId = replyTarget.value.id
+    const replyToUserId = replyTarget.value._replyToUserId
+    await createComment(props.postId, { content, parentCommentId: parentId, replyToUserId })
+    ElMessage.success('回复成功')
+    replyText.value = ''
+    replyTarget.value = null
+    // 自动展开并刷新该评论的回复
+    expandedReplies.add(parentId)
+    fetchReplies(parentId)
+    // 刷新顶级评论列表（更新回复数）
+    fetchComments(1)
+  } catch (err) {
+    console.error('回复失败:', err)
+  } finally {
+    submittingReply.value = false
+  }
+}
+
+const toggleReplies = (comment) => {
+  if (expandedReplies.has(comment.id)) {
+    expandedReplies.delete(comment.id)
+  } else {
+    expandedReplies.add(comment.id)
+    if (!repliesMap[comment.id]) {
+      fetchReplies(comment.id)
+    }
+  }
+}
+
+const fetchReplies = async (commentId) => {
+  try {
+    const res = await getReplies(props.postId, commentId, { pageNum: 1, pageSize: 50 })
+    if (res.code === 200) {
+      repliesMap[commentId] = res.data?.list || []
+    }
+  } catch (err) {
+    console.error('获取回复失败:', err)
+  }
+}
+
+const handleDeleteReply = async (parentComment, reply) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这条回复吗？', '删除回复', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await deleteComment(props.postId, reply.id)
+    ElMessage.success('回复已删除')
+    fetchReplies(parentComment.id)
+    fetchComments(1)
+  } catch (err) {
+    if (err !== 'cancel') {
+      console.error('删除回复失败:', err)
+    }
+  }
+}
+
+const autoResizeReply = () => {
+  const el = replyInputRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px'
+}
+
+const formatTime = (time) => {
+  if (!time) return ''
+  const date = new Date(time)
+  const now = new Date()
+  const diff = now - date
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}天前`
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${month}-${day}`
+}
+
+onMounted(() => fetchComments())
+</script>
+
+<style scoped>
+/* ===== 评论区样式 ===== */
+
+.comment-section {
+  /* 由父容器 comment-wrapper 统一控制间距 */
+}
+
+/* —— 标题区域 —— */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.header-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--orange-main);
+}
+
+.header-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+
+.header-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--orange-main);
+  background: var(--orange-light-bg);
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.header-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--orange-border), transparent);
+}
+
+/* —— 评论输入框 —— */
+.composer {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 28px;
+  align-items: flex-start;
+}
+
+.composer-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--orange-border);
+  transition: box-shadow 0.3s ease;
+}
+
+.composer-avatar:hover {
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--orange-main);
+}
+
+.composer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.composer-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.composer-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--border-input);
+  border-radius: 14px;
+  font-size: 14px;
+  color: var(--text-title);
+  background: var(--bg-card);
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+  font-family: inherit;
+  line-height: 1.6;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.composer-input:focus {
+  outline: none;
+  border-color: var(--orange-main);
+  box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.1);
+}
+
+.composer-input::placeholder {
+  color: var(--text-placeholder);
+  transition: color 0.3s;
+}
+
+.composer-input:focus::placeholder {
+  color: var(--text-muted);
+}
+
+/* —— 输入框工具栏 —— */
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 0 2px;
+}
+
+.char-count {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  transition: color 0.3s;
+}
+
+.char-count.warn {
+  color: var(--color-warning);
+}
+
+.char-sep {
+  margin: 0 1px;
+  opacity: 0.5;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-cancel {
+  padding: 6px 16px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: var(--bg-elevated);
+  color: var(--text-body);
+}
+
+.btn-submit {
+  padding: 6px 20px;
+  border: none;
+  background: linear-gradient(135deg, var(--orange-main), var(--orange-deep));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(255, 140, 66, 0.3);
+  min-width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(255, 140, 66, 0.4);
+}
+
+.btn-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.btn-spinner.sm {
+  width: 12px;
+  height: 12px;
+  border-color: var(--border-divider);
+  border-top-color: var(--orange-main);
+}
+
+/* —— 工具栏动画 —— */
+.toolbar-slide-enter-active {
+  animation: slideDown 0.25s ease;
+}
+
+.toolbar-slide-leave-active {
+  animation: slideDown 0.2s ease reverse;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* —— 加载状态 —— */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 48px 0;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.loading-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--orange-border);
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+    background: var(--orange-main);
+  }
+}
+
+.loading-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* —— 评论列表 —— */
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* —— 评论卡片 —— */
+.comment-card {
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  transition: background 0.25s ease;
+  animation: commentEnter 0.35s ease both;
+  animation-delay: var(--delay, 0s);
+}
+
+.comment-card:hover {
+  background: var(--bg-elevated);
+}
+
+@keyframes commentEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.comment-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+}
+
+.comment-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.comment-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.author-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--orange-main);
+  background: var(--orange-light-bg);
+  border: 1px solid var(--orange-border);
+  padding: 1px 6px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+}
+
+.btn-delete-comment {
+  margin-left: auto;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--text-placeholder);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+
+.comment-card:hover .btn-delete-comment {
+  opacity: 1;
+}
+
+.btn-delete-comment:hover {
+  color: var(--color-danger);
+  background: rgba(245, 108, 108, 0.08);
+}
+
+.btn-delete-comment svg {
+  width: 14px;
+  height: 14px;
+}
+
+.comment-dot {
+  color: var(--text-placeholder);
+  font-size: 10px;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: var(--text-placeholder);
+}
+
+.comment-content {
+  font-size: 14px;
+  color: var(--text-body);
+  line-height: 1.75;
+  margin: 0;
+  word-break: break-all;
+  letter-spacing: 0.2px;
+}
+
+/* —— 评论列表动画 —— */
+.comment-list-enter-active {
+  animation: commentEnter 0.35s ease both;
+}
+
+.comment-list-leave-active {
+  animation: commentEnter 0.2s ease reverse;
+}
+
+/* —— 加载更多 —— */
+.load-more {
+  text-align: center;
+  padding: 16px 0 8px;
+}
+
+.load-more-btn {
+  padding: 8px 24px;
+  border: 1px solid var(--border-divider);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 20px;
+  transition: all 0.25s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  border-color: var(--orange-border);
+  color: var(--orange-main);
+  background: var(--orange-light-bg);
+}
+
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* —— 空状态 —— */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0 36px;
+}
+
+.empty-illustration {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 16px;
+  color: var(--text-placeholder);
+  animation: emptyFloat 3s ease-in-out infinite;
+}
+
+.empty-svg {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes emptyFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-title);
+  margin: 0 0 4px;
+}
+
+.empty-desc {
+  font-size: 13px;
+  color: var(--text-placeholder);
+  margin: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* —— 回复按钮 —— */
+.btn-reply {
+  padding: 2px 8px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-reply:hover {
+  color: var(--orange-main);
+  background: var(--orange-light-bg);
+}
+
+/* —— 展开/收起回复 —— */
+.btn-toggle-replies {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border: none;
+  background: none;
+  color: var(--orange-main);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-toggle-replies:hover {
+  background: var(--orange-light-bg);
+}
+
+.btn-toggle-replies svg {
+  transition: transform 0.25s;
+}
+
+.btn-toggle-replies svg.rotated {
+  transform: rotate(180deg);
+}
+
+/* —— 回复列表（楼中楼） —— */
+.reply-list {
+  margin-top: 10px;
+  margin-left: 4px;
+  padding: 6px 0 6px 14px;
+  border-left: 2.5px solid var(--orange-border);
+  background: linear-gradient(90deg, var(--orange-light-bg) 0%, transparent 100%);
+  border-radius: 0 0 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+.reply-card {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.reply-card:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.reply-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+}
+
+.reply-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.reply-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.reply-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+  flex-wrap: wrap;
+}
+
+.reply-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.author-badge.sm {
+  font-size: 9px;
+  padding: 0px 5px;
+}
+
+.reply-to {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.reply-to-name {
+  color: var(--orange-main);
+  font-weight: 500;
+}
+
+.reply-dot {
+  color: var(--text-placeholder);
+  font-size: 9px;
+}
+
+.reply-time {
+  font-size: 11px;
+  color: var(--text-placeholder);
+}
+
+.reply-content {
+  font-size: 13px;
+  color: var(--text-body);
+  line-height: 1.6;
+  margin: 0;
+  word-break: break-all;
+}
+
+/* —— 展开剩余回复 —— */
+.btn-expand-more {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: var(--orange-main);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.btn-expand-more:hover {
+  background: rgba(255, 140, 66, 0.06);
+}
+
+/* —— 回复输入框 —— */
+.reply-composer {
+  margin-top: 10px;
+  margin-left: 4px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border-radius: 10px;
+  border: 1px solid var(--border-divider);
+}
+
+.reply-composer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.reply-to-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.btn-cancel-reply {
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--text-placeholder);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.btn-cancel-reply:hover {
+  color: var(--text-body);
+  background: var(--bg-card);
+}
+
+.reply-composer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reply-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border-input);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text-title);
+  background: var(--bg-card);
+  resize: none;
+  min-height: 36px;
+  max-height: 100px;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.reply-input:focus {
+  outline: none;
+  border-color: var(--orange-main);
+  box-shadow: 0 0 0 2px rgba(255, 140, 66, 0.08);
+}
+
+.reply-input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.reply-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* —— 回复展开动画 —— */
+.reply-expand-enter-active {
+  animation: expandIn 0.3s ease;
+}
+
+.reply-expand-leave-active {
+  animation: expandIn 0.2s ease reverse;
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    max-height: 800px;
+    transform: translateY(0);
+  }
+}
+
+/* —— 响应式 —— */
+@media (max-width: 480px) {
+  .comment-card {
+    padding: 14px 12px;
+  }
+
+  .composer {
+    gap: 10px;
+  }
+
+  .composer-avatar {
+    width: 34px;
+    height: 34px;
+  }
+}
+</style>
