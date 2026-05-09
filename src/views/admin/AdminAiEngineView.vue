@@ -186,6 +186,34 @@
             <div class="table-header">模型名</div>
           </template>
         </el-table-column>
+        <el-table-column label="多模态" width="110" align="center">
+          <template #header>
+            <div class="table-header">多模态</div>
+          </template>
+          <template #default="{ row }">
+            <el-tag
+              :type="row.supportsMultimodal === 1 ? 'success' : 'info'"
+              effect="plain"
+              size="small"
+            >
+              {{ row.supportsMultimodal === 1 ? '支持' : '不支持' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="思考模式" width="110" align="center">
+          <template #header>
+            <div class="table-header">思考模式</div>
+          </template>
+          <template #default="{ row }">
+            <el-tag
+              :type="row.thinkingMode === 'enabled' ? 'success' : row.thinkingMode === 'disabled' ? 'warning' : 'info'"
+              effect="plain"
+              size="small"
+            >
+              {{ row.thinkingMode === 'enabled' ? '开启' : row.thinkingMode === 'disabled' ? '关闭' : '不传' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="baseUrl" label="基础地址" min-width="180" show-overflow-tooltip align="center">
           <template #header>
             <div class="table-header">基础地址</div>
@@ -244,7 +272,7 @@
                 size="small"
                 @click="handleToggleActive(row)"
                 class="action-btn"
-                :loading="toggleLoadingId === row.id"
+                :loading="toggleLoadingIds.has(row.id)"
               >
                 {{ row.isActive === 1 ? '禁用' : '启用' }}
               </el-button>
@@ -330,6 +358,26 @@
 
         <el-form-item label="模型名" prop="modelName">
           <el-input v-model.trim="formData.modelName" :disabled="submitLoading" />
+        </el-form-item>
+
+        <el-form-item v-if="formData.businessType === 'resume'" label="多模态">
+          <el-switch
+            v-model="resumeMultimodalEnabled"
+            :disabled="submitLoading"
+            inline-prompt
+            active-text="支持"
+            inactive-text="关闭"
+          />
+          <div class="field-tip">仅用于图片型 PDF 的「看图转文本」，不会替代原有文本型简历诊断链路。</div>
+        </el-form-item>
+
+        <el-form-item label="思考模式">
+          <el-select v-model="formData.thinkingMode" :disabled="submitLoading" style="width: 100%">
+            <el-option label="不传（使用模型默认行为）" value="none" />
+            <el-option label="开启" value="enabled" />
+            <el-option label="关闭" value="disabled" />
+          </el-select>
+          <div class="field-tip">控制是否向模型发送 thinking 参数。不支持的模型会自动忽略此配置。</div>
         </el-form-item>
 
         <el-form-item label="基础地址" prop="baseUrl">
@@ -457,7 +505,8 @@ const dialogVisible = ref(false)
 const isEditMode = ref(false)
 const submitLoading = ref(false)
 const formRef = ref(null)
-const toggleLoadingId = ref(null)
+/** 正在切换状态的行 ID 集合（per-row 锁，避免全局互斥） */
+const toggleLoadingIds = ref(new Set())
 const editOriginalPayload = ref(null)
 
 // 表单字段：与后端 DTO 字段保持一致。
@@ -468,6 +517,8 @@ const formData = reactive({
   providerType: '',
   businessType: 'interview',
   modelName: '',
+  supportsMultimodal: 0,
+  thinkingMode: 'none',
   baseUrl: '',
   apiKey: '',
   temperature: 1.0,
@@ -476,6 +527,16 @@ const formData = reactive({
   isActive: 1,
   sort: 0,
   remark: ''
+})
+
+/**
+ * 用布尔开关承载表单展示，提交时再转换为后端约定的 0/1。
+ */
+const resumeMultimodalEnabled = computed({
+  get: () => Number(formData.supportsMultimodal) === 1,
+  set: (value) => {
+    formData.supportsMultimodal = value ? 1 : 0
+  }
 })
 
 // Provider 预设：用于提升表单填写效率，减少重复录入基础地址。
@@ -581,7 +642,7 @@ const parameterSuggestionText = computed(() => {
 
 /**
  * 各业务当前生效引擎 ID 映射。
- * 作用：用于识别“当前生效项”并在列表中高亮展示。
+ * 作用：用于识别"当前生效项"并在列表中高亮展示。
  */
 const activeEngineIdByBusiness = computed(() => {
   return engineList.value.reduce((map, item) => {
@@ -603,19 +664,19 @@ const activeEngineIdByBusiness = computed(() => {
 const isCurrentActiveEngine = (row) => {
   const businessType = String(row?.businessType || '')
   if (!businessType) return false
-  return Number(activeEngineIdByBusiness.value[businessType]) === Number(row?.id)
+  return String(activeEngineIdByBusiness.value[businessType]) === String(row?.id)
 }
 
 /**
  * 获取某业务当前生效配置。
- * 作用：启停确认时提示“会替换谁”，让管理员明确影响范围。
+ * 作用：启停确认时提示"会替换谁"，让管理员明确影响范围。
  * @param {string} businessType
  * @returns {Record<string, any> | null}
  */
 const getCurrentActiveEngineByBusiness = (businessType) => {
   const activeId = activeEngineIdByBusiness.value[String(businessType || '')]
   if (!activeId) return null
-  return engineList.value.find((item) => Number(item.id) === Number(activeId)) || null
+  return engineList.value.find((item) => String(item.id) === String(activeId)) || null
 }
 
 /**
@@ -660,7 +721,7 @@ const pagedEngineList = computed(() => {
 
 /**
  * 表格空状态文案。
- * 作用：统一“系统无数据”和“筛选后无结果”两种空状态表达。
+ * 作用：统一"系统无数据"和"筛选后无结果"两种空状态表达。
  */
 const tableEmptyText = computed(() => {
   return resolveAdminTableEmptyText(engineList.value.length, filteredEngineList.value.length)
@@ -721,7 +782,7 @@ const matchedQuickFilterKey = computed(() => {
 })
 
 /**
- * 是否存在“同业务多启用”风险。
+ * 是否存在"同业务多启用"风险。
  * 作用：即使后端做约束，也给前端显式风险观测位，便于排查历史脏数据。
  */
 const hasMultiActiveRisk = computed(() => calculateMultiActiveRisk(engineList.value) > 0)
@@ -736,6 +797,7 @@ const resetFormData = () => {
   formData.providerType = ''
   formData.businessType = 'interview'
   formData.modelName = ''
+  formData.supportsMultimodal = 0
   formData.baseUrl = ''
   formData.apiKey = ''
   formData.temperature = 1.0
@@ -767,7 +829,7 @@ const findDuplicateEngineCode = () => {
   const currentCode = String(formData.engineCode || '').trim().toLowerCase()
   if (!currentCode) return null
   return engineList.value.find((item) => {
-    if (isEditMode.value && Number(item.id) === Number(formData.id)) return false
+    if (isEditMode.value && String(item.id) === String(formData.id)) return false
     return String(item.engineCode || '').trim().toLowerCase() === currentCode
   }) || null
 }
@@ -782,7 +844,7 @@ const findDuplicateBusinessModel = () => {
   const currentModelName = String(formData.modelName || '').trim().toLowerCase()
   if (!currentBusinessType || !currentModelName) return null
   return engineList.value.find((item) => {
-    if (isEditMode.value && Number(item.id) === Number(formData.id)) return false
+    if (isEditMode.value && String(item.id) === String(formData.id)) return false
     return String(item.businessType || '') === currentBusinessType
       && String(item.modelName || '').trim().toLowerCase() === currentModelName
   }) || null
@@ -803,6 +865,8 @@ const collectChangedFields = (previousPayload, nextPayload) => {
   if (String(previousPayload.providerType) !== String(nextPayload.providerType)) changed.push('Provider')
   if (String(previousPayload.businessType) !== String(nextPayload.businessType)) changed.push('业务类型')
   if (String(previousPayload.modelName) !== String(nextPayload.modelName)) changed.push('模型名')
+  if (Number(previousPayload.supportsMultimodal) !== Number(nextPayload.supportsMultimodal)) changed.push('多模态')
+  if (String(previousPayload.thinkingMode || 'none') !== String(nextPayload.thinkingMode || 'none')) changed.push('思考模式')
   if (String(previousPayload.baseUrl) !== String(nextPayload.baseUrl)) changed.push('基础地址')
   if (Number(previousPayload.temperature) !== Number(nextPayload.temperature)) changed.push('温度')
   if (Number(previousPayload.maxTokens) !== Number(nextPayload.maxTokens)) changed.push('MaxTokens')
@@ -925,6 +989,8 @@ const openEditDialog = (row) => {
     providerType: row.providerType || '',
     businessType: row.businessType || 'interview',
     modelName: row.modelName || '',
+    supportsMultimodal: Number(row.supportsMultimodal ?? 0),
+    thinkingMode: row.thinkingMode || 'none',
     baseUrl: row.baseUrl || '',
     temperature: Number(row.temperature ?? 1.0),
     maxTokens: Number(row.maxTokens ?? 4096),
@@ -939,6 +1005,8 @@ const openEditDialog = (row) => {
   formData.providerType = row.providerType || ''
   formData.businessType = row.businessType || 'interview'
   formData.modelName = row.modelName || ''
+  formData.supportsMultimodal = Number(row.supportsMultimodal ?? 0)
+  formData.thinkingMode = row.thinkingMode || 'none'
   formData.baseUrl = row.baseUrl || ''
   formData.apiKey = ''
   formData.temperature = Number(row.temperature ?? 1.0)
@@ -966,6 +1034,8 @@ const submitForm = async () => {
       providerType: String(formData.providerType || '').trim(),
       businessType: String(formData.businessType || '').trim(),
       modelName: String(formData.modelName || '').trim(),
+      supportsMultimodal: formData.businessType === 'resume' ? formData.supportsMultimodal : 0,
+      thinkingMode: formData.thinkingMode || 'none',
       baseUrl: String(formData.baseUrl || '').trim(),
       temperature: formData.temperature,
       maxTokens: formData.maxTokens,
@@ -1038,12 +1108,12 @@ const submitForm = async () => {
  * @param {Record<string, any>} row
  */
 const handleToggleActive = async (row) => {
-  if (toggleLoadingId.value) return
+  if (toggleLoadingIds.value.has(row.id)) return
 
   const nextActive = row.isActive === 1 ? 0 : 1
   const actionText = nextActive === 1 ? '启用' : '禁用'
 
-  // 已经是当前业务生效项时，重复点击“启用”不需要再发请求。
+  // 已经是当前业务生效项时，重复点击"启用"不需要再发请求。
   if (nextActive === 1 && isCurrentActiveEngine(row)) {
     showAdminWarning(`配置「${row.engineName}」已经是${row.businessTypeDesc}当前生效项`)
     return
@@ -1052,7 +1122,7 @@ const handleToggleActive = async (row) => {
   const currentActiveEngine = getCurrentActiveEngineByBusiness(row.businessType)
   const confirmLines = [`确认${actionText}配置「${row.engineName}」吗？`]
 
-  if (nextActive === 1 && currentActiveEngine && Number(currentActiveEngine.id) !== Number(row.id)) {
+  if (nextActive === 1 && currentActiveEngine && String(currentActiveEngine.id) !== String(row.id)) {
     confirmLines.push(`该操作会将当前生效配置「${currentActiveEngine.engineName}」自动切换为禁用。`)
   }
 
@@ -1069,11 +1139,11 @@ const handleToggleActive = async (row) => {
       impactHint: confirmLines.slice(1).join('；') || '该操作会影响当前业务的模型路由与线上调用结果。',
       type: 'warning'
     })
-    toggleLoadingId.value = row.id
+    toggleLoadingIds.value.add(row.id)
     await toggleAdminAiEngineActive(row.id, nextActive)
     await fetchEngineList()
 
-    if (nextActive === 1 && currentActiveEngine && Number(currentActiveEngine.id) !== Number(row.id)) {
+    if (nextActive === 1 && currentActiveEngine && String(currentActiveEngine.id) !== String(row.id)) {
       showAdminSuccess(`配置已启用，并替换生效项「${currentActiveEngine.engineName}」`)
       return
     }
@@ -1083,7 +1153,7 @@ const handleToggleActive = async (row) => {
       showAdminError(error?.message || `${actionText}配置失败`)
     }
   } finally {
-    toggleLoadingId.value = null
+    toggleLoadingIds.value.delete(row.id)
   }
 }
 

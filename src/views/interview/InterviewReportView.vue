@@ -181,24 +181,42 @@
           <h3 class="section-title">逐题表现</h3>
         </div>
         <div class="section-body">
-          <div v-for="(item, index) in reportQuestionPerformance" :key="`question-${index}`" class="question-card">
-            <div class="question-title">Q{{ index + 1 }} · {{ item.question || "未记录问题" }}</div>
-            <div class="question-answer">{{ item.answer || "未记录回答" }}</div>
-            <div class="question-footer">
-              <span class="question-score">得分：{{ item.score ?? "--" }}</span>
-              <div class="tag-list">
-                <el-tag
-                  v-for="tag in item.knowledgeTags || []"
-                  :key="`question-tag-${index}-${tag}`"
-                  size="small"
-                  effect="plain"
-                >
-                  {{ tag }}
-                </el-tag>
+          <el-collapse v-model="activeQuestions">
+            <el-collapse-item
+              v-for="(item, index) in reportQuestionPerformance"
+              :key="`question-${index}`"
+              :name="String(index)"
+            >
+              <template #title>
+                <div class="collapse-title">
+                  <div class="collapse-title-left">
+                    <span
+                      class="collapse-question"
+                      :title="`Q${index + 1} · ${item.question || '未记录问题'}`"
+                    >Q{{ index + 1 }} · {{ item.question || "未记录问题" }}</span>
+                  </div>
+                  <div v-if="item.score != null" class="collapse-title-right">
+                    <el-tag size="small" type="warning" effect="plain" class="collapse-score">{{ item.score }}分</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="question-answer">{{ item.answer || "未记录回答" }}</div>
+              <div class="question-footer">
+                <span class="question-score">得分：{{ item.score ?? "--" }}</span>
+                <div class="tag-list">
+                  <el-tag
+                    v-for="tag in item.knowledgeTags || []"
+                    :key="`question-tag-${index}-${tag}`"
+                    size="small"
+                    effect="plain"
+                  >
+                    {{ tag }}
+                  </el-tag>
+                </div>
               </div>
-            </div>
-            <div v-if="item.comment" class="question-comment">{{ item.comment }}</div>
-          </div>
+              <div v-if="item.comment" class="question-comment">{{ item.comment }}</div>
+            </el-collapse-item>
+          </el-collapse>
         </div>
       </div>
 
@@ -349,6 +367,17 @@ const reportSuggestions = computed(() => [
 ]);
 const reportQuestionPerformance = computed(() => parsedReport.value?.questionPerformance || []);
 
+// 逐题表现折叠面板：题目数 <= 3 时全部展开，> 3 时只展开最后 3 题
+const activeQuestions = ref([]);
+watch(reportQuestionPerformance, (list) => {
+  const count = list.length;
+  if (count <= 3) {
+    activeQuestions.value = list.map((_, i) => String(i));
+  } else {
+    activeQuestions.value = Array.from({ length: 3 }, (_, i) => String(count - 3 + i));
+  }
+}, { immediate: true });
+
 const jobTargetFeedback = computed(() => sessionData.value?.jobTargetContext?.jobTargetedFeedback || null);
 
 const dimensionCards = computed(() => {
@@ -472,7 +501,19 @@ const refreshReportNow = async () => {
 
 const goBack = () => router.push("/interview/history");
 const goToSession = () => sessionId.value && router.push(`/interview/session/${sessionId.value}`);
-const goToEntry = () => router.push("/interview/entry");
+const goToEntry = () => {
+  // 保留上次面试配置，方便用户快速再来一次
+  const difficultyMap = { 1: "primary", 2: "intermediate", 3: "advanced" };
+  router.push({
+    path: "/interview/entry",
+    query: {
+      jobRole: sessionData.value?.jobRole || undefined,
+      difficulty: difficultyMap[sessionData.value?.difficulty] || undefined,
+      mode: sessionData.value?.interviewMode || undefined,
+      jobTargeted: sessionData.value?.jobTargeted ? "1" : undefined,
+    }
+  });
+};
 
 onMounted(() => {
   fetchSessionDetail();
@@ -739,6 +780,85 @@ onUnmounted(() => {
 
 .question-card:last-child {
   margin-bottom: 0;
+}
+
+/* ---- 折叠面板标题：Grid 双列，左侧文本省略，右侧得分固定 ---- */
+:deep(.el-collapse-item__header) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+:deep(.el-collapse-item__arrow) {
+  grid-column: 2;
+  flex: none;
+  margin-left: 0;
+}
+
+.collapse-title {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.collapse-title-left {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.collapse-question {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title, #2f2f2f);
+}
+
+.collapse-title-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: max-content;
+}
+
+.collapse-score {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* ---- 防溢出：外层容器约束 ---- */
+.report-content,
+.section-card,
+.section-body,
+:deep(.el-collapse),
+:deep(.el-collapse-item),
+:deep(.el-collapse-item__wrap),
+:deep(.el-collapse-item__content) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.section-card {
+  overflow: hidden;
+}
+
+/* 展开内容长文本自然换行 */
+.question-answer,
+.question-comment {
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .question-title {

@@ -313,6 +313,18 @@
                 </svg>
                 修改密码
               </el-dropdown-item>
+              <el-dropdown-item command="securityQuestion">
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                修改安全问题
+              </el-dropdown-item>
               <!-- 退出登录 -->
               <!-- 会员中心入口：
                    页面已经存在，这里只是在头像下拉菜单中补入口。
@@ -573,6 +585,72 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 修改安全问题弹窗 -->
+    <el-dialog
+      v-model="securityDialogVisible"
+      title="修改安全问题"
+      width="440px"
+      :close-on-click-modal="false"
+      :show-close="true"
+      :append-to-body="true"
+      @closed="resetSecurityForm"
+    >
+      <el-form
+        ref="securityFormRef"
+        :model="securityForm"
+        :rules="securityRules"
+        label-position="top"
+        size="large"
+      >
+        <el-form-item label="原密码" prop="oldPassword">
+          <el-input
+            v-model="securityForm.oldPassword"
+            type="password"
+            show-password
+            placeholder="请输入原密码验证身份"
+          />
+        </el-form-item>
+        <el-form-item label="安全问题" prop="securityQuestion">
+          <el-select
+            v-model="securityForm.securityQuestion"
+            placeholder="请选择或输入安全问题"
+            filterable
+            allow-create
+            style="width: 100%"
+          >
+            <el-option
+              v-for="q in securityQuestionOptions"
+              :key="q"
+              :label="q"
+              :value="q"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="安全答案" prop="securityAnswer">
+          <el-input
+            v-model="securityForm.securityAnswer"
+            placeholder="请输入安全问题答案"
+            maxlength="100"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button size="large" @click="securityDialogVisible = false">取消</el-button>
+          <el-button
+            size="large"
+            type="primary"
+            @click="handleSecuritySave"
+            :loading="securitySaving"
+            class="save-btn"
+          >
+            确认修改
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </header>
 </template>
 
@@ -583,8 +661,8 @@ import { useUserStore } from "@/stores/user";
 import { useThemeStore } from "@/stores/theme";
 import { ElMessage } from "element-plus";
 import { removeToken } from "@/utils/auth";
-import { updateNickname, updatePassword } from "@/api/auth";
-import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from "@/api/notification";
+import { updateNickname, updatePassword, updateSecurityQuestion } from "@/api/auth";
+import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, connectNotificationStream } from "@/api/notification";
 
 const router = useRouter();
 const route = useRoute();
@@ -608,6 +686,24 @@ const passwordFormRef = ref(null);
 const passwordSaving = ref(false);
 const passwordForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' });
 
+// ===== 修改安全问题相关状态 =====
+const securityDialogVisible = ref(false);
+const securityFormRef = ref(null);
+const securitySaving = ref(false);
+const securityForm = ref({ oldPassword: '', securityQuestion: '', securityAnswer: '' });
+
+/** 预设安全问题列表（与注册页一致） */
+const securityQuestionOptions = [
+  "你的第一只宠物叫什么名字？",
+  "你的出生城市是哪里？",
+  "你小学班主任叫什么名字？",
+  "你最喜欢的电影是什么？",
+  "你母亲的名字是什么？",
+  "你的第一辆车是什么品牌？",
+  "你高中学校的名称是什么？",
+  "你最好的朋友叫什么名字？",
+];
+
 /** 确认密码校验器 */
 const validateConfirmPassword = (rule, value, callback) => {
   if (value !== passwordForm.value.newPassword) {
@@ -629,6 +725,16 @@ const passwordRules = {
   ]
 };
 
+/** 安全问题表单校验规则 */
+const securityRules = {
+  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+  securityQuestion: [{ required: true, message: '请选择或输入安全问题', trigger: 'change' }],
+  securityAnswer: [
+    { required: true, message: '请输入安全答案', trigger: 'blur' },
+    { max: 100, message: '安全答案长度不能超过100个字符', trigger: 'blur' }
+  ]
+};
+
 // ===== 消息通知相关状态 =====
 /** 未读通知数量 */
 const unreadCount = ref(0);
@@ -640,8 +746,10 @@ const notificationPopoverVisible = ref(false);
 const notificationLoading = ref(false);
 /** 全部已读加载状态 */
 const markAllReadLoading = ref(false);
-/** 轮询定时器 */
+/** 轮询定时器（SSE 断线降级方案） */
 let notificationTimer = null;
+/** SSE 连接控制器 */
+let sseController = null;
 
 /**
  * 获取未读通知数量
@@ -650,7 +758,7 @@ const fetchUnreadCount = async () => {
   try {
     const res = await getUnreadCount();
     if (res.code === 200) {
-      unreadCount.value = res.data.unreadCount || 0;
+      unreadCount.value = Number(res.data.unreadCount) || 0;
     }
   } catch (e) {
     console.error("获取未读数量失败", e);
@@ -666,7 +774,7 @@ const fetchNotificationList = async () => {
     const res = await getNotifications({ page: 1, size: 10 });
     if (res.code === 200) {
       notificationList.value = res.data.records || [];
-      unreadCount.value = res.data.unreadCount || 0;
+      unreadCount.value = Number(res.data.unreadCount) || 0;
     }
   } catch (e) {
     console.error("获取通知列表失败", e);
@@ -688,14 +796,17 @@ const handleNotificationOpen = () => {
  */
 const handleNotificationRead = async (item) => {
   if (item.readStatus === 0) {
-    try {
-      await markAsRead(item.id);
-      item.readStatus = 1;
-      item.readTime = new Date().toISOString();
-      unreadCount.value = Math.max(0, unreadCount.value - 1);
-    } catch (e) {
-      console.error("标记已读失败", e);
-    }
+    // 乐观更新 UI
+    item.readStatus = 1;
+    item.readTime = new Date().toISOString();
+    unreadCount.value = Math.max(0, unreadCount.value - 1);
+    // 发送已读请求（不阻塞导航，失败时回滚 UI）
+    markAsRead(item.id).catch((e) => {
+      console.error("标记已读失败，回滚状态", e);
+      item.readStatus = 0;
+      item.readTime = null;
+      unreadCount.value += 1;
+    });
   }
   // 关闭面板并跳转
   notificationPopoverVisible.value = false;
@@ -838,10 +949,14 @@ const handleCommand = (command) => {
     nicknameDialogVisible.value = true;
   } else if (command === "password") {
     passwordDialogVisible.value = true;
+  } else if (command === "securityQuestion") {
+    securityDialogVisible.value = true;
 } else if (command === "logout") {
-    // 原有退出登录逻辑不能被破坏：
-    // 这里仍然保持"清 token -> 清 Pinia 用户信息 -> 返回首页"的顺序，
-    // 这样头部和页面登录态才能立即响应式更新。
+    // 断开 SSE 连接
+    if (sseController) {
+      sseController.abort();
+      sseController = null;
+    }
     localStorage.removeItem("token");
     removeToken();
     userStore.clearUserInfo();
@@ -913,12 +1028,81 @@ const handlePasswordSave = async () => {
   }
 };
 
-// 监听登录状态变化，启动或停止通知轮询
+/**
+ * 重置安全问题表单
+ */
+const resetSecurityForm = () => {
+  securityForm.value = { oldPassword: '', securityQuestion: '', securityAnswer: '' };
+  securityFormRef.value?.resetFields();
+};
+
+/**
+ * 保存安全问题修改
+ * 1. 表单校验
+ * 2. 调用后端接口修改安全问题
+ * 3. 成功后关闭弹窗
+ */
+const handleSecuritySave = async () => {
+  if (!securityFormRef.value) return;
+  try {
+    await securityFormRef.value.validate();
+  } catch {
+    return;
+  }
+  securitySaving.value = true;
+  try {
+    await updateSecurityQuestion({
+      oldPassword: securityForm.value.oldPassword,
+      securityQuestion: securityForm.value.securityQuestion,
+      securityAnswer: securityForm.value.securityAnswer
+    });
+    ElMessage.success("安全问题修改成功");
+    securityDialogVisible.value = false;
+  } catch {
+    // 拦截器已弹出错误提示
+  } finally {
+    securitySaving.value = false;
+  }
+};
+
+// 监听登录状态变化，启动或停止通知推送
 watch(isLoggedIn, (loggedIn) => {
   if (loggedIn) {
     fetchUnreadCount();
-    notificationTimer = setInterval(fetchUnreadCount, 60000);
+    // 建立 SSE 实时推送连接
+    sseController = connectNotificationStream({
+      onNotification(data) {
+        // 收到新通知：更新未读数，将新通知插入列表头部
+        if (data.unreadCount !== undefined) {
+          unreadCount.value = Number(data.unreadCount) || 0;
+        }
+        if (data.notification) {
+          // 始终将新通知插入列表头部，确保打开面板时能看到
+          notificationList.value.unshift(data.notification);
+          // 保持列表不超过 10 条
+          if (notificationList.value.length > 10) {
+            notificationList.value.pop();
+          }
+        }
+      },
+      onUnreadCount(data) {
+        if (data.unreadCount !== undefined) {
+          unreadCount.value = Number(data.unreadCount) || 0;
+        }
+      },
+      onError() {
+        // SSE 断线时降级为轮询（由外层统一管理定时器，此处仅记录日志）
+        console.warn("[SSE] 连接断开，降级为轮询模式");
+      }
+    });
+    // 降级轮询：每 5 分钟同步一次（防止 SSE 丢失事件）
+    notificationTimer = setInterval(fetchUnreadCount, 300000);
   } else {
+    // 断开 SSE 连接
+    if (sseController) {
+      sseController.abort();
+      sseController = null;
+    }
     if (notificationTimer) {
       clearInterval(notificationTimer);
       notificationTimer = null;
@@ -929,6 +1113,10 @@ watch(isLoggedIn, (loggedIn) => {
 }, { immediate: true });
 
 onUnmounted(() => {
+  if (sseController) {
+    sseController.abort();
+    sseController = null;
+  }
   if (notificationTimer) {
     clearInterval(notificationTimer);
     notificationTimer = null;
