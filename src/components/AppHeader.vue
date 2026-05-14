@@ -1,7 +1,7 @@
 <template>
   <header class="app-header">
     <div class="header-left">
-      <img src="@/assets/logo.jpg" class="logo-img" />
+      <img src="@/assets/logo.jpg" class="logo-img" alt="Logo" />
       <span class="logo-text">智能模拟面试与简历诊断系统</span>
     </div>
 
@@ -244,7 +244,7 @@
         <el-dropdown trigger="click" @command="handleCommand">
           <div class="avatar-wrapper avatar-sm">
             <div class="avatar-ring avatar-sm">
-              <img src="@/assets/user.png" class="avatar-img avatar-sm" />
+              <img src="@/assets/user.png" class="avatar-img avatar-sm" alt="用户头像" />
             </div>
           </div>
           <template #dropdown>
@@ -252,7 +252,7 @@
               <!-- 用户信息区 -->
               <div class="user-info-header">
                 <div class="user-info-avatar-wrapper">
-                  <img src="@/assets/user.png" />
+                  <img src="@/assets/user.png" alt="用户头像" />
                 </div>
                 <div class="user-info-content">
                   <div class="user-info-name">
@@ -1072,7 +1072,6 @@ watch(isLoggedIn, (loggedIn) => {
       },
       onError() {
         // SSE 断线时降级为轮询（由外层统一管理定时器，此处仅记录日志）
-        console.warn("[SSE] 连接断开，降级为轮询模式");
       }
     });
     // 降级轮询：每 5 分钟同步一次（防止 SSE 丢失事件）
@@ -1633,9 +1632,6 @@ onUnmounted(() => {
   animation: spin 0.6s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 
 .panel-empty {
   display: flex;

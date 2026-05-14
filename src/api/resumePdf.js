@@ -4,6 +4,7 @@ import router from '@/router'
 
 /**
  * 将 HTML 发送到后端，由 Chrome headless 生成文字型 PDF 并返回。
+ * 使用独立 axios 实例处理 blob 响应（共享 request 实例的响应拦截器会破坏 blob 数据）。
  * @param {string} html - 完整 HTML（含内联 CSS）
  * @returns {Promise<Blob>} PDF 二进制
  */
@@ -29,15 +30,6 @@ export function exportPdfFromHtml(html) {
   }).then((res) => {
     // 响应为 200，但 Blob 为空
     if (!res.data || res.data.size === 0) {
-      const contentType = (res.headers?.['content-type'] || '').toLowerCase()
-      const contentLength = res.headers?.['content-length'] || '未提供'
-      console.error(
-        '[PDF导出] 收到空响应:',
-        `status=${res.status}`,
-        `content-type=${contentType}`,
-        `content-length=${contentLength}`,
-        `blob-size=${res.data ? res.data.size : 'null'}`
-      )
       throw new Error('服务端返回了空的 PDF 数据，请尝试重新登录后重试')
     }
 
@@ -45,12 +37,10 @@ export function exportPdfFromHtml(html) {
     // 如果 Content-Type 是文本或 JSON（说明服务端返回了错误），尝试读取
     if (contentType.includes('text') || contentType.includes('json')) {
       return res.data.text().then((text) => {
-        console.error('[PDF导出] 服务端返回了非 PDF 内容:', text.substring(0, 200))
         throw new Error(text || '服务端返回了非 PDF 内容')
       })
     }
 
-    console.log('[PDF导出] 成功，PDF 大小:', (res.data.size / 1024 / 1024).toFixed(2), 'MB')
     return res.data
   }).catch((err) => {
     // 服务端返回了错误响应（非 2xx）
@@ -60,7 +50,6 @@ export function exportPdfFromHtml(html) {
       // 401 认证过期 → 清除 token 并跳转登录页
       if (status === 401) {
         removeToken()
-        console.error('[PDF导出] 认证已过期，请重新登录')
         const currentPath = router.currentRoute?.value?.fullPath || '/'
         router.push({ path: '/login', query: { redirect: currentPath } })
         throw new Error('登录已过期，请重新登录')
@@ -76,22 +65,18 @@ export function exportPdfFromHtml(html) {
               const parsed = JSON.parse(text)
               message = parsed.message || parsed.error || text
             } catch (_) { /* 非 JSON 文本 */ }
-            console.error('[PDF导出] 服务端错误:', message, `(状态码: ${status})`)
             throw new Error(message || `服务端返回错误状态码: ${status}`)
           })
         }
       }
 
-      console.error('[PDF导出] 服务端错误:', `状态码 ${status}`)
       throw new Error(`服务端返回错误状态码: ${status}`)
     }
 
     if (err.code === 'ECONNABORTED') {
-      console.error('[PDF导出] 请求超时')
       throw new Error('PDF 导出请求超时，请稍后重试')
     }
     if (err.message === 'Network Error') {
-      console.error('[PDF导出] 网络错误')
       throw new Error('网络连接失败，请检查网络后重试')
     }
     throw err

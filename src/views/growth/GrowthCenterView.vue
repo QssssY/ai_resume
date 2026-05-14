@@ -422,9 +422,6 @@ onMounted(() => {
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 
 /* 全量无数据状态 */
 .empty-full-state {

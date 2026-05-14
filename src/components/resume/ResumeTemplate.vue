@@ -20,6 +20,7 @@
       <span class="toolbar-separator"></span>
       <button type="button" class="editor-tool" @mousedown.prevent @click="toggleLabelStyleAtCurrent">标签样式</button>
       <button type="button" class="editor-tool" @mousedown.prevent @click="toggleSectionTitleAtCurrent">章节标题</button>
+      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="toggleBulletAtCurrent">列表样式</button>
       <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="deleteCurrentTarget">
         删除段落
       </button>
@@ -265,7 +266,11 @@
                   />
                 </div>
 
-                <div v-else-if="block.type === 'row'" class="entry-row" :style="buildBlockInlineStyle(block)">
+                <div
+                  v-else-if="block.type === 'row'"
+                  :class="['entry-row', `entry-row--${block.rowKind || 'default'}`]"
+                  :style="buildBlockInlineStyle(block)"
+                >
                   <input
                     v-for="(item, itemIndex) in block.items"
                     :key="item.id"
@@ -654,6 +659,16 @@ function getActiveBlock() {
   return activeTarget.value.type === 'block' ? findBlockLocation(activeTarget.value.id)?.block || null : null
 }
 
+/** 根据 blockId 查找所属 section 的 key */
+function findSectionKeyByBlockId(blockId) {
+  for (const section of sections.value) {
+    if (section.blocks.some(b => b.id === blockId)) {
+      return section.key
+    }
+  }
+  return ''
+}
+
 function getActiveHeaderFieldLocation() {
   return activeTarget.value.type === 'header_field' ? findHeaderFieldById(activeTarget.value.id) : null
 }
@@ -753,8 +768,15 @@ function buildLabelPlainText(block) {
   return `${block.label || ''}${block.value || ''}`.trim()
 }
 
+function sanitizeIncomingResumeText(text) {
+  return String(text || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/^\s*(AI润色简历|个人简历|求职简历|简历)\s*\n/u, '')
+}
+
 function applyTemplateText(text) {
-  const model = cloneModel(buildResumeTemplateModel(text))
+  const model = cloneModel(buildResumeTemplateModel(sanitizeIncomingResumeText(text)))
   suspendHistory.value = true
   header.value = normalizeHeaderModel(model.header)
   sections.value = normalizeSectionsModel(model.sections)
@@ -953,7 +975,10 @@ async function insertBlockAfter(currentBlockId, nextBlock) {
  * 新块插入后立即切换焦点，避免出现用户看见新增但无法继续输入的问题。
  */
 async function insertTextBlockAfter(currentBlockId) {
-  await insertBlockAfter(currentBlockId, createEmptyTextBlock())
+  const sectionKey = findSectionKeyByBlockId(currentBlockId)
+  const noBulletSections = ['education', 'profile']
+  const variant = noBulletSections.includes(sectionKey) ? '' : 'bullet'
+  await insertBlockAfter(currentBlockId, createTextBlockFromText('', variant))
 }
 
 async function replaceBlock(blockId, nextBlock) {
@@ -1015,6 +1040,16 @@ async function toggleSectionTitleAtCurrent() {
     return
   }
   await insertBlockAfter(fallbackId, createBannerTitleBlock())
+}
+
+/** 切换当前段落的 bullet（小圆点）样式 */
+async function toggleBulletAtCurrent() {
+  const activeBlock = getActiveBlock()
+  if (!activeBlock || activeBlock.type !== 'text') return
+  const newVariant = activeBlock.variant === 'bullet' ? '' : 'bullet'
+  await replaceBlock(activeBlock.id, createTextBlockFromText(
+    stripHtmlToText(activeBlock.html), newVariant, activeBlock.style
+  ))
 }
 
 function removeBlockById(blockId) {
@@ -2153,6 +2188,10 @@ defineExpose({
   align-items: baseline;
 }
 
+.entry-row--education {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(72px, 0.7fr) minmax(118px, 0.9fr);
+}
+
 .entry-cell-input,
 .entry-cell--left,
 .entry-cell--middle,
@@ -2176,6 +2215,10 @@ defineExpose({
 .entry-cell--right {
   text-align: right;
   color: #5b6774;
+}
+
+.entry-row--education .entry-cell--right {
+  white-space: nowrap;
 }
 
 .label-line,

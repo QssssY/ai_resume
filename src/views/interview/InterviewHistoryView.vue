@@ -143,6 +143,7 @@ import { useRouter } from "vue-router";
 import { CircleClose } from "@element-plus/icons-vue";
 import { getInterviewHistory } from "@/api/interview";
 import InterviewEmpty from "@/components/empty/InterviewEmpty.vue";
+import { DIFFICULTY_TAG_MAP } from '@/constants/interview'
 
 const router = useRouter();
 
@@ -153,11 +154,7 @@ const pageNum = ref(1);
 const pageSize = ref(5);
 const total = ref(0);
 
-const difficultyMap = {
-  1: { text: "初级", type: "success" },
-  2: { text: "中级", type: "warning" },
-  3: { text: "高级", type: "danger" },
-};
+const difficultyMap = DIFFICULTY_TAG_MAP
 
 const interviewModeMap = {
   normal: "普通面试",

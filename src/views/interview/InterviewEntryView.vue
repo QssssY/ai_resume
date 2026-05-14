@@ -217,6 +217,7 @@ import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
 import { createInterviewSession, getInterviewJobRoles } from "@/api/interview";
 import { getResumeTask } from "@/api/resume";
+import { STRING_TO_DIFFICULTY } from "@/constants/interview";
 
 const router = useRouter();
 const route = useRoute();
@@ -248,11 +249,7 @@ const modeOptions = [
   { label: "压力面试", value: "stress", hint: "高压情境" },
 ];
 
-const difficultyMap = {
-  primary: 1,
-  intermediate: 2,
-  advanced: 3,
-};
+const difficultyMap = STRING_TO_DIFFICULTY;
 
 const hasLatestJobMatch = computed(() => Boolean(latestJobMatchAnalysis.value));
 const matchedKeywords = computed(() => latestJobMatchAnalysis.value?.matchedKeywords || []);

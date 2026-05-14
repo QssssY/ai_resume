@@ -21,7 +21,7 @@
           <div class="identity-left">
             <div class="avatar-wrapper avatar-lg">
               <div class="avatar-ring avatar-lg">
-                <img src="@/assets/user.png" class="avatar-img avatar-lg" />
+                <img src="@/assets/user.png" class="avatar-img avatar-lg" alt="用户头像" />
               </div>
             </div>
             <div class="user-info">

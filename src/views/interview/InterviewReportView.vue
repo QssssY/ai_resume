@@ -242,6 +242,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { getDifficultyLabel, DIFFICULTY_KEY_MAP } from '@/constants/interview'
 import { ArrowLeft } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { getInterviewSession } from "@/api/interview";
@@ -322,8 +323,7 @@ const difficultyDesc = computed(() => sessionData.value?.difficultyDesc || "");
 const interviewModeDesc = computed(() => sessionData.value?.interviewModeDesc || "");
 
 const difficultyFallback = computed(() => {
-  const map = { 1: "初级", 2: "中级", 3: "高级" };
-  return map[sessionData.value?.difficulty] || "--";
+  return getDifficultyLabel(sessionData.value?.difficulty, '--')
 });
 
 const modeFallback = computed(() => {
@@ -480,12 +480,11 @@ const goBack = () => router.push("/interview/history");
 const goToSession = () => sessionId.value && router.push(`/interview/session/${sessionId.value}`);
 const goToEntry = () => {
   // 保留上次面试配置，方便用户快速再来一次
-  const difficultyMap = { 1: "primary", 2: "intermediate", 3: "advanced" };
   router.push({
     path: "/interview/entry",
     query: {
       jobRole: sessionData.value?.jobRole || undefined,
-      difficulty: difficultyMap[sessionData.value?.difficulty] || undefined,
+      difficulty: DIFFICULTY_KEY_MAP[sessionData.value?.difficulty] || undefined,
       mode: sessionData.value?.interviewMode || undefined,
       jobTargeted: sessionData.value?.jobTargeted ? "1" : undefined,
     }

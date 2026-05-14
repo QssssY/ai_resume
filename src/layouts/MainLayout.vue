@@ -36,7 +36,6 @@ onMounted(async () => {
     }
   } catch (err) {
     // 引导状态查询失败时静默处理，不阻塞页面正常使用
-    console.warn('[Onboarding] 查询引导状态失败:', err)
   }
 })
 </script>

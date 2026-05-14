@@ -509,9 +509,6 @@ onMounted(() => {
   animation: spin 0.6s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 
 /* 空状态 */
 .empty-state {

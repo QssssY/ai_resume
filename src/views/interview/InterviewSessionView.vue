@@ -177,6 +177,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { getDifficultyLabel } from '@/constants/interview'
 import {
   ArrowLeft,
   ChatDotSquare,
@@ -222,8 +223,7 @@ const sessionStatusText = computed(() => {
 });
 
 const difficultyText = computed(() => {
-  const map = { 1: "初级", 2: "中级", 3: "高级" };
-  return map[sessionData.value?.difficulty] || "初级";
+  return getDifficultyLabel(sessionData.value?.difficulty, '初级')
 });
 
 const modeText = computed(() => {
@@ -346,7 +346,6 @@ const startOpeningPolling = () => {
         return;
       }
     } catch (err) {
-      console.warn("轮询开场白状态失败:", err.message);
     }
     openingPollingTimer = setTimeout(poll, 3000);
   };
@@ -508,7 +507,6 @@ const sendMessage = async () => {
       try {
         applyFn(JSON.parse(jsonStr));
       } catch (parseError) {
-        console.warn("[interview-stream] SSE parse failed:", jsonStr, parseError);
       }
     }
     return sseBuffer;
@@ -577,7 +575,6 @@ const sendMessage = async () => {
           msg.rawContent = "";
           msg.pendingContent = "";
         }
-        console.warn(`[interview-stream] SSE 断流，第 ${reconnectAttempt} 次重连...`);
         await new Promise((r) => setTimeout(r, 1000));
       }
     }
@@ -779,15 +776,6 @@ onBeforeUnmount(() => {
   color: var(--text-muted);
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .loading-content {
   display: flex;
   flex-direction: column;
@@ -800,14 +788,6 @@ onBeforeUnmount(() => {
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 .loading-text {
   font-size: 14px;
