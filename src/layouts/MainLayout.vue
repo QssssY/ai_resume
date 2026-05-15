@@ -19,14 +19,14 @@ import AppFooter from '@/components/AppFooter.vue'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
 import { getOnboardingStatus } from '@/api/onboarding'
 import { useUserStore } from '@/stores/user'
+import { getToken } from '@/utils/auth'
 
 const userStore = useUserStore()
-// 控制新手引导弹窗的显示/隐藏
 const showGuide = ref(false)
 
 onMounted(async () => {
-  // 检查登录状态：同时验证 token 和 userInfo，兼容 fetchUserInfo 尚未完成的时序
-  const token = localStorage.getItem('token')
+  // 统一通过 auth 工具读取 token，避免页面继续依赖旧 localStorage 键名。
+  const token = getToken()
   if (!token && !userStore.isLoggedIn()) return
 
   try {
@@ -35,7 +35,7 @@ onMounted(async () => {
       showGuide.value = true
     }
   } catch (err) {
-    // 引导状态查询失败时静默处理，不阻塞页面正常使用
+    // 引导状态查询失败时静默处理，不阻塞页面正常使用。
   }
 })
 </script>
