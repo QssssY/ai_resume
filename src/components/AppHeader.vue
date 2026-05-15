@@ -754,7 +754,7 @@ const fetchUnreadCount = async () => {
 const fetchNotificationList = async () => {
   notificationLoading.value = true;
   try {
-    const res = await getNotifications({ page: 1, size: 10 });
+    const res = await getNotifications({ pageNum: 1, size: 10 });
     if (res.code === 200) {
       notificationList.value = res.data.records || [];
       unreadCount.value = Number(res.data.unreadCount) || 0;
