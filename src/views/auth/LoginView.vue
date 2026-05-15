@@ -391,6 +391,12 @@ const switchMode = (mode) => {
   forgotForm.confirmPassword = "";
 };
 
+const resolveSafeRedirect = (redirect) => {
+  if (typeof redirect !== "string") return "/";
+  if (!redirect.startsWith("/") || redirect.startsWith("//")) return "/";
+  return redirect;
+};
+
 const handleLogin = async () => {
   if (!loginFormRef.value) return;
   const isValid = await loginFormRef.value.validate().catch(() => false);
@@ -400,7 +406,7 @@ const handleLogin = async () => {
   try {
     await userStore.doLogin(loginForm);
     ElMessage.success("登录成功");
-    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
+    const redirect = resolveSafeRedirect(route.query.redirect);
     router.push(redirect);
   } catch (err) {
     errorMessage.value = err.message || "登录失败，请检查用户名和密码";
