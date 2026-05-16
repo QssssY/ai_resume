@@ -102,7 +102,7 @@
                       v-if="getAssistantDisplay(item).feedbackContent"
                       class="message-feedback-card"
                     >
-                      <div class="feedback-card-title">本题反馈</div>
+                      <div class="feedback-card-title">上一题回答的反馈</div>
                       <div class="feedback-card-body">{{ getAssistantDisplay(item).feedbackContent }}</div>
                     </div>
                     <div class="message-meta assistant-meta">
@@ -154,12 +154,12 @@
           <span class="input-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 发送</span>
           <el-button
             type="primary"
-            :loading="sending"
-            :disabled="!inputMessage.trim()"
+            :loading="replyLocked"
+            :disabled="replyLocked || !inputMessage.trim()"
             class="send-btn"
             @click="sendMessage"
           >
-            发送回答
+            {{ replyLocked ? 'AI 回复中...' : '发送回答' }}
           </el-button>
         </div>
       </div>
@@ -217,6 +217,7 @@ const sending = ref(false);
 const ending = ref(false);
 const showEndDialog = ref(false);
 const openingPending = ref(false);
+const replyLocked = ref(false);
 const feedbackMode = computed(() => sessionData.value?.feedbackMode || "after_interview");
 const feedbackModeText = computed(() => getFeedbackModeLabel(feedbackMode.value));
 let openingPollingTimer = null;
@@ -489,16 +490,19 @@ const startTypingMachine = (tempMsgId) => {
         msg.content = msg.rawContent;
         msg.status = "done";
       }
+      replyLocked.value = false;
+      sending.value = false;
     }
   }, TYPE_INTERVAL_MS);
 };
 
 const sendMessage = async () => {
   const content = inputMessage.value.trim();
-  if (!content || !sessionId.value || !sessionData.value) {
+  if (!content || !sessionId.value || !sessionData.value || replyLocked.value) {
     return;
   }
 
+  replyLocked.value = true;
   sending.value = true;
   const tempMsgId = `temp-${Date.now()}`;
   const now = new Date().toISOString();
@@ -649,7 +653,7 @@ const sendMessage = async () => {
         sessionData.value.chatLogs[msgIndex].status = "error";
       }
     }
-  } finally {
+    replyLocked.value = false;
     sending.value = false;
   }
 };

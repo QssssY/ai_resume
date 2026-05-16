@@ -1,5 +1,12 @@
 <template>
   <div class="resume-result-view">
+    <div class="page-back">
+      <el-button link @click="goToHistory" class="back-btn">
+        <el-icon><ArrowLeft /></el-icon>
+        返回历史记录
+      </el-button>
+    </div>
+
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-section">
       <AiLoadingState
@@ -7,7 +14,6 @@
         :stages="resumeStages"
         :currentStageIndex="0"
         :showElapsedTime="true"
-        noCard
       />
     </div>
 
@@ -49,7 +55,7 @@
       </div>
 
       <!-- 等待/处理中状态：使用 AiLoadingState 组件 -->
-      <div v-else-if="isPending || isProcessing" class="loading-section">
+      <div v-else-if="isPending || isProcessing" class="generating-section">
         <AiLoadingState
           :title="isPending ? '任务排队中...' : 'AI 正在分析你的简历...'"
           :stages="resumeStages"
@@ -58,13 +64,13 @@
           :showElapsedTime="true"
           :showRefreshButton="true"
           :refreshLoading="refreshing"
-          noCard
           @refresh="fetchTaskDetail"
-        />
-        <div class="loading-nav-actions">
-          <el-button size="small" @click="goToHome">返回首页</el-button>
-          <el-button size="small" @click="goToUpload">继续上传</el-button>
-        </div>
+        >
+          <template #actions>
+            <el-button size="small" @click="goToHome">返回首页</el-button>
+            <el-button size="small" @click="goToUpload">继续上传</el-button>
+          </template>
+        </AiLoadingState>
       </div>
 
       <!-- Hero 诊断总览区（仅完成/失败时显示） -->
@@ -585,6 +591,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { analyzeResumeJobMatch, analyzeResumePolish, getResumeTask } from '@/api/resume'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
+import { ArrowLeft } from '@element-plus/icons-vue'
 
 import AiLoadingState from '@/components/common/AiLoadingState.vue'
 import OverallEvaluation from '@/components/resume/OverallEvaluation.vue'
@@ -939,6 +946,7 @@ const stopPolling = () => {
 
 const goToHome = () => router.push('/')
 const goToUpload = () => router.push('/resume/upload')
+const goToHistory = () => router.push('/resume/history')
 const goToInterview = () => {
   if (taskId.value) {
     router.push(`/interview/entry?resumeTaskId=${taskId.value}`)
@@ -1322,20 +1330,26 @@ onUnmounted(() => {
 }
 
 /* ============================================
+   顶部返回栏
+   ============================================ */
+.page-back {
+  margin-bottom: 16px;
+}
+
+.back-btn {
+  color: var(--text-muted, #909399);
+}
+
+/* ============================================
    加载状态
    ============================================ */
-.loading-section {
+.loading-section,
+.generating-section {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 48px);
-  gap: 20px;
-}
-
-.loading-nav-actions {
-  display: flex;
-  gap: 12px;
+  min-height: 420px;
 }
 
 /* ============================================
