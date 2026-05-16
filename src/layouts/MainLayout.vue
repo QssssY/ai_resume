@@ -3,7 +3,9 @@
     <AppHeader />
     <main class="layout-main">
       <section class="layout-content">
-        <router-view />
+        <n-message-provider>
+          <router-view />
+        </n-message-provider>
       </section>
     </main>
     <AppFooter />
@@ -14,6 +16,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { NMessageProvider } from 'naive-ui'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
