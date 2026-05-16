@@ -109,6 +109,105 @@
         </div>
       </div>
 
+      <div v-if="reportImmediateActions.length" class="section-card priority-section">
+        <div class="section-header">
+          <h3 class="section-title">3 条立即能做的事</h3>
+        </div>
+        <div class="section-body action-plan-list">
+          <div
+            v-for="(item, index) in reportImmediateActions"
+            :key="`immediate-action-${index}-${item}`"
+            class="action-plan-item"
+          >
+            <div class="action-plan-index">{{ index + 1 }}</div>
+            <div class="action-plan-text">{{ item }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="replayRounds.length" class="section-card">
+        <div class="section-header">
+          <h3 class="section-title">面试历史回放</h3>
+        </div>
+        <div class="section-body replay-timeline">
+          <div
+            v-for="item in replayRounds"
+            :key="`replay-round-${item.roundNo}-${item.answerMessageId}`"
+            class="replay-round"
+          >
+            <div class="replay-round-marker">{{ item.roundNo }}</div>
+            <div class="replay-round-content">
+              <div class="replay-block question">
+                <div class="replay-label">面试官</div>
+                <div class="replay-text">{{ item.questionContent || "未记录问题" }}</div>
+              </div>
+              <div class="replay-block answer">
+                <div class="replay-label">你的回答</div>
+                <div class="replay-text">{{ item.answerContent || "未记录回答" }}</div>
+                <div v-if="item.answerTime" class="replay-time">{{ formatReplayTime(item.answerTime) }}</div>
+              </div>
+              <div v-if="item.feedbackContent" class="replay-block feedback">
+                <div class="replay-label">AI 反馈 / 追问</div>
+                <div class="replay-text">{{ item.feedbackContent }}</div>
+                <div v-if="item.feedbackTime" class="replay-time">{{ formatReplayTime(item.feedbackTime) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="reportRoundReviews.length" class="section-card">
+        <div class="section-header">
+          <h3 class="section-title">逐轮复盘</h3>
+        </div>
+        <div class="section-body round-review-list">
+          <div
+            v-for="(item, index) in reportRoundReviews"
+            :key="`round-review-${index}`"
+            class="round-review-item"
+          >
+            <div class="round-review-head">
+              <span class="round-review-title">Q{{ item.roundNo || index + 1 }}</span>
+              <el-tag v-if="item.score != null" size="small" effect="plain">{{ item.score }}分</el-tag>
+            </div>
+            <div class="round-review-question">{{ item.question || "未记录问题" }}</div>
+            <div class="round-review-answer">{{ item.answer || "未记录回答" }}</div>
+            <div v-if="item.replayAnalysis" class="round-review-block">
+              <span class="round-review-label">复盘</span>
+              <span>{{ item.replayAnalysis }}</span>
+            </div>
+            <div v-if="item.missedFollowUp" class="round-review-block warning">
+              <span class="round-review-label">追问失分</span>
+              <span>{{ item.missedFollowUp }}</span>
+            </div>
+            <div v-if="item.nextPractice" class="round-review-block">
+              <span class="round-review-label">下次练法</span>
+              <span>{{ item.nextPractice }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="reportFollowUpLossPoints.length || reportCommonLossPatterns.length" class="section-card">
+        <div class="section-header">
+          <h3 class="section-title">失分模式</h3>
+        </div>
+        <div class="section-body loss-pattern-grid">
+          <div v-if="reportFollowUpLossPoints.length" class="loss-pattern-column">
+            <div class="loss-pattern-title">追问没接住的点</div>
+            <ul class="simple-list">
+              <li v-for="item in reportFollowUpLossPoints" :key="`follow-up-loss-${item}`">{{ item }}</li>
+            </ul>
+          </div>
+          <div v-if="reportCommonLossPatterns.length" class="loss-pattern-column">
+            <div class="loss-pattern-title">常见失分模式</div>
+            <ul class="simple-list">
+              <li v-for="item in reportCommonLossPatterns" :key="`common-loss-${item}`">{{ item }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div v-if="reportStrengths.length" class="section-card">
         <div class="section-header">
           <h3 class="section-title">优势亮点</h3>
@@ -242,7 +341,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { getDifficultyLabel, DIFFICULTY_KEY_MAP } from '@/constants/interview'
+import { getDifficultyLabel, getInterviewModeLabel, DIFFICULTY_KEY_MAP } from '@/constants/interview'
 import { ArrowLeft } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { getInterviewSession } from "@/api/interview";
@@ -330,7 +429,7 @@ const modeFallback = computed(() => {
   if (sessionData.value?.jobTargeted || sessionData.value?.interviewMode === "job_targeted") {
     return "岗位定向模拟";
   }
-  return sessionData.value?.interviewMode === "stress" ? "压力面试" : "普通面试";
+  return getInterviewModeLabel(sessionData.value?.interviewMode);
 });
 
 const reportStrengths = computed(() => parsedReport.value?.strengths || []);
@@ -343,6 +442,11 @@ const reportSuggestions = computed(() => [
   ...(parsedReport.value?.suggestions || []),
 ]);
 const reportQuestionPerformance = computed(() => parsedReport.value?.questionPerformance || []);
+const reportRoundReviews = computed(() => parsedReport.value?.roundReviews || []);
+const reportFollowUpLossPoints = computed(() => parsedReport.value?.followUpLossPoints || []);
+const reportCommonLossPatterns = computed(() => parsedReport.value?.commonLossPatterns || []);
+const reportImmediateActions = computed(() => (parsedReport.value?.immediateActions || []).slice(0, 3));
+const replayRounds = computed(() => sessionData.value?.replayRounds || []);
 
 // 逐题表现折叠面板：题目数 <= 3 时全部展开，> 3 时只展开最后 3 题
 const activeQuestions = ref([]);
@@ -363,6 +467,7 @@ const dimensionCards = computed(() => {
   const source = [
     { key: "jobMatch", label: "岗位匹配", value: report.jobMatch },
     { key: "technicalDepth", label: "技术深度", value: report.technicalDepth },
+    { key: "projectExpression", label: "项目表达", value: report.projectExpression },
     { key: "communication", label: "沟通表达", value: report.communication },
     { key: "problemSolving", label: "问题解决", value: report.problemSolving },
     { key: "pressureResistance", label: "抗压表现", value: report.pressureResistance },
@@ -380,6 +485,7 @@ const dimensionCards = computed(() => {
 // 面试五维配置
 const interviewDimensionConfig = [
   { key: "technicalDepth", label: "技术深度" },
+  { key: "projectExpression", label: "项目表达" },
   { key: "communication", label: "沟通表达" },
   { key: "problemSolving", label: "问题解决" },
   { key: "pressureResistance", label: "抗压表现" },
@@ -474,6 +580,15 @@ const refreshReportNow = async () => {
   } finally {
     refreshingReport.value = false;
   }
+};
+
+const formatReplayTime = (timeStr) => {
+  // 回放时间只用于辅助定位，不参与业务判断，解析失败时保持空展示。
+  if (!timeStr) return "";
+  const date = new Date(timeStr);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
 const goBack = () => router.push("/interview/history");
@@ -656,6 +771,43 @@ onUnmounted(() => {
   padding: 20px;
 }
 
+.priority-section {
+  border-color: rgba(255, 140, 66, 0.35);
+}
+
+.action-plan-list {
+  display: grid;
+  gap: 12px;
+}
+
+.action-plan-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.action-plan-index {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--orange-main, #ff8c42);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.action-plan-text {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-title, #2f2f2f);
+  overflow-wrap: anywhere;
+}
+
 .job-feedback-body {
   display: grid;
   gap: 16px;
@@ -691,6 +843,149 @@ onUnmounted(() => {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.round-review-list {
+  display: grid;
+  gap: 14px;
+}
+
+.replay-timeline {
+  display: grid;
+  gap: 16px;
+}
+
+.replay-round {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.replay-round-marker {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff2e8;
+  color: var(--orange-main, #ff8c42);
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 140, 66, 0.24);
+}
+
+.replay-round-content {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.replay-block {
+  border: 1px solid var(--border-card, rgba(243, 216, 199, 0.35));
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--bg-card, #ffffff);
+}
+
+.replay-block.answer {
+  background: var(--orange-light-bg, #fffaf7);
+}
+
+.replay-block.feedback {
+  background: #fff7ed;
+}
+
+.replay-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a5b39;
+  margin-bottom: 6px;
+}
+
+.replay-text {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-title, #2f2f2f);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.replay-time {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted, #909399);
+}
+
+.round-review-item {
+  border-bottom: 1px solid var(--border-divider, rgba(243, 216, 199, 0.35));
+  padding-bottom: 14px;
+}
+
+.round-review-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.round-review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.round-review-title,
+.loss-pattern-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--orange-main, #ff8c42);
+}
+
+.round-review-question,
+.round-review-answer {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-title, #2f2f2f);
+  overflow-wrap: anywhere;
+}
+
+.round-review-answer {
+  margin-top: 6px;
+  color: var(--text-body, #666666);
+}
+
+.round-review-block {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-title, #2f2f2f);
+}
+
+.round-review-block.warning {
+  color: #9a5a16;
+}
+
+.round-review-label {
+  font-weight: 600;
+  color: #8a5b39;
+}
+
+.loss-pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.loss-pattern-column {
+  min-width: 0;
+}
+
+.loss-pattern-title {
+  margin-bottom: 10px;
 }
 
 .dimension-card {
@@ -888,6 +1183,10 @@ onUnmounted(() => {
   .radar-layout {
     grid-template-columns: 1fr;
   }
+
+  .loss-pattern-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -912,6 +1211,20 @@ onUnmounted(() => {
 
   .action-group {
     flex-direction: column;
+  }
+
+  .round-review-block {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .replay-round {
+    grid-template-columns: 1fr;
+  }
+
+  .replay-round-marker {
+    width: 28px;
+    height: 28px;
   }
 }
 </style>

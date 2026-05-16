@@ -8,6 +8,7 @@
           {{ difficultyText }}
         </span>
         <span class="mode-text">{{ modeText }}</span>
+        <span class="feedback-mode-text">{{ feedbackModeText }}</span>
       </div>
       <div class="status-bar-right">
         <span class="status-indicator" :class="{ ended: isEnded }">
@@ -89,13 +90,20 @@
                   <div class="message-content">
                     <div class="message-bubble assistant-bubble">
                       <span v-if="item.status === 'thinking'" class="thinking-indicator">
-                        <span class="thinking-text">思考中</span><span class="thinking-dots">...</span>
+                        <span class="thinking-text">面试官正在思考你的回答</span><span class="thinking-dots">...</span>
                       </span>
                       <span v-else-if="item.status === 'error'" class="error-text">回复失败，请重试</span>
                       <span v-else-if="item.status === 'streaming'" class="streaming-text">
-                        {{ item.displayContent }}<span class="typing-cursor">|</span>
+                        {{ getAssistantDisplay(item).mainContent }}<span class="typing-cursor">|</span>
                       </span>
-                      <span v-else class="done-text">{{ item.content || "" }}</span>
+                      <span v-else class="done-text">{{ getAssistantDisplay(item).mainContent }}</span>
+                    </div>
+                    <div
+                      v-if="getAssistantDisplay(item).feedbackContent"
+                      class="message-feedback-card"
+                    >
+                      <div class="feedback-card-title">本题反馈</div>
+                      <div class="feedback-card-body">{{ getAssistantDisplay(item).feedbackContent }}</div>
                     </div>
                     <div class="message-meta assistant-meta">
                       <span class="role-tag">面试官</span>
@@ -177,7 +185,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { getDifficultyLabel } from '@/constants/interview'
+import { getDifficultyLabel, getFeedbackModeLabel, getInterviewModeLabel } from '@/constants/interview'
 import {
   ArrowLeft,
   ChatDotSquare,
@@ -209,6 +217,8 @@ const sending = ref(false);
 const ending = ref(false);
 const showEndDialog = ref(false);
 const openingPending = ref(false);
+const feedbackMode = computed(() => sessionData.value?.feedbackMode || "after_interview");
+const feedbackModeText = computed(() => getFeedbackModeLabel(feedbackMode.value));
 let openingPollingTimer = null;
 
 const assistantAvatar = assistantAvatarImg;
@@ -233,7 +243,7 @@ const modeText = computed(() => {
   if (sessionData.value?.jobTargeted || sessionData.value?.interviewMode === "job_targeted") {
     return "岗位定向模拟";
   }
-  return sessionData.value?.interviewMode === "stress" ? "压力面试" : "普通面试";
+  return getInterviewModeLabel(sessionData.value?.interviewMode);
 });
 
 const jobTargetSummary = computed(() => {
@@ -252,6 +262,58 @@ const jobTargetSummary = computed(() => {
 });
 
 const chatLogs = computed(() => sessionData.value?.chatLogs || []);
+
+const stripFollowUpPrefix = (content = "") => {
+  return String(content || "").trim().replace(/^(追问|问题)[:：]\s*/u, "");
+};
+
+const trimPartialFeedbackStart = (content = "") => {
+  const text = String(content || "");
+  const fullStartIndex = text.search(/<FEEDBACK>/i);
+  if (fullStartIndex !== -1) {
+    return text.slice(0, fullStartIndex);
+  }
+
+  const upperText = text.toUpperCase();
+  const feedbackTag = "<FEEDBACK>";
+  const searchStart = Math.max(0, text.length - feedbackTag.length + 1);
+  for (let index = searchStart; index < text.length; index += 1) {
+    const tail = upperText.slice(index);
+    if (feedbackTag.startsWith(tail)) {
+      return text.slice(0, index);
+    }
+  }
+
+  return text;
+};
+
+const parseAssistantFeedback = (content = "") => {
+  const text = String(content || "");
+  const match = text.match(/<FEEDBACK>\s*([\s\S]*?)\s*<\/FEEDBACK>/i);
+  if (!match) {
+    return {
+      mainContent: stripFollowUpPrefix(trimPartialFeedbackStart(text)),
+      feedbackContent: "",
+    };
+  }
+  return {
+    mainContent: stripFollowUpPrefix(text.replace(match[0], "")),
+    feedbackContent: match[1].replace(/^本题反馈[:：]\s*/u, "").trim(),
+  };
+};
+
+const getAssistantDisplay = (item) => {
+  const source = item?.status === "streaming"
+    ? item.displayContent || ""
+    : item?.content || item?.displayContent || "";
+  if (feedbackMode.value !== "immediate") {
+    return {
+      mainContent: source,
+      feedbackContent: "",
+    };
+  }
+  return parseAssistantFeedback(source);
+};
 
 const groupedChatLogs = computed(() => {
   const logs = chatLogs.value;
@@ -532,7 +594,7 @@ const sendMessage = async () => {
         const token = getToken();
         const response = await streamInterviewMessage(
           sessionId.value,
-          { sessionId: sessionId.value, content },
+          { sessionId: sessionId.value, content, feedbackMode: feedbackMode.value },
           token
         );
 
@@ -591,6 +653,8 @@ const sendMessage = async () => {
     sending.value = false;
   }
 };
+
+
 
 const endInterview = () => {
   showEndDialog.value = true;
@@ -694,6 +758,7 @@ onBeforeUnmount(() => {
 }
 
 .mode-text,
+.feedback-mode-text,
 .status-indicator {
   font-size: 13px;
   color: var(--text-body);
@@ -887,6 +952,31 @@ onBeforeUnmount(() => {
   border-top-left-radius: 4px;
 }
 
+.message-feedback-card {
+  margin-top: 10px;
+  padding: 12px 14px;
+  max-width: 100%;
+  border: 1px solid rgba(255, 140, 66, 0.22);
+  border-left: 3px solid var(--orange-main);
+  border-radius: 8px;
+  background: rgba(255, 248, 244, 0.96);
+  color: var(--text-body);
+  line-height: 1.65;
+}
+
+.feedback-card-title {
+  margin-bottom: 6px;
+  color: var(--orange-main);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.feedback-card-body {
+  font-size: 13px;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
 .user-bubble {
   background: linear-gradient(135deg, #ff8c42 0%, #ff7a30 100%);
   color: var(--bg-card);
@@ -1048,6 +1138,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid rgba(243, 216, 199, 0.3);
@@ -1056,6 +1147,8 @@ onBeforeUnmount(() => {
 .input-hint {
   font-size: 12px;
   color: var(--text-muted);
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .input-hint kbd {
@@ -1111,7 +1204,8 @@ onBeforeUnmount(() => {
     gap: 12px;
   }
 
-  .mode-text {
+  .mode-text,
+  .feedback-mode-text {
     display: none;
   }
 
@@ -1135,6 +1229,19 @@ onBeforeUnmount(() => {
   .input-container {
     padding: 12px;
     border-radius: 12px;
+  }
+
+  .input-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .input-hint {
+    display: none;
+  }
+
+  .send-btn {
+    width: 100%;
   }
 }
 
