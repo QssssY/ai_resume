@@ -75,144 +75,98 @@
 
       <!-- Hero 诊断总览区（仅完成/失败时显示） -->
       <div v-if="isCompleted || isFailed" class="hero-section" :class="`hero-${task.status}`">
-        <div class="hero-left">
-          <div class="score-display">
+        <div class="hero-glow"></div>
+        <div class="hero-body">
+          <div class="hero-left">
             <template v-if="isCompleted && parsedResult?.overallEvaluation">
-              <div class="ring-wrapper">
-                <svg width="80" height="80" viewBox="0 0 80 80" class="ring-svg">
-                  <circle cx="40" cy="40" r="34" fill="none" stroke="#f3d8c7" stroke-width="6"/>
+              <div class="ring-wrapper hero-ring">
+                <svg width="88" height="88" viewBox="0 0 88 88" class="ring-svg">
+                  <circle cx="44" cy="44" r="37" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="5"/>
                   <circle
-                    cx="40" cy="40" r="34"
+                    cx="44" cy="44" r="37"
                     fill="none"
-                    stroke="#FF8C42"
-                    stroke-width="6"
+                    stroke="#ffffff"
+                    stroke-width="5"
                     stroke-linecap="round"
-                    :stroke-dasharray="`${(parsedResult.overallEvaluation.totalScore || 0) * 2.13} 213`"
-                    transform="rotate(-90 40 40)"
+                    :stroke-dasharray="`${(parsedResult.overallEvaluation.totalScore || 0) * 2.32} 232`"
+                    transform="rotate(-90 44 44)"
                   />
                 </svg>
-                <span class="ring-score">{{ parsedResult.overallEvaluation.totalScore || 0 }}</span>
+                <span class="ring-score hero-score">{{ parsedResult.overallEvaluation.totalScore || 0 }}</span>
               </div>
             </template>
             <template v-else>
-              <div class="ring-wrapper">
-                <svg width="80" height="80" viewBox="0 0 80 80" class="ring-svg">
-                  <circle cx="40" cy="40" r="34" fill="none" stroke="#f3d8c7" stroke-width="6"/>
+              <div class="ring-wrapper hero-ring">
+                <svg width="88" height="88" viewBox="0 0 88 88" class="ring-svg">
+                  <circle cx="44" cy="44" r="37" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="5"/>
                 </svg>
-                <span class="ring-score muted">{{ task.status === 3 ? '--' : '0' }}</span>
+                <span class="ring-score hero-score muted">{{ task.status === 3 ? '--' : '0' }}</span>
               </div>
             </template>
-          </div>
-          <div class="level-badge" :class="levelClass" v-if="isCompleted && parsedResult?.overallEvaluation">
-            {{ levelText }}
-          </div>
-        </div>
-        <div class="hero-right">
-          <div class="ai-summary" v-if="isCompleted && parsedResult?.overallEvaluation?.summary">
-            <div class="summary-label">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2a10 10 0 1 0 10 10"/>
-                <path d="M12 6v6l4 2"/>
-              </svg>
-              AI 总评
+            <div class="level-badge" :class="levelClass" v-if="isCompleted && parsedResult?.overallEvaluation">
+              {{ levelText }}
             </div>
-            <p class="summary-text">{{ parsedResult.overallEvaluation.summary }}</p>
           </div>
-          <div class="status-row">
-            <span class="status-badge" :class="`status-${task.status}`">
-              <span class="status-dot"></span>
-              {{ statusText }}
-            </span>
-            <span class="update-time" v-if="task.updateTime">
-              {{ formatTime(task.updateTime) }}
-            </span>
-          </div>
-          <div v-if="parseModeLabel || task.parseMessage" class="parse-meta">
-            <el-tag v-if="parseModeLabel" size="small" effect="plain" class="parse-tag">
-              解析来源：{{ parseModeLabel }}
-            </el-tag>
-            <span v-if="task.parseMessage" class="parse-message">{{ task.parseMessage }}</span>
+          <div class="hero-right">
+            <div class="status-row">
+              <span class="claude-badge" :class="`badge-${task.status}`">
+                <span class="claude-badge-bar"></span>
+                {{ statusText }}
+              </span>
+              <span class="update-time" v-if="task.updateTime">
+                {{ formatTime(task.updateTime) }}
+              </span>
+            </div>
+            <div class="ai-summary" v-if="isCompleted && parsedResult?.overallEvaluation?.summary">
+              <div class="summary-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cc785c" stroke-width="2">
+                  <path d="M12 2a10 10 0 1 0 10 10"/>
+                  <path d="M12 6v6l4 2"/>
+                </svg>
+                AI 总评
+              </div>
+              <p class="summary-text">{{ parsedResult.overallEvaluation.summary }}</p>
+            </div>
+            <div v-if="parseModeLabel || task.parseMessage" class="parse-meta">
+              <span class="parse-mode-pill">{{ parseModeLabel }}</span>
+              <span v-if="task.parseMessage" class="parse-message">{{ task.parseMessage }}</span>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- KPI 指标仪表盘（仅完成时显示） -->
       <div v-if="isCompleted && parsedResult" class="kpi-section">
-        <div class="score-grid">
-          <!-- 综合评分 -->
-          <div class="card kpi-card">
-            <div class="card-label">综合评分</div>
-            <div class="ring-wrapper">
-              <svg width="72" height="72" viewBox="0 0 72 72" class="ring-svg">
-                <circle cx="36" cy="36" r="30" fill="none" stroke="#f3d8c7" stroke-width="5"/>
-                <circle
-                  cx="36" cy="36" r="30"
-                  fill="none"
-                  stroke="#FF8C42"
-                  stroke-width="5"
-                  stroke-linecap="round"
-                  :stroke-dasharray="`${(parsedResult.overallEvaluation?.totalScore || 0) * 1.88} 188`"
-                  transform="rotate(-90 36 36)"
-                />
-              </svg>
-              <span class="ring-score">{{ parsedResult.overallEvaluation?.totalScore || 0 }}</span>
+        <div class="kpi-header">
+          <h3 class="kpi-title">评分概览</h3>
+        </div>
+        <div class="kpi-grid">
+          <div class="kpi-cell">
+            <span class="kpi-label">综合评分</span>
+            <div class="kpi-value-wrap">
+              <span class="kpi-value coral">{{ parsedResult.overallEvaluation?.totalScore || 0 }}</span>
+              <span class="kpi-unit">分</span>
             </div>
           </div>
-          <!-- 信息完整度 -->
-          <div class="card kpi-card">
-            <div class="card-label">信息完整度</div>
-            <div class="ring-wrapper">
-              <svg width="72" height="72" viewBox="0 0 72 72" class="ring-svg">
-                <circle cx="36" cy="36" r="30" fill="none" stroke="#f3d8c7" stroke-width="5"/>
-                <circle
-                  cx="36" cy="36" r="30"
-                  fill="none"
-                  stroke="#67C23A"
-                  stroke-width="5"
-                  stroke-linecap="round"
-                  :stroke-dasharray="`${(basicInfoEvaluation?.score || 0) * 1.88} 188`"
-                  transform="rotate(-90 36 36)"
-                />
-              </svg>
-              <span class="ring-score">{{ basicInfoEvaluation?.score || 0 }}</span>
+          <div class="kpi-cell">
+            <span class="kpi-label">信息完整度</span>
+            <div class="kpi-value-wrap">
+              <span class="kpi-value green">{{ basicInfoEvaluation?.score || 0 }}</span>
+              <span class="kpi-unit">分</span>
             </div>
           </div>
-          <!-- 技能得分 -->
-          <div class="card kpi-card">
-            <div class="card-label">技能得分</div>
-            <div class="ring-wrapper">
-              <svg width="72" height="72" viewBox="0 0 72 72" class="ring-svg">
-                <circle cx="36" cy="36" r="30" fill="none" stroke="#f3d8c7" stroke-width="5"/>
-                <circle
-                  cx="36" cy="36" r="30"
-                  fill="none"
-                  stroke="#409EFF"
-                  stroke-width="5"
-                  stroke-linecap="round"
-                  :stroke-dasharray="`${(skillScore || 0) * 1.88} 188`"
-                  transform="rotate(-90 36 36)"
-                />
-              </svg>
-              <span class="ring-score">{{ skillScore || 0 }}</span>
+          <div class="kpi-cell">
+            <span class="kpi-label">技能得分</span>
+            <div class="kpi-value-wrap">
+              <span class="kpi-value blue">{{ skillScore || 0 }}</span>
+              <span class="kpi-unit">分</span>
             </div>
           </div>
-          <!-- 经验得分 -->
-          <div class="card kpi-card">
-            <div class="card-label">经验得分</div>
-            <div class="ring-wrapper">
-              <svg width="72" height="72" viewBox="0 0 72 72" class="ring-svg">
-                <circle cx="36" cy="36" r="30" fill="none" stroke="#f3d8c7" stroke-width="5"/>
-                <circle
-                  cx="36" cy="36" r="30"
-                  fill="none"
-                  stroke="#A855F7"
-                  stroke-width="5"
-                  stroke-linecap="round"
-                  :stroke-dasharray="`${(experienceScore || 0) * 1.88} 188`"
-                  transform="rotate(-90 36 36)"
-                />
-              </svg>
-              <span class="ring-score">{{ experienceScore || 0 }}</span>
+          <div class="kpi-cell">
+            <span class="kpi-label">经验得分</span>
+            <div class="kpi-value-wrap">
+              <span class="kpi-value purple">{{ experienceScore || 0 }}</span>
+              <span class="kpi-unit">分</span>
             </div>
           </div>
         </div>
@@ -362,7 +316,7 @@
           <div class="section-body">
             <div class="suggestions-list">
               <div class="suggestion-item" v-for="(item, idx) in parsedResult.optimizationSuggestions" :key="idx">
-                <span class="suggestion-index">{{ idx + 1 }}</span>
+                <span class="suggestion-bar"></span>
                 <span class="suggestion-text">{{ item }}</span>
               </div>
             </div>
@@ -494,14 +448,14 @@
               <div class="job-match-suggestions">
                 <div class="job-match-block-title">优化建议</div>
                 <div v-if="jobMatchResult.suggestions?.length" class="suggestions-list">
-                  <div
-                    v-for="(item, idx) in jobMatchResult.suggestions"
-                    :key="`job-suggestion-${idx}`"
-                    class="suggestion-item"
-                  >
-                    <span class="suggestion-index">{{ idx + 1 }}</span>
-                    <span class="suggestion-text">{{ item }}</span>
-                  </div>
+                    <div
+                      v-for="(item, idx) in jobMatchResult.suggestions"
+                      :key="`job-suggestion-${idx}`"
+                      class="suggestion-item"
+                    >
+                      <span class="suggestion-bar"></span>
+                      <span class="suggestion-text">{{ item }}</span>
+                    </div>
                 </div>
                 <div v-else class="job-match-empty">暂无优化建议</div>
               </div>
@@ -549,14 +503,14 @@
             <div class="polish-content-block">
               <div class="job-match-block-title">修改说明 / 优化说明</div>
               <div v-if="polishResult.modificationNotes?.length" class="suggestions-list">
-                <div
-                  v-for="(item, idx) in polishResult.modificationNotes"
-                  :key="`polish-note-${idx}`"
-                  class="suggestion-item"
-                >
-                  <span class="suggestion-index">{{ idx + 1 }}</span>
-                  <span class="suggestion-text">{{ item }}</span>
-                </div>
+                  <div
+                    v-for="(item, idx) in polishResult.modificationNotes"
+                    :key="`polish-note-${idx}`"
+                    class="suggestion-item"
+                  >
+                    <span class="suggestion-bar"></span>
+                    <span class="suggestion-text">{{ item }}</span>
+                  </div>
               </div>
               <div v-else class="job-match-empty">暂无修改说明</div>
             </div>
@@ -573,8 +527,7 @@
           <el-button v-if="!isPending && !isProcessing" @click="goToUpload" class="action-btn secondary">继续上传</el-button>
           <el-button
             v-if="isCompleted"
-            type="primary"
-            class="action-btn primary"
+            class="action-btn claude-primary"
             @click="goToInterview"
           >
             进入模拟面试
@@ -1277,7 +1230,7 @@ onUnmounted(() => {
 <style scoped>
 .resume-result-view {
   min-height: 100%;
-  background: var(--bg-page);
+  background: var(--claude-canvas, #faf9f5);
   padding: 24px;
   box-sizing: border-box;
 }
@@ -1397,71 +1350,109 @@ onUnmounted(() => {
 }
 
 /* ============================================
-   Hero 诊断总览区
+   Claude 设计变量（scoped）
    ============================================ */
-.hero-section {
-  background: var(--bg-card);
-  border-radius: 20px;
-  padding: 28px 32px;
-  margin-bottom: 20px;
-  border: 1px solid rgba(243, 216, 199, 0.5);
-  box-shadow: 0 4px 20px rgba(255, 140, 66, 0.06);
-  box-sizing: border-box;
-  overflow: hidden;
-  display: flex;
-  gap: 32px;
-  align-items: flex-start;
+.resume-result-view {
+  --claude-canvas: #faf9f5;
+  --claude-primary: #cc785c;
+  --claude-primary-active: #a9583e;
+  --claude-surface-card: #efe9de;
+  --claude-surface-soft: #f5f0e8;
+  --claude-hairline: #e6dfd8;
+  --claude-ink: #141413;
+  --claude-body: #3d3d3a;
+  --claude-muted: #6c6a64;
+  --claude-success: #5db872;
+  --claude-error: #c64545;
+  --claude-warning: #d4a017;
 }
 
-.hero-section.hero-1 {
-  background: linear-gradient(135deg, #fff8f3 0%, #fff 100%);
+/* ============================================
+   Hero 诊断总览区 - Claude Coral 风格
+   ============================================ */
+.hero-section {
+  position: relative;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.hero-glow {
+  display: none;
+}
+
+.hero-section.hero-2 {
+  background: var(--claude-primary);
+  color: #fff;
 }
 
 .hero-section.hero-3 {
-  background: linear-gradient(135deg, #fff0f0 0%, #fff 100%);
+  background: #f5f0e8;
+}
+
+.hero-section.hero-1 {
+  background: #f5f0e8;
+}
+
+.hero-body {
+  padding: 32px 36px;
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  position: relative;
+  z-index: 1;
 }
 
 .hero-left {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  min-width: 120px;
+  gap: 14px;
+  flex-shrink: 0;
 }
 
-.score-display {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+/* Hero 圆环 - 白色 stroke */
+.hero-ring .ring-score {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
 }
 
+.hero-ring .ring-score.muted {
+  color: rgba(255,255,255,0.5);
+}
+
+/* Level Badge - Claude badge-pill 风格 */
 .level-badge {
-  font-size: 13px;
-  font-weight: 600;
-  padding: 5px 14px;
-  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 3px 12px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(4px);
+  color: #fff;
   width: fit-content;
 }
 
 .level-excellent {
-  background: #E8F5E9;
-  color: #4CAF50;
+  background: rgba(93,184,114,0.2);
+  color: #8cd9a0;
 }
 
 .level-good {
-  background: #FFF3E0;
-  color: #FF9800;
+  background: rgba(204,120,92,0.2);
+  color: #e8a088;
 }
 
 .level-fair {
-  background: #FFF8E1;
-  color: #FFC107;
+  background: rgba(212,160,23,0.2);
+  color: #e8c060;
 }
 
 .level-poor {
-  background: #FFEBEE;
-  color: #F44336;
+  background: rgba(198,69,69,0.2);
+  color: #e88080;
 }
 
 .hero-right {
@@ -1469,16 +1460,43 @@ onUnmounted(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
+/* Claude 状态 Badge - 左侧色条 + 无背景 */
+.claude-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.4;
+}
+
+.claude-badge-bar {
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.badge-0 .claude-badge-bar { background: var(--claude-warning); }
+.badge-1 .claude-badge-bar { background: #79bbff; animation: claude-pulse 1.5s ease-in-out infinite; }
+.badge-2 .claude-badge-bar { background: var(--claude-success); }
+.badge-3 .claude-badge-bar { background: var(--claude-error); }
+
+@keyframes claude-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Hero 中的 AI 总评 */
 .ai-summary {
-  padding: 16px;
-  background: var(--bg-elevated);
+  padding: 18px 20px;
+  background: rgba(255,255,255,0.1);
   border-radius: 12px;
-  border-left: 4px solid var(--orange-main);
-  box-sizing: border-box;
-  overflow: hidden;
+  backdrop-filter: blur(8px);
 }
 
 .summary-label {
@@ -1486,17 +1504,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--orange-main);
   font-weight: 500;
+  color: rgba(255,255,255,0.7);
   margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .summary-text {
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: var(--text-title);
-  word-break: break-all;
+  color: #fff;
+  word-break: break-word;
   white-space: pre-wrap;
 }
 
@@ -1507,6 +1527,11 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
+.update-time {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+}
+
 .parse-meta {
   display: flex;
   align-items: center;
@@ -1514,77 +1539,21 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
-.parse-tag {
-  border-color: rgba(255, 140, 66, 0.35);
-  color: var(--orange-main);
+.parse-mode-pill {
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.8);
 }
 
 .parse-message {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--text-body);
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  padding: 4px 12px;
-  border-radius: 20px;
-}
-
-.status-badge .status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.status-0 {
-  background: #fdf6ec;
-  color: #e6a23c;
-}
-
-.status-0 .status-dot {
-  background: #e6a23c;
-}
-
-.status-1 {
-  background: #ecf5ff;
-  color: #409eff;
-}
-
-.status-1 .status-dot {
-  background: #409eff;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-.status-2 {
-  background: #f0f9eb;
-  color: #67c23a;
-}
-
-.status-2 .status-dot {
-  background: #67c23a;
-}
-
-.status-3 {
-  background: #fef0f0;
-  color: #f56c6c;
-}
-
-.status-3 .status-dot {
-  background: #f56c6c;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.update-time {
-  font-size: 13px;
-  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.6);
 }
 
 /* ============================================
@@ -1608,58 +1577,91 @@ onUnmounted(() => {
   transform: translate(-50%, -50%);
   font-size: 22px;
   font-weight: 700;
-  color: var(--text-title);
+  color: var(--claude-ink);
   pointer-events: none;
   white-space: nowrap;
 }
 
 .ring-score.muted {
-  color: var(--text-placeholder);
+  color: var(--claude-muted);
 }
 
 /* ============================================
-   KPI 指标仪表盘
+   KPI 指标仪表盘 - Bento 风格
    ============================================ */
 .kpi-section {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
-.score-grid {
+.kpi-header {
+  margin-bottom: 14px;
+}
+
+.kpi-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--claude-muted);
+}
+
+.kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px;
-}
-
-.kpi-card {
-  background: var(--bg-card);
-  border-radius: 16px;
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid rgba(243, 216, 199, 0.5);
-  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.04);
-  box-sizing: border-box;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--claude-hairline);
+  border-radius: 14px;
   overflow: hidden;
 }
 
-.card-label {
-  font-size: 13px;
-  color: var(--text-body);
-  text-align: center;
+.kpi-cell {
+  background: var(--claude-surface-card);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kpi-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--claude-muted);
+  letter-spacing: 0.02em;
+}
+
+.kpi-value-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.kpi-value {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--claude-ink);
+}
+
+.kpi-value.coral { color: var(--claude-primary); }
+.kpi-value.green { color: var(--claude-success); }
+.kpi-value.blue { color: #5b8ec9; }
+.kpi-value.purple { color: #9b7bc8; }
+
+.kpi-unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--claude-muted);
 }
 
 /* ============================================
-   通用卡片区块
+   通用卡片区块 - Claude 纯色分层风格
    ============================================ */
 .section-card {
-  background: var(--bg-card);
-  border-radius: 16px;
+  background: var(--claude-surface-card);
+  border-radius: 14px;
   margin-bottom: 16px;
-  border: 1px solid rgba(243, 216, 199, 0.5);
   overflow: hidden;
-  box-sizing: border-box;
 }
 
 .section-header {
@@ -1667,77 +1669,61 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #fff8f3 0%, #fff 100%);
-  border-bottom: 1px solid rgba(243, 216, 199, 0.3);
-  box-sizing: border-box;
-  overflow: hidden;
+  background: var(--claude-surface-soft);
+  border-bottom: 1px solid var(--claude-hairline);
 }
 
 .section-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: transparent;
+  color: var(--claude-primary);
 }
 
-.section-icon.overall {
-  background: #f0f9eb;
-  color: #67c23a;
+.section-icon svg {
+  stroke: var(--claude-primary);
 }
 
-.section-icon.highlight {
-  background: #fff3e0;
-  color: #ff9800;
+.section-icon.overall svg,
+.section-icon.highlight svg,
+.section-icon.skill svg,
+.section-icon.basic svg,
+.section-icon.experience svg,
+.section-icon.optimization svg,
+.section-icon.radar svg {
+  stroke: var(--claude-primary);
 }
 
-.section-icon.skill {
-  background: #ecf5ff;
-  color: #409eff;
-}
-
-.section-icon.basic {
-  background: #f3e8ff;
-  color: #a855f7;
-}
-
-.section-icon.experience {
-  background: #fff7ed;
-  color: #f97316;
-}
-
-.section-icon.optimization {
-  background: #f0f9eb;
-  color: #22c55e;
-}
-
-.section-icon.radar {
-  background: #fff7ed;
-  color: #f97316;
-}
+.section-icon.skill svg { stroke: #5b8ec9; }
+.section-icon.basic svg { stroke: #9b7bc8; }
+.section-icon.experience svg { stroke: #c8965b; }
+.section-icon.optimization svg { stroke: var(--claude-success); }
+.section-icon.overall svg { stroke: var(--claude-success); }
+.section-icon.highlight svg { stroke: #c8a05b; }
 
 .section-title {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-title);
+  color: var(--claude-ink);
 }
 
 .section-body {
   padding: 20px;
-  box-sizing: border-box;
-  overflow: hidden;
 }
 
-/* 雷达图左右布局：左侧图表居中，右侧得分明细 */
+/* 雷达图左右布局 */
 .radar-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   align-items: center;
-  padding: 12px 20px;
+  padding: 8px 20px 16px;
 }
 
 .radar-left {
@@ -1766,9 +1752,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid var(--border-divider);
-  box-sizing: border-box;
-  min-width: 0;
+  border-bottom: 1px solid var(--claude-hairline);
 }
 
 .item-row:last-child {
@@ -1777,12 +1761,12 @@ onUnmounted(() => {
 
 .item-label {
   font-size: 13px;
-  color: var(--text-body);
+  color: var(--claude-body);
 }
 
 .item-value {
   font-size: 13px;
-  color: var(--text-title);
+  color: var(--claude-ink);
   font-weight: 500;
   word-break: break-all;
   white-space: normal;
@@ -1790,14 +1774,13 @@ onUnmounted(() => {
   text-align: right;
 }
 
-/* 得分 + 评价段落左右布局 */
 .score-with-evaluation {
   display: flex;
   align-items: flex-start;
   gap: 24px;
   margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-divider);
+  border-bottom: 1px solid var(--claude-hairline);
 }
 
 .score-row-left {
@@ -1811,13 +1794,13 @@ onUnmounted(() => {
 
 .score-row-left .item-label {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--claude-muted);
 }
 
 .score-row-left .item-value {
   font-size: 28px;
   font-weight: 700;
-  color: var(--orange-main);
+  color: var(--claude-primary);
   text-align: center;
 }
 
@@ -1825,7 +1808,7 @@ onUnmounted(() => {
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  color: var(--text-body);
+  color: var(--claude-body);
   line-height: 1.7;
   text-align: justify;
   padding-top: 4px;
@@ -1834,25 +1817,24 @@ onUnmounted(() => {
 .basic-items-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 10px;
+  gap: 1px;
   margin-top: 12px;
+  background: var(--claude-hairline);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .basic-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
-  background: var(--bg-elevated);
-  border-radius: 8px;
-  box-sizing: border-box;
-  min-width: 0;
-  overflow: hidden;
+  padding: 12px 14px;
+  background: var(--claude-canvas);
 }
 
 .basic-item .label {
   font-size: 13px;
-  color: var(--text-body);
+  color: var(--claude-body);
   flex-shrink: 0;
 }
 
@@ -1863,82 +1845,77 @@ onUnmounted(() => {
   white-space: normal;
   line-height: 1.4;
   text-align: right;
-  min-width: 0;
 }
 
 .success {
-  color: #67c23a;
+  color: var(--claude-success);
 }
 
 .warning {
-  color: #e6a23c;
+  color: var(--claude-warning);
 }
 
+/* ============================================
+   建议列表 - 左竖线风格
+   ============================================ */
 .suggestions-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   margin-top: 12px;
 }
 
 .suggestion-item {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: flex-start;
-  padding: 10px 12px;
-  background: var(--bg-elevated);
-  border-radius: 8px;
-  box-sizing: border-box;
-  min-width: 0;
-  overflow: hidden;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--claude-hairline);
 }
 
-.suggestion-index {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--orange-main);
-  color: var(--bg-card);
-  font-size: 11px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-bar {
+  width: 3px;
+  min-height: 20px;
+  border-radius: 2px;
+  background: var(--claude-primary);
   flex-shrink: 0;
+  margin-top: 4px;
 }
 
 .suggestion-text {
   font-size: 13px;
-  color: var(--text-title);
+  color: var(--claude-body);
   line-height: 1.6;
-  word-break: break-all;
+  word-break: break-word;
   white-space: normal;
+  flex: 1;
 }
 
 /* ============================================
    失败状态
    ============================================ */
 .failed-section {
-  background: var(--bg-card);
-  border-radius: 16px;
-  padding: 48px;
+  background: var(--claude-surface-card);
+  border-radius: 14px;
+  padding: 48px 36px;
   text-align: center;
   margin-bottom: 20px;
-  border: 1px solid #fde2e2;
-  box-sizing: border-box;
-  overflow: hidden;
 }
 
 .failed-title {
   font-size: 18px;
   font-weight: 600;
-  color: #f56c6c;
+  color: var(--claude-error);
   margin: 16px 0 8px;
 }
 
 .failed-desc {
   font-size: 14px;
-  color: var(--text-body);
+  color: var(--claude-body);
 }
 
 /* ============================================
@@ -1946,8 +1923,8 @@ onUnmounted(() => {
    ============================================ */
 .result-pre {
   font-size: 13px;
-  color: var(--text-body);
-  background: var(--bg-elevated);
+  color: var(--claude-body);
+  background: var(--claude-canvas);
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;
@@ -1955,9 +1932,11 @@ onUnmounted(() => {
   word-break: break-word;
   margin: 0;
   line-height: 1.7;
-  box-sizing: border-box;
 }
 
+/* ============================================
+   岗位匹配分析
+   ============================================ */
 .job-match-card {
   margin-top: 20px;
 }
@@ -1974,12 +1953,12 @@ onUnmounted(() => {
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: var(--text-body);
+  color: var(--claude-body);
 }
 
 .job-match-entry-btn {
-  border-color: var(--orange-main);
-  color: var(--orange-main);
+  border-color: var(--claude-primary) !important;
+  color: var(--claude-primary) !important;
 }
 
 .job-match-panel {
@@ -2003,13 +1982,12 @@ onUnmounted(() => {
 .job-match-score-card {
   padding: 18px 20px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #fff8f3 0%, #fff 100%);
-  border: 1px solid rgba(243, 216, 199, 0.7);
+  background: #f5f0e8;
 }
 
 .job-match-score-label {
   font-size: 13px;
-  color: var(--text-body);
+  color: var(--claude-muted);
 }
 
 .job-match-score-value {
@@ -2017,16 +1995,16 @@ onUnmounted(() => {
   font-size: 34px;
   line-height: 1;
   font-weight: 700;
-  color: var(--orange-main);
+  color: var(--claude-primary);
 }
 
 .job-match-summary {
   padding: 14px 18px;
   border-radius: 12px;
-  background: var(--bg-elevated);
+  background: var(--claude-canvas);
   font-size: 13px;
   line-height: 1.7;
-  color: var(--text-body);
+  color: var(--claude-body);
 }
 
 .job-match-result-grid {
@@ -2039,50 +2017,52 @@ onUnmounted(() => {
 .job-match-suggestions {
   padding: 18px 20px;
   border-radius: 14px;
-  background: var(--bg-elevated);
+  background: var(--claude-canvas);
 }
 
 .job-match-block-title {
   margin-bottom: 12px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-title);
+  color: var(--claude-ink);
 }
 
 .job-match-tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .job-match-tag {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: 13px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 500;
+  line-height: 28px;
 }
 
 .job-match-tag.matched {
-  background: #eef6f0;
-  color: #3d7a5a;
-  font-weight: 600;
+  background: rgba(93,184,114,0.12);
+  color: #3d8a5a;
 }
 
 .job-match-tag.missing {
-  background: #fce4ec;
-  color: #b71c1c;
-  font-weight: 600;
+  background: rgba(198,69,69,0.1);
+  color: #b53a3a;
 }
 
 .job-match-empty {
   font-size: 13px;
   line-height: 1.7;
-  color: var(--text-muted);
+  color: var(--claude-muted);
 }
 
+/* ============================================
+   AI 简历润色
+   ============================================ */
 .polish-card {
   margin-top: 20px;
 }
@@ -2102,13 +2082,13 @@ onUnmounted(() => {
 
 .polish-time {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--claude-muted);
 }
 
 .polish-content-block {
   padding: 18px 20px;
   border-radius: 14px;
-  background: var(--bg-elevated);
+  background: var(--claude-canvas);
 }
 
 .polish-block-header {
@@ -2134,24 +2114,16 @@ onUnmounted(() => {
   margin-bottom: 12px;
   font-size: 12px;
   line-height: 1.7;
-  color: var(--text-body);
-}
-
-.polish-content-pre {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.8;
-  color: var(--text-title);
-  white-space: pre-wrap;
-  word-break: break-word;
+  color: var(--claude-body);
 }
 
 /* ============================================
-   底部操作区
+   底部操作区 - Claude 纯色按钮
    ============================================ */
 .action-section {
-  margin-top: 24px;
+  margin-top: 32px;
   padding: 24px 0;
+  border-top: 1px solid var(--claude-hairline);
 }
 
 .action-group {
@@ -2162,49 +2134,57 @@ onUnmounted(() => {
 }
 
 .action-btn {
-  border-radius: 24px;
+  border-radius: 8px;
   padding: 10px 24px;
   font-size: 14px;
-  min-height: 42px;
-  box-sizing: border-box;
+  font-weight: 500;
+  min-height: 40px;
 }
 
 .action-btn.secondary {
-  background: var(--bg-card);
-  border-color: var(--border-card);
-  color: var(--text-body);
+  background: var(--claude-surface-card);
+  border: 1px solid var(--claude-hairline);
+  color: var(--claude-body);
 }
 
 .action-btn.secondary:hover {
-  border-color: var(--orange-main);
-  color: var(--orange-main);
+  background: var(--claude-surface-soft);
+  border-color: var(--claude-primary);
+  color: var(--claude-primary);
 }
 
-.action-btn.primary {
-  background: linear-gradient(135deg, #FF8C42 0%, #FF7A30 100%);
+.action-btn.claude-primary {
+  background: var(--claude-primary);
   border: none;
-  color: var(--bg-card);
-  box-shadow: 0 4px 16px rgba(255, 140, 66, 0.3);
+  color: #fff;
 }
 
-.action-btn.primary:hover {
-  opacity: 0.9;
+.action-btn.claude-primary:hover {
+  background: var(--claude-primary-active);
 }
 
 /* ============================================
    响应式
    ============================================ */
 @media (max-width: 1023px) {
-  .hero-section {
+  .hero-body {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 24px;
+    padding: 28px;
   }
 
   .hero-left {
     flex-direction: row;
     gap: 20px;
+  }
+
+  .status-row {
+    justify-content: center;
+  }
+
+  .parse-meta {
+    justify-content: center;
   }
 }
 
@@ -2213,21 +2193,24 @@ onUnmounted(() => {
     padding: 16px;
   }
 
-  .hero-section {
-    padding: 20px;
+  .hero-body {
+    padding: 24px;
   }
 
   .ring-score {
     font-size: 18px;
   }
 
-  .score-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .kpi-card {
-    padding: 16px 12px;
+  .kpi-cell {
+    padding: 16px;
+  }
+
+  .kpi-value {
+    font-size: 26px;
   }
 
   .section-header {
@@ -2257,100 +2240,137 @@ onUnmounted(() => {
 }
 
 /* ===== 暗色模式适配 ===== */
-.level-excellent {
-  background: rgba(76, 175, 80, 0.15);
-  color: #81c784;
+[data-theme="dark"] {
+  --claude-canvas: #1a1a2e;
+  --claude-primary: #cc785c;
+  --claude-primary-active: #d9896e;
+  --claude-surface-card: #22223b;
+  --claude-surface-soft: #262640;
+  --claude-hairline: #3a3a50;
+  --claude-ink: #e8e8f0;
+  --claude-body: #b0b0c0;
+  --claude-muted: #7a7a90;
+  --claude-success: #6dd087;
+  --claude-error: #e06060;
+  --claude-warning: #d4a017;
 }
 
-.level-good {
-  background: rgba(255, 152, 0, 0.15);
-  color: #ffb74d;
+[data-theme="dark"] .hero-section.hero-2 {
+  background: #2a2040;
 }
 
-.level-fair {
-  background: rgba(255, 193, 7, 0.15);
-  color: #ffd54f;
+[data-theme="dark"] .hero-section.hero-3,
+[data-theme="dark"] .hero-section.hero-1 {
+  background: var(--claude-surface-card);
 }
 
-.level-poor {
-  background: rgba(244, 67, 54, 0.15);
-  color: #ef9a9a;
+[data-theme="dark"] .hero-ring .ring-score {
+  color: var(--claude-ink);
 }
 
-.status-0 {
-  background: rgba(230, 162, 60, 0.15);
-  color: #f0c060;
+[data-theme="dark"] .ai-summary {
+  background: var(--claude-surface-soft);
 }
 
-.status-1 {
-  background: rgba(64, 158, 255, 0.15);
-  color: #79bbff;
+[data-theme="dark"] .summary-text {
+  color: var(--claude-ink);
 }
 
-.status-2 {
-  background: rgba(103, 194, 58, 0.15);
-  color: #95d06a;
+[data-theme="dark"] .claude-badge {
+  color: var(--claude-body);
 }
 
-.status-3 {
-  background: rgba(245, 108, 108, 0.15);
-  color: #f89898;
+[data-theme="dark"] .update-time {
+  color: var(--claude-muted);
 }
 
-.section-header {
-  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-card) 100%);
+[data-theme="dark"] .parse-mode-pill {
+  background: rgba(255,255,255,0.1);
+  color: var(--claude-body);
 }
 
-.section-icon.overall {
-  background: rgba(103, 194, 58, 0.15);
-  color: #81c784;
+[data-theme="dark"] .level-badge {
+  background: rgba(255,255,255,0.08);
+  color: var(--claude-ink);
 }
 
-.section-icon.highlight {
-  background: rgba(255, 152, 0, 0.15);
-  color: #ffb74d;
+[data-theme="dark"] .section-card {
+  background: var(--claude-surface-card);
 }
 
-.section-icon.skill {
-  background: rgba(64, 158, 255, 0.15);
-  color: #79bbff;
+[data-theme="dark"] .section-header {
+  background: var(--claude-surface-soft);
+  border-bottom-color: var(--claude-hairline);
 }
 
-.section-icon.basic {
-  background: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
+[data-theme="dark"] .kpi-cell {
+  background: var(--claude-surface-card);
 }
 
-.section-icon.experience {
-  background: rgba(249, 115, 22, 0.15);
-  color: #fb923c;
+[data-theme="dark"] .kpi-grid {
+  background: var(--claude-hairline);
 }
 
-.section-icon.optimization {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
+[data-theme="dark"] .basic-items-grid {
+  background: var(--claude-hairline);
 }
 
-.section-icon.radar {
-  background: rgba(249, 115, 22, 0.15);
-  color: #fb923c;
+[data-theme="dark"] .basic-item {
+  background: var(--claude-surface-card);
 }
 
-.kpi-card {
-  border-color: var(--border-card);
+[data-theme="dark"] .job-match-score-card {
+  background: var(--claude-surface-soft);
 }
 
-.section-card {
-  border-color: var(--border-card);
+[data-theme="dark"] .job-match-result-block,
+[data-theme="dark"] .job-match-suggestions,
+[data-theme="dark"] .job-match-summary,
+[data-theme="dark"] .polish-content-block {
+  background: var(--claude-surface-soft);
 }
 
-.job-match-tag.matched {
-  background: rgba(47, 155, 93, 0.15);
-  color: #6ee7a0;
+[data-theme="dark"] .job-match-tag.matched {
+  background: rgba(93,184,114,0.15);
+  color: #7dd899;
 }
 
-.job-match-tag.missing {
-  background: rgba(217, 72, 65, 0.15);
-  color: #f87171;
+[data-theme="dark"] .job-match-tag.missing {
+  background: rgba(198,69,69,0.15);
+  color: #e08080;
+}
+
+/* ============================================
+   入场动效 - Stagger Fade In
+   ============================================ */
+@keyframes claude-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.result-content > * {
+  animation: claude-fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.result-content > *:nth-child(1) { animation-delay: 0s; }
+.result-content > *:nth-child(2) { animation-delay: 0.08s; }
+.result-content > *:nth-child(3) { animation-delay: 0.16s; }
+.result-content > *:nth-child(4) { animation-delay: 0.24s; }
+.result-content > *:nth-child(5) { animation-delay: 0.32s; }
+.result-content > *:nth-child(6) { animation-delay: 0.40s; }
+.result-content > *:nth-child(7) { animation-delay: 0.48s; }
+.result-content > *:nth-child(8) { animation-delay: 0.56s; }
+.result-content > *:nth-child(9) { animation-delay: 0.64s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .result-content > * {
+    animation: none;
+  }
 }
 </style>

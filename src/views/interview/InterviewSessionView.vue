@@ -528,10 +528,9 @@ const sendMessage = async () => {
   scrollToBottom();
 
   // SSE 流断线重连：最多重试 3 次，保留已累积的文本内容
-  const MAX_RECONNECT = 3;
+  const MAX_RECONNECT = 0;
   let reconnectAttempt = 0;
   let streamSucceeded = false;
-
   startTypingMachine(tempMsgId);
 
   const applyStreamPayload = (payload) => {
