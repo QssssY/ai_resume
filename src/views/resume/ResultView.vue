@@ -2527,11 +2527,16 @@ onUnmounted(() => {
 
 @media (max-width: 767px) {
   .resume-result-view {
-    padding: 16px;
+    padding: 12px;
   }
 
   .hero-body {
-    padding: 24px;
+    padding: 20px;
+    gap: 24px;
+  }
+
+  .hero-left {
+    gap: 12px;
   }
 
   .ring-score {
@@ -2543,23 +2548,75 @@ onUnmounted(() => {
   }
 
   .kpi-cell {
-    padding: 16px;
-  }
-
-  .kpi-value {
-    font-size: 26px;
-  }
-
-  .section-header {
     padding: 14px 16px;
   }
 
+  .kpi-value {
+    font-size: 24px;
+  }
+
+  .section-card {
+    overflow: visible;
+  }
+
+  .section-header {
+    padding: 12px 14px;
+  }
+
   .section-body {
-    padding: 16px;
+    padding: 14px;
+  }
+
+  .score-with-evaluation {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .score-row-left {
+    flex-direction: row;
+    gap: 8px;
+    min-width: auto;
+  }
+
+  .score-row-left .item-value {
+    font-size: 24px;
+  }
+
+  .grade-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -14px;
+    padding: 0 14px;
+  }
+
+  .grade-row {
+    grid-template-columns: 32px 60px 80px 1fr auto;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .grade-level {
+    font-size: 15px;
+  }
+
+  .grade-range {
+    font-size: 12px;
+  }
+
+  .grade-label {
+    font-size: 12px;
+  }
+
+  .grade-stage {
+    font-size: 11px;
   }
 
   .basic-items-grid {
     grid-template-columns: 1fr;
+  }
+
+  .radar-layout {
+    padding: 4px 14px 12px;
   }
 
   .job-match-result-grid {
@@ -2573,6 +2630,10 @@ onUnmounted(() => {
 
   .action-btn {
     width: 100%;
+  }
+
+  .result-content {
+    overflow-x: hidden;
   }
 }
 

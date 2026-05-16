@@ -65,7 +65,8 @@ onMounted(async () => {
   padding: 24px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* 移动端适配 */

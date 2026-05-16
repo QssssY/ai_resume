@@ -150,7 +150,7 @@
           :page-size="pageSize"
           :total="total"
           :page-sizes="[5, 10, 20]"
-          layout="total, sizes, prev, pager, next"
+          :layout="isMobileLayout ? 'prev, pager, next' : 'total, sizes, prev, pager, next'"
           @current-change="handlePageChange"
           @size-change="handleSizeChange"
         />
@@ -160,7 +160,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
@@ -182,6 +182,13 @@ const filterReadStatus = ref('')
 
 // 全部已读按钮加载状态
 const markAllLoading = ref(false)
+
+// 响应式分页布局
+const isMobileLayout = ref(false)
+
+const updateLayout = () => {
+  isMobileLayout.value = window.innerWidth < 768
+}
 
 // 多选与批量删除
 const selectedIds = ref([])
@@ -437,15 +444,23 @@ const formatTime = (time) => {
 }
 
 onMounted(() => {
+  updateLayout()
+  window.addEventListener('resize', updateLayout)
   fetchNotifications()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateLayout)
 })
 </script>
 
 <style scoped>
 .notification-page {
   max-width: 800px;
+  width: 100%;
   margin: 0 auto;
   padding: 24px 16px;
+  box-sizing: border-box;
 }
 
 /* 页面标题区 */
@@ -693,13 +708,23 @@ onMounted(() => {
 }
 
 /* 响应式 */
-@media (max-width: 600px) {
+@media (max-width: 767px) {
   .notification-page {
-    padding: 16px 12px;
+    padding: 12px;
   }
 
   .page-title {
     font-size: 18px;
+  }
+
+  .page-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .header-left {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .filter-bar {
@@ -712,6 +737,21 @@ onMounted(() => {
 
   .notification-item {
     padding: 12px;
+    overflow: hidden;
+  }
+
+  .item-header {
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .item-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
   }
 
   .item-text {
@@ -719,6 +759,22 @@ onMounted(() => {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .item-delete-btn {
+    opacity: 1;
+  }
+
+  .batch-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pagination-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
   }
 }
 </style>
