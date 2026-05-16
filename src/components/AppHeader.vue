@@ -51,6 +51,16 @@
         成长中心
       </router-link>
 
+      <!-- 已登录才显示 Offer 辅助 -->
+      <router-link
+        v-if="isLoggedIn"
+        to="/offer"
+        class="nav-link"
+        :class="{ active: isOfferActive }"
+      >
+        Offer 辅助
+      </router-link>
+
       <!-- 已登录才显示历史记录下拉菜单 -->
       <div v-if="isLoggedIn" class="history-dropdown-wrapper">
         <el-dropdown trigger="click" @command="handleHistoryCommand">
@@ -399,6 +409,13 @@
           class="mobile-nav-link"
           @click="drawerVisible = false"
           >成长中心</router-link>
+        >
+        <router-link
+          v-if="isLoggedIn"
+          to="/offer"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >Offer 辅助</router-link
         >
         <router-link
           v-if="isLoggedIn"
@@ -891,6 +908,9 @@ const isTemplateActive = computed(() => route.path.startsWith("/templates"));
 
 // 成长中心激活状态
 const isGrowthActive = computed(() => route.path === "/growth");
+
+// Offer 辅助激活状态
+const isOfferActive = computed(() => route.path.startsWith("/offer"));
 
 // 历史记录父级激活状态
 const isHistoryActive = computed(() => {

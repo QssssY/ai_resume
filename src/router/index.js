@@ -90,6 +90,12 @@ const routes = [
     meta: { requiresAuth: true, useLayout: true }
   },
   {
+    path: '/offer',
+    name: 'OfferAssist',
+    component: () => import('@/views/offer/OfferAssistView.vue'),
+    meta: { requiresAuth: true, useLayout: true }
+  },
+  {
     path: '/notifications',
     name: 'Notifications',
     component: () => import('@/views/notification/NotificationView.vue'),
