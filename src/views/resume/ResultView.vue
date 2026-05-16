@@ -177,9 +177,9 @@
             </div>
           </div>
           <div class="kpi-cell">
-            <span class="kpi-label">简历表达 <span class="kpi-weight">占评分5%</span></span>
+            <span class="kpi-label">个人定位 <span class="kpi-weight">占评分5%</span></span>
             <div class="kpi-value-wrap">
-              <span class="kpi-value gray">{{ expressionScore || 0 }}</span>
+              <span class="kpi-value gray">{{ positioningScore || 0 }}</span>
               <span class="kpi-unit">分</span>
             </div>
           </div>
@@ -362,10 +362,10 @@
           </div>
         </div>
 
-        <!-- 简历表达 -->
-        <div class="section-card" v-if="expressionEval.score !== undefined">
+        <!-- 个人定位 -->
+        <div class="section-card" v-if="positioningEval.score !== undefined">
           <div class="section-header">
-            <div class="section-icon expression">
+            <div class="section-icon positioning">
               <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M48 40h160a8 8 0 0 1 8 8v160a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8V48a8 8 0 0 1 8-8z"/>
                 <path d="M72 88h112"/>
@@ -373,30 +373,30 @@
                 <path d="M72 168h64"/>
               </svg>
             </div>
-            <h3 class="section-title">简历表达</h3>
+            <h3 class="section-title">个人定位</h3>
           </div>
           <div class="section-body">
             <div class="score-with-evaluation">
               <div class="score-row-left">
-                <span class="item-label">表达质量得分</span>
-                <span class="item-value">{{ expressionEval.score }}分</span>
+                <span class="item-label">个人定位得分</span>
+                <span class="item-value">{{ positioningEval.score }}分</span>
               </div>
-              <div v-if="expressionEval.evaluation" class="score-row-right">{{ expressionEval.evaluation }}</div>
+              <div v-if="positioningEval.evaluation" class="score-row-right">{{ positioningEval.evaluation }}</div>
             </div>
-            <div class="detail-group" v-if="expressionEval.strengths?.length">
-              <div class="detail-group-title">加分项</div>
-              <div class="strength-items">
-                <div class="strength-item" v-for="(item, i) in expressionEval.strengths" :key="i">{{ item }}</div>
-              </div>
-            </div>
-            <div class="detail-group" v-if="expressionEval.weaknesses?.length">
-              <div class="detail-group-title">扣分项</div>
-              <div class="weakness-items">
-                <div class="weakness-item" v-for="(item, i) in expressionEval.weaknesses" :key="i">{{ item }}</div>
+            <div class="detail-group" v-if="positioningEval.strengths?.length">
+              <div class="section-sub-title">加分项</div>
+              <div class="tag-list">
+                <span class="tag tag-strength" v-for="(item, i) in positioningEval.strengths" :key="i">{{ item }}</span>
               </div>
             </div>
-            <div class="suggestions-list" v-if="expressionEval.suggestions?.length">
-              <div class="suggestion-item" v-for="(s, i) in expressionEval.suggestions" :key="i">
+            <div class="detail-group" v-if="positioningEval.weaknesses?.length">
+              <div class="section-sub-title">扣分项</div>
+              <div class="tag-list">
+                <span class="tag tag-weakness" v-for="(item, i) in positioningEval.weaknesses" :key="i">{{ item }}</span>
+              </div>
+            </div>
+            <div class="suggestions-list" v-if="positioningEval.suggestions?.length">
+              <div class="suggestion-item" v-for="(s, i) in positioningEval.suggestions" :key="i">
                 <span class="suggestion-bar"></span>
                 <span class="suggestion-text">{{ s }}</span>
               </div>
@@ -803,12 +803,12 @@ const educationScore = computed(() => {
   return result?.educationEvaluation?.score || computeEducationFallback(result) || 0
 })
 
-const expressionScore = computed(() => {
-  return parsedDiagnosisResult.value?.expressionEvaluation?.score || 0
+const positioningScore = computed(() => {
+  return parsedDiagnosisResult.value?.positioningEvaluation?.score || 0
 })
 
-const expressionEval = computed(() => {
-  return parsedDiagnosisResult.value?.expressionEvaluation || {}
+const positioningEval = computed(() => {
+  return parsedDiagnosisResult.value?.positioningEvaluation || {}
 })
 
 const parsedResult = computed(() => {
@@ -824,7 +824,7 @@ const parsedResult = computed(() => {
       workExperienceEvaluation: result.workExperienceEvaluation || result.experience || {},
       projectExperienceEvaluation: result.projectExperienceEvaluation || result.projects || {},
       educationEvaluation: result.educationEvaluation || {},
-      expressionEvaluation: result.expressionEvaluation || {},
+      positioningEvaluation: result.positioningEvaluation || {},
       optimizationSuggestions: result.optimizationSuggestions || result.suggestions || []
     }
   } catch (e) {
@@ -842,7 +842,7 @@ const radarScores = computed(() => {
     work: result.workExperienceEvaluation?.score || 0,
     project: result.projectExperienceEvaluation?.score || 0,
     education: result.educationEvaluation?.score || computeEducationFallback(result),
-    expression: result.expressionEvaluation?.score || 0,
+    positioning: result.positioningEvaluation?.score || 0,
   }
 })
 
@@ -854,16 +854,16 @@ const computeEducationFallback = (result) => {
   const skill = result.skillEvaluation?.score || 0
   const work = result.workExperienceEvaluation?.score || 0
   const project = result.projectExperienceEvaluation?.score || 0
-  const expr = result.expressionEvaluation?.score || 0
-  const weightedSum = basic * 0.05 + skill * 0.15 + work * 0.40 + project * 0.30 + expr * 0.05
+  const positioning = result.positioningEvaluation?.score || 0
+  const weightedSum = basic * 0.05 + skill * 0.15 + work * 0.40 + project * 0.30 + positioning * 0.05
   const eduScore = Math.round((totalScore - weightedSum) / 0.05)
   return Math.max(0, Math.min(100, eduScore))
 }
 
 // 雷达图得分明细：直接使用 AI 返回的 strengths（加分项）和 weaknesses（扣分项）
-const radarKeys = ['basicInfo', 'skill', 'work', 'project', 'education', 'expression']
+const radarKeys = ['basicInfo', 'skill', 'work', 'project', 'education', 'positioning']
 
-const radarLabels = ['基本信息', '岗位能力', '工作经验', '项目经历', '教育背景', '简历表达']
+const radarLabels = ['基本信息', '岗位能力', '工作经验', '项目经历', '教育背景', '个人定位']
 
 const radarDimensionConfig = [
   { key: 'basicInfo', label: '基本信息' },
@@ -871,7 +871,7 @@ const radarDimensionConfig = [
   { key: 'work', label: '工作经验' },
   { key: 'project', label: '项目经历' },
   { key: 'education', label: '教育背景' },
-  { key: 'expression', label: '简历表达' },
+  { key: 'positioning', label: '个人定位' },
 ]
 
 const radarScoreDetails = computed(() => {
@@ -890,7 +890,7 @@ const radarScoreDetails = computed(() => {
     work: extract(r.workExperienceEvaluation, 'work'),
     project: extract(r.projectExperienceEvaluation, 'project'),
     education: extract(r.educationEvaluation, 'education'),
-    expression: extract(r.expressionEvaluation, 'expression'),
+    positioning: extract(r.positioningEvaluation, 'positioning'),
   }
 })
 
@@ -2142,6 +2142,45 @@ onUnmounted(() => {
 
 .warning {
   color: var(--color-warning);
+}
+
+/* ============================================
+   标签列表 - 加分项/扣分项 标签风格
+   ============================================ */
+.section-sub-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-body);
+  margin-bottom: 8px;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.tag-strength {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--color-success);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.tag-weakness {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 /* ============================================
