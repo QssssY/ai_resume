@@ -2808,4 +2808,25 @@ onUnmounted(() => {
 [data-theme="dark"] .job-match-actions .n-button.n-button--secondary:hover {
   --n-color: rgba(255, 140, 66, 0.15) !important;
 }
+
+[data-theme="dark"] .polish-actions .n-button.n-button--ghost {
+  --n-text-color: var(--orange-main) !important;
+  --n-border: 1px solid var(--orange-main) !important;
+  --n-border-hover: 1px solid var(--orange-main) !important;
+}
+
+[data-theme="dark"] .polish-actions .n-button.n-button--ghost:hover {
+  --n-color: rgba(255, 140, 66, 0.15) !important;
+}
+
+[data-theme="dark"] .polish-actions .n-button.n-button--primary-type {
+  --n-color: var(--orange-main) !important;
+  --n-text-color: #fff !important;
+  --n-border: 1px solid var(--orange-main) !important;
+  --n-border-hover: 1px solid var(--orange-deep) !important;
+}
+
+[data-theme="dark"] .polish-actions .n-button.n-button--primary-type:hover {
+  --n-color: var(--orange-deep) !important;
+}
 </style>

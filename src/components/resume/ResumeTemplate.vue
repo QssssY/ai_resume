@@ -1731,13 +1731,17 @@ defineExpose({
 <style scoped>
 .resume-template {
   --resume-accent: #1b5b57;
+  --resume-accent-rgb: 27, 91, 87;
   --resume-accent-soft: #e8f0ee;
+  --resume-accent-soft-rgb: 232, 240, 238;
   --resume-gold: #b18757;
+  --resume-gold-rgb: 177, 135, 87;
   --resume-text: #1f2933;
   --resume-muted: #52606d;
   --resume-line: #d6ddd8;
-  --resume-focus: rgba(59, 130, 246, 0.14);
-  --resume-focus-border: rgba(37, 99, 235, 0.22);
+  --resume-line-rgb: 214, 221, 216;
+  --resume-focus: rgba(var(--resume-accent-rgb), 0.10);
+  --resume-focus-border: rgba(var(--resume-accent-rgb), 0.18);
   width: 100%;
   box-sizing: border-box;
 }
@@ -1771,10 +1775,10 @@ defineExpose({
 .editor-ghost-btn {
   min-height: 34px;
   padding: 0 12px;
-  border: 1px solid rgba(27, 91, 87, 0.18);
+  border: 1px solid rgba(var(--resume-accent-rgb), 0.18);
   border-radius: 999px;
   background: var(--bg-card, #fff);
-  color: #214e56;
+  color: var(--resume-accent);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -1786,8 +1790,8 @@ defineExpose({
 
 .editor-tool:hover,
 .editor-ghost-btn:hover {
-  border-color: rgba(27, 91, 87, 0.48);
-  box-shadow: 0 6px 14px rgba(27, 91, 87, 0.1);
+  border-color: rgba(var(--resume-accent-rgb), 0.48);
+  box-shadow: 0 6px 14px rgba(var(--resume-accent-rgb), 0.1);
   transform: translateY(-1px);
 }
 
@@ -1801,7 +1805,7 @@ defineExpose({
 .toolbar-separator {
   width: 1px;
   height: 24px;
-  background: rgba(27, 91, 87, 0.2);
+  background: rgba(var(--resume-accent-rgb), 0.2);
   margin: 0 4px;
   align-self: center;
 }
@@ -1857,7 +1861,7 @@ defineExpose({
   gap: 10px;
   min-width: 0;
   padding: 5px 14px 5px 10px;
-  background: linear-gradient(90deg, rgba(27, 91, 87, 0.14), rgba(27, 91, 87, 0.05));
+  background: linear-gradient(90deg, rgba(var(--resume-accent-rgb), 0.14), rgba(var(--resume-accent-rgb), 0.05));
   border-left: 3px solid var(--resume-gold);
   border-radius: 0 16px 16px 0;
 }
@@ -1898,7 +1902,7 @@ defineExpose({
   flex: 1;
   min-width: 0;
   height: 1px;
-  background: linear-gradient(90deg, rgba(177, 135, 87, 0.55), rgba(214, 221, 216, 0.65));
+  background: linear-gradient(90deg, rgba(var(--resume-gold-rgb), 0.55), rgba(var(--resume-line-rgb), 0.65));
 }
 
 .profile-card {
@@ -1944,8 +1948,8 @@ defineExpose({
   margin-left: -10px;
   padding: 0 12px 0 22px;
   border-radius: 999px;
-  background: rgba(177, 135, 87, 0.12);
-  color: #775531;
+  background: rgba(var(--resume-gold-rgb), 0.12);
+  color: var(--resume-gold);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.5;
@@ -1988,8 +1992,8 @@ defineExpose({
 .profile-summary {
   margin-top: 12px;
   padding: 10px 12px;
-  border-left: 2px solid rgba(27, 91, 87, 0.22);
-  background: rgba(232, 240, 238, 0.32);
+  border-left: 2px solid rgba(var(--resume-accent-rgb), 0.22);
+  background: rgba(var(--resume-accent-soft-rgb), 0.32);
 }
 
 .profile-summary-item {
@@ -2004,7 +2008,7 @@ defineExpose({
   min-height: 44px;
   font-size: 14px;
   line-height: 1.8;
-  color: #334155;
+  color: var(--resume-text);
   white-space: pre-wrap;
 }
 
@@ -2027,13 +2031,13 @@ defineExpose({
   width: 118px;
   height: 146px;
   box-sizing: border-box;
-  border: 1.5px dashed rgba(27, 91, 87, 0.45);
+  border: 1.5px dashed rgba(var(--resume-accent-rgb), 0.45);
   background:
-    linear-gradient(135deg, rgba(232, 240, 238, 0.68), rgba(255, 255, 255, 0.96)),
+    linear-gradient(135deg, rgba(var(--resume-accent-soft-rgb), 0.68), rgba(255, 255, 255, 0.96)),
     repeating-linear-gradient(
       -45deg,
-      rgba(177, 135, 87, 0.08),
-      rgba(177, 135, 87, 0.08) 10px,
+      rgba(var(--resume-gold-rgb), 0.08),
+      rgba(var(--resume-gold-rgb), 0.08) 10px,
       transparent 10px,
       transparent 20px
     );
@@ -2065,7 +2069,7 @@ defineExpose({
   padding: 14px;
   font-size: 12px;
   line-height: 1.5;
-  color: #6b7280;
+  color: var(--resume-muted);
   text-align: center;
 }
 
@@ -2085,10 +2089,10 @@ defineExpose({
 
 .photo-action {
   min-height: 28px;
-  border: 1px solid rgba(27, 91, 87, 0.24);
+  border: 1px solid rgba(var(--resume-accent-rgb), 0.24);
   border-radius: 999px;
-  background: rgba(232, 240, 238, 0.62);
-  color: var(--resume-accent, #1b5b57);
+  background: rgba(var(--resume-accent-soft-rgb), 0.62);
+  color: var(--resume-accent);
   font-size: 12px;
   line-height: 1.2;
   cursor: pointer;
@@ -2096,13 +2100,13 @@ defineExpose({
 
 .photo-action--ghost {
   background: var(--bg-card, #fff);
-  color: #6b7280;
+  color: var(--resume-muted);
 }
 
 .photo-tip {
   margin: 0;
   font-size: 12px;
-  color: #7b8794;
+  color: var(--resume-muted);
   line-height: 1.4;
 }
 
@@ -2117,10 +2121,10 @@ defineExpose({
 }
 
 .resume-block-shell.is-active .resume-block {
-  outline: 2px dashed var(--resume-accent, #1b5b57);
+  outline: 2px dashed var(--resume-accent);
   outline-offset: 2px;
   border-radius: 6px;
-  background: rgba(27, 91, 87, 0.04);
+  background: rgba(var(--resume-accent-rgb), 0.04);
 }
 
 .resume-block {
@@ -2134,7 +2138,7 @@ defineExpose({
   top: 3px;
   border: none;
   background: transparent;
-  color: #8b97a6;
+  color: var(--resume-muted);
   cursor: grab;
   font-size: 14px;
   line-height: 1;
@@ -2224,12 +2228,12 @@ defineExpose({
 
 .entry-cell--middle {
   font-weight: 600;
-  color: #334155;
+  color: var(--resume-text);
 }
 
 .entry-cell--right {
   text-align: right;
-  color: #5b6774;
+  color: var(--resume-muted);
 }
 
 .entry-row--education .entry-cell--right {
@@ -2242,7 +2246,7 @@ defineExpose({
   margin: 0;
   font-size: 14px;
   line-height: 1.82;
-  color: #24323f;
+  color: var(--resume-text);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -2250,13 +2254,13 @@ defineExpose({
 .subsection-line {
   font-size: 15px;
   font-weight: 700;
-  color: #173a52;
+  color: var(--resume-text);
 }
 
 .text-line--heading {
   font-size: 15px;
   font-weight: 700;
-  color: #173a52;
+  color: var(--resume-text);
 }
 
 .text-line--bullet {
@@ -2277,11 +2281,11 @@ defineExpose({
   width: auto;
   margin-right: 6px;
   font-weight: 700;
-  color: #253542;
+  color: var(--resume-text);
 }
 
 .label-value-input {
-  color: #425466;
+  color: var(--resume-muted);
 }
 
 .block-drop-indicator,
@@ -2294,13 +2298,13 @@ defineExpose({
 
 .block-drop-indicator.is-visible,
 .section-drop-tail.is-visible {
-  background: rgba(27, 91, 87, 0.18);
+  background: rgba(var(--resume-accent-rgb), 0.18);
 }
 
 .section-drop-tail {
   font-size: 12px;
   line-height: 10px;
-  color: #7b8794;
+  color: var(--resume-muted);
   text-align: center;
   padding: 6px 0;
   margin-top: 2px;
@@ -2323,8 +2327,8 @@ defineExpose({
 .profile-meta-card.is-active,
 .profile-summary-item.is-active {
   border-radius: 6px;
-  background: rgba(27, 91, 87, 0.04);
-  box-shadow: 0 0 0 2px rgba(27, 91, 87, 0.12);
+  background: rgba(var(--resume-accent-rgb), 0.04);
+  box-shadow: 0 0 0 2px rgba(var(--resume-accent-rgb), 0.12);
 }
 
 .profile-name-input.is-active,
@@ -2428,5 +2432,47 @@ defineExpose({
   .entry-cell--right {
     text-align: left;
   }
+}
+</style>
+
+<style>
+/* ===== ResumeTemplate 暗黑模式适配 =====
+   仅影响预览模式，导出(print)模式不受影响 */
+[data-theme="dark"] .resume-template:not(.resume-template--print) {
+  --resume-accent: #4ecdc4;
+  --resume-accent-rgb: 78, 205, 196;
+  --resume-accent-soft: #1a3a38;
+  --resume-accent-soft-rgb: 26, 58, 56;
+  --resume-gold: #d4a76a;
+  --resume-gold-rgb: 212, 167, 106;
+  --resume-text: #e2e8f0;
+  --resume-muted: #94a3b8;
+  --resume-line: #334155;
+  --resume-line-rgb: 51, 65, 85;
+  --resume-focus: rgba(var(--resume-accent-rgb), 0.15);
+  --resume-focus-border: rgba(var(--resume-accent-rgb), 0.25);
+}
+
+/* ===== ResumeTemplate 导出(print)模式强制亮色 =====
+   确保 html2canvas 截图时不论父文档是否暗黑模式，
+   导出内容始终使用亮色。!important 防止任何 CSS 优先级覆盖。 */
+.resume-template--print {
+  --resume-text: #1f2933 !important;
+  --resume-muted: #52606d !important;
+  --resume-accent: #1b5b57 !important;
+  --resume-accent-rgb: 27, 91, 87 !important;
+  --resume-accent-soft: #e8f0ee !important;
+  --resume-accent-soft-rgb: 232, 240, 238 !important;
+  --resume-gold: #b18757 !important;
+  --resume-gold-rgb: 177, 135, 87 !important;
+  --resume-line: #d6ddd8 !important;
+  --resume-line-rgb: 214, 221, 216 !important;
+  --resume-focus: rgba(27, 91, 87, 0.10) !important;
+  --resume-focus-border: rgba(27, 91, 87, 0.18) !important;
+  --bg-card: #ffffff !important;
+  --bg-elevated: #fafafa !important;
+  --bg-page: #fff8f3 !important;
+  --border-card: #f3d8c7 !important;
+  --text-body: #555555 !important;
 }
 </style>
