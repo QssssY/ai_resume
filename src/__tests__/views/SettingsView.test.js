@@ -1,12 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import ElementPlus from 'element-plus'
+import ElementPlus, { ElMessageBox } from 'element-plus'
 import SettingsView from '@/views/settings/SettingsView.vue'
 import { getGrowthOverview } from '@/api/growth'
 import { clearInterviewHistory, getInterviewJobRoles } from '@/api/interview'
 import { getMembershipPlans } from '@/api/membership'
 import { clearResumeHistory } from '@/api/resume'
-import { deleteAccount } from '@/api/auth'
+import { getUserSettings, saveUserSettings } from '@/api/userSettings'
+import { deleteAccount, getCurrentAccountSecurityQuestion } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { getSettingsPreferences, saveSettingsPreferences } from '@/utils/settingsPreferences'
@@ -24,6 +25,7 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/api/auth', () => ({
   deleteAccount: vi.fn(() => Promise.resolve()),
+  getCurrentAccountSecurityQuestion: vi.fn(() => Promise.resolve({ data: { securityQuestion: '你的出生城市是哪里？' } })),
   updatePassword: vi.fn(() => Promise.resolve()),
   updateSecurityQuestion: vi.fn(() => Promise.resolve())
 }))
@@ -48,6 +50,16 @@ vi.mock('@/api/interview', () => ({
 
 vi.mock('@/api/resume', () => ({
   clearResumeHistory: vi.fn(() => Promise.resolve({ data: { deletedCount: 3 } }))
+}))
+
+vi.mock('@/api/userSettings', () => ({
+  getUserSettings: vi.fn(() => Promise.resolve({
+    data: {
+      interviewRetentionDays: 0,
+      resumeRetentionDays: 0
+    }
+  })),
+  saveUserSettings: vi.fn((data) => Promise.resolve({ data }))
 }))
 
 vi.mock('@/api/growth', () => ({
@@ -105,6 +117,7 @@ describe('SettingsView', () => {
         status: 1,
         membershipPlanCode: 'vip_month',
         vipExpireTime: '2026-05-18T12:00:00',
+        createTime: '2026-05-01T09:30:00',
         resumeQuota: 3,
         interviewQuota: 4,
         vipDailyResumeQuota: 5,
@@ -136,6 +149,8 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('账号资料')
     expect(wrapper.text()).toContain('面试偏好')
     expect(wrapper.text()).toContain('账号安全')
+    expect(wrapper.text()).toContain('注销账号')
+    expect(wrapper.find('.settings-nav').text()).not.toContain('注销账号')
     expect(wrapper.text()).toContain('隐私与数据')
     expect(wrapper.text()).toContain('数据管理')
     expect(wrapper.text()).toContain('外观偏好')
@@ -151,8 +166,8 @@ describe('SettingsView', () => {
     expect(getMembershipPlans).toHaveBeenCalled()
     expect(wrapper.text()).toContain('订阅套餐')
     expect(wrapper.text()).toContain('月度会员')
-    expect(wrapper.text()).toContain('会员到期时间')
-    expect(wrapper.text()).toContain('2026-05-18')
+    expect(wrapper.text()).toContain('注册时间')
+    expect(wrapper.text()).toContain('2026-05-01')
     expect(wrapper.text()).not.toContain('2026-05-18 12:00')
     expect(wrapper.text()).not.toContain('用户 ID')
     expect(wrapper.text()).not.toContain('vip_month')
@@ -183,6 +198,23 @@ describe('SettingsView', () => {
     expect(wrapper.find('.settings-form .el-select').exists()).toBe(true)
   })
 
+  it('renders account deletion as an account security tab', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.activeSection = 'security'
+    wrapper.vm.handleSecurityModeChange('accountDeletion')
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    const tabs = wrapper.findAll('.security-mode-tab').map((tab) => tab.text())
+    expect(tabs).toEqual(['修改密码', '修改安全问题', '注销账号'])
+    expect(wrapper.find('.settings-nav').text()).not.toContain('注销账号')
+    expect(wrapper.text()).toContain('注销后不可恢复')
+    expect(wrapper.find('.account-delete-context').exists()).toBe(true)
+    expect(wrapper.find('.account-delete-form').exists()).toBe(true)
+  })
+
   it('does not repeat security section title inside the selected form', async () => {
     const wrapper = mountView()
     await flushPromises()
@@ -208,19 +240,81 @@ describe('SettingsView', () => {
     wrapper.vm.interviewPreferenceForm.defaultInterviewDifficulty = 'advanced'
     wrapper.vm.interviewPreferenceForm.defaultInterviewMode = 'tech_leader'
     wrapper.vm.interviewPreferenceForm.defaultFeedbackMode = 'immediate'
-    wrapper.vm.interviewPreferenceForm.responseDetailPreference = 'detailed'
     wrapper.vm.interviewPreferenceForm.interviewRetentionDays = 90
-    wrapper.vm.handleDefaultJobChange('frontend')
+    wrapper.vm.interviewPreferenceForm.resumeRetentionDays = 180
+    await wrapper.vm.handleDefaultJobChange('frontend')
+    await flushPromises()
 
     const preferences = getSettingsPreferences()
+    expect(saveUserSettings).not.toHaveBeenCalled()
     expect(preferences).toMatchObject({
       defaultInterviewJobRole: '前端工程师',
       defaultInterviewJobRoleCode: 'frontend',
       defaultInterviewDifficulty: 'advanced',
       defaultInterviewMode: 'tech_leader',
       defaultFeedbackMode: 'immediate',
-      responseDetailPreference: 'detailed',
-      interviewRetentionDays: 90
+      interviewRetentionDays: 90,
+      resumeRetentionDays: 180
+    })
+  })
+
+  it('loads server settings and renders resume retention preference', async () => {
+    getUserSettings.mockResolvedValueOnce({
+      data: {
+        interviewRetentionDays: 30,
+        resumeRetentionDays: 90
+      }
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getUserSettings).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('简历诊断保留天数')
+    expect(getSettingsPreferences()).toMatchObject({
+      interviewRetentionDays: 30,
+      resumeRetentionDays: 90
+    })
+  })
+
+  it('does not change local preferences when server settings save fails', async () => {
+    saveSettingsPreferences({ interviewRetentionDays: 30, resumeRetentionDays: 90 })
+    getUserSettings.mockResolvedValueOnce({
+      data: {
+        interviewRetentionDays: 30,
+        resumeRetentionDays: 90
+      }
+    })
+    saveUserSettings.mockRejectedValueOnce(new Error('failed'))
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.interviewPreferenceForm.interviewRetentionDays = 365
+    await expect(wrapper.vm.handleDataManagementSettingsSave()).rejects.toThrow('failed')
+
+    expect(getSettingsPreferences()).toMatchObject({
+      interviewRetentionDays: 30,
+      resumeRetentionDays: 90
+    })
+  })
+
+  it('saves data management retention settings only after explicit save', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.interviewPreferenceForm.interviewRetentionDays = 90
+    wrapper.vm.interviewPreferenceForm.resumeRetentionDays = 180
+
+    expect(saveUserSettings).not.toHaveBeenCalled()
+    await wrapper.vm.handleDataManagementSettingsSave()
+
+    expect(saveUserSettings).toHaveBeenCalledWith({
+      interviewRetentionDays: 90,
+      resumeRetentionDays: 180
+    })
+    expect(getSettingsPreferences()).toMatchObject({
+      interviewRetentionDays: 90,
+      resumeRetentionDays: 180
     })
   })
 
@@ -228,24 +322,32 @@ describe('SettingsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('账号注销')
+    expect(wrapper.text()).toContain('注销账号')
     expect(wrapper.text()).toContain('面试记录清理')
     expect(wrapper.text()).toContain('简历诊断清理')
     expect(wrapper.findAll('button').some((button) => button.text().includes('待后端接入'))).toBe(false)
-    const destructiveButtons = wrapper.findAll('button').filter((button) => ['注销账号', '清理记录'].includes(button.text()))
-    expect(destructiveButtons).toHaveLength(3)
+    const destructiveButtons = wrapper.findAll('button').filter((button) => ['清理记录'].includes(button.text()))
+    expect(destructiveButtons).toHaveLength(2)
     expect(destructiveButtons.every((button) => button.attributes('disabled') === undefined)).toBe(true)
   })
 
-  it('deletes account and clears login state after password confirmation', async () => {
+  it('deletes account and clears login state after password and security confirmation', async () => {
     localStorage.setItem('ai_resume_token', 'user-token')
     localStorage.setItem('ai_resume_token_type', 'Bearer')
     const wrapper = mountView()
     await flushPromises()
 
-    await wrapper.vm.handleAccountDelete('current-password')
+    await wrapper.vm.handleAccountDelete({
+      oldPassword: 'current-password',
+      confirmPassword: 'current-password',
+      securityAnswer: 'answer'
+    })
 
-    expect(deleteAccount).toHaveBeenCalledWith({ oldPassword: 'current-password' })
+    expect(deleteAccount).toHaveBeenCalledWith({
+      oldPassword: 'current-password',
+      confirmPassword: 'current-password',
+      securityAnswer: 'answer'
+    })
     expect(localStorage.getItem('ai_resume_token')).toBeNull()
     expect(clearUserInfo).toHaveBeenCalled()
     expect(push).toHaveBeenCalledWith('/login')
@@ -270,10 +372,79 @@ describe('SettingsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    await expect(wrapper.vm.handleAccountDelete('current-password')).rejects.toThrow('failed')
+    await expect(wrapper.vm.handleAccountDelete({
+      oldPassword: 'current-password',
+      confirmPassword: 'current-password',
+      securityAnswer: 'answer'
+    })).rejects.toThrow('failed')
 
     expect(localStorage.getItem('ai_resume_token')).toBe('user-token')
     expect(clearUserInfo).not.toHaveBeenCalled()
+  })
+
+  it('loads security question and keeps account delete button disabled during cooldown', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.activeSection = 'security'
+    wrapper.vm.handleSecurityModeChange('accountDeletion')
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    expect(getCurrentAccountSecurityQuestion).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('注销后不可恢复')
+    expect(wrapper.text()).toContain('你的出生城市是哪里？')
+    expect(wrapper.find('.account-delete-form button.el-button--danger').attributes('disabled')).toBeDefined()
+  })
+
+  it('submits account deletion from security tab after cooldown with existing payload', async () => {
+    vi.spyOn(ElMessageBox, 'confirm').mockResolvedValueOnce()
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.activeSection = 'security'
+    wrapper.vm.handleSecurityModeChange('accountDeletion')
+    await flushPromises()
+    await waitForSecurityTransition()
+    wrapper.vm.accountDeleteCountdown = 0
+    wrapper.vm.accountDeleteForm = {
+      oldPassword: 'current-password',
+      confirmPassword: 'current-password',
+      securityAnswer: 'answer'
+    }
+    await flushPromises()
+
+    await wrapper.vm.handleAccountDeleteSubmit()
+
+    expect(deleteAccount).toHaveBeenCalledWith({
+      oldPassword: 'current-password',
+      confirmPassword: 'current-password',
+      securityAnswer: 'answer'
+    })
+  })
+
+  it('collapses and expands long account deletion security questions', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.activeSection = 'security'
+    wrapper.vm.handleSecurityModeChange('accountDeletion')
+    await flushPromises()
+    await waitForSecurityTransition()
+    await flushPromises()
+    wrapper.vm.accountDeleteSecurityQuestion = '这是一条非常长的安全问题文本用于验证默认折叠展示，包含足够多的文字以避免撑破注销账号表单布局'
+    await flushPromises()
+
+    const card = wrapper.find('.security-question-card')
+    const toggle = wrapper.find('.security-question-toggle')
+    expect(toggle.exists()).toBe(true)
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(card.classes()).not.toContain('expanded')
+
+    await toggle.trigger('click')
+
+    expect(wrapper.find('.security-question-toggle').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('.security-question-card').classes()).toContain('expanded')
   })
 
   it('shows account data overview from existing growth overview api', async () => {

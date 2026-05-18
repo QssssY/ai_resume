@@ -116,9 +116,22 @@ export function updateSecurityQuestion(data) {
 }
 
 /**
+ * 获取当前登录账号的安全问题（账号注销验证使用）
+ * @returns {Promise}
+ */
+export function getCurrentAccountSecurityQuestion() {
+  return request({
+    url: '/api/user/account/security-question',
+    method: 'get'
+  })
+}
+
+/**
  * 注销当前账号
  * @param {Object} data - 注销确认参数
  * @param {string} data.oldPassword - 当前登录密码
+ * @param {string} data.confirmPassword - 再次输入的当前登录密码
+ * @param {string} data.securityAnswer - 安全问题答案
  * @returns {Promise}
  */
 export function deleteAccount(data) {

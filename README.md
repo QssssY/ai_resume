@@ -197,7 +197,7 @@ src/
 │   ├── styles/                # 17 个模板 CSS 文件（运行时 import ?raw 加载）
 │   └── contents/              # 各模板默认简历数据（16 个文件 + _default.js）
 └── assets/                    # 静态资源
-    ├── logo.jpg
+    ├── logo.png
     ├── user.png
     └── assistant.png
 ```

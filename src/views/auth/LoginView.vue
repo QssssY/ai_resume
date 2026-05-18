@@ -222,7 +222,7 @@ import { User, Lock, Key, ArrowLeft, WarningFilled, CircleCheck } from "@element
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
 import { register, getSecurityQuestion, resetPasswordBySecurity } from "@/api/auth";
-import brandLogo from "@/assets/logo.jpg";
+import brandLogo from "@/assets/logo.png";
 
 const router = useRouter();
 const route = useRoute();

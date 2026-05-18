@@ -1,8 +1,7 @@
 <template>
   <header class="app-header">
     <div class="header-left">
-      <img src="@/assets/logo.jpg" class="logo-img" alt="Logo" />
-      <span class="logo-text">智能模拟面试与简历诊断系统</span>
+      <img src="@/assets/header-logo.png" class="logo-img" alt="Logo" />
     </div>
 
     <nav class="header-nav desktop-nav">
@@ -915,15 +914,8 @@ onUnmounted(() => {
 }
 
 .logo-img {
-  height: 36px;
-  border-radius: 6px;
-  object-fit: contain;
-}
-
-.logo-text {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-title);
+  height: 48px;
+  width: auto;
 }
 
 .header-nav {
@@ -1041,8 +1033,8 @@ onUnmounted(() => {
 /* 响应式断点 */
 /* 中屏：1024px - 1279px */
 @media (max-width: 1279px) {
-  .logo-text {
-    font-size: 14px;
+  .logo-img {
+    height: 42px;
   }
   .nav-link {
     padding: 8px 10px;
@@ -1071,11 +1063,8 @@ onUnmounted(() => {
     flex-shrink: 1;
     min-width: 0;
   }
-  .logo-text {
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .logo-img {
+    height: 38px;
   }
 }
 
@@ -1448,6 +1437,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 767px) {
+  .logo-img {
+    height: 34px;
+  }
+
   .announcement-dialog {
     --el-dialog-width: calc(100vw - 32px);
   }
@@ -1478,6 +1471,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 480px) {
+  .logo-img {
+    height: 30px;
+  }
+
   .announcement-dialog {
     --el-dialog-width: 100vw;
   }

@@ -26,8 +26,8 @@ describe('settingsPreferences', () => {
       defaultInterviewDifficulty: 'advanced',
       defaultInterviewMode: 'tech_leader',
       defaultFeedbackMode: 'immediate',
-      responseDetailPreference: 'detailed',
-      interviewRetentionDays: 90
+      interviewRetentionDays: 90,
+      resumeRetentionDays: 180
     })
 
     expect(getSettingsPreferences()).toEqual({
@@ -39,8 +39,8 @@ describe('settingsPreferences', () => {
       defaultInterviewDifficulty: 'advanced',
       defaultInterviewMode: 'tech_leader',
       defaultFeedbackMode: 'immediate',
-      responseDetailPreference: 'detailed',
-      interviewRetentionDays: 90
+      interviewRetentionDays: 90,
+      resumeRetentionDays: 180
     })
   })
 
@@ -51,8 +51,8 @@ describe('settingsPreferences', () => {
       defaultInterviewDifficulty: 'invalid',
       defaultInterviewMode: 'custom',
       defaultFeedbackMode: 'later',
-      responseDetailPreference: 'verbose',
-      interviewRetentionDays: 7
+      interviewRetentionDays: 7,
+      resumeRetentionDays: 7
     })
 
     expect(normalized).toEqual(DEFAULT_SETTINGS_PREFERENCES)

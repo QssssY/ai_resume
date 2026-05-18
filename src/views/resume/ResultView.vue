@@ -193,12 +193,12 @@
         </div>
         <div class="section-body">
           <div class="grade-table">
-            <div v-for="g in gradeScale" :key="g.level" class="grade-row" :class="{ active: resumeLevel === g.level }">
+            <div v-for="g in gradeScale" :key="g.level" class="grade-row" :class="{ active: normalizedResumeLevel === g.level }">
               <span class="grade-level" :class="'grade-' + g.level.toLowerCase()">{{ g.level }}</span>
               <span class="grade-range">{{ g.range }}</span>
               <span class="grade-label">{{ g.label }}</span>
               <span class="grade-stage">{{ g.stage }}</span>
-              <span v-if="resumeLevel === g.level" class="grade-marker">你在此</span>
+              <span v-if="normalizedResumeLevel === g.level" class="grade-marker">你在此</span>
             </div>
           </div>
         </div>
@@ -752,6 +752,11 @@ const levelText = computed(() => {
 
 const resumeLevel = computed(() => {
   return parsedResult.value?.overallEvaluation?.level || ''
+})
+
+const normalizedResumeLevel = computed(() => {
+  const level = String(resumeLevel.value || '').trim().toUpperCase()
+  return level.match(/^[SABCD](?=\b|\s|-|_|$)/)?.[0] || ''
 })
 
 const gradeScale = [

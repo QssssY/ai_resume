@@ -27,7 +27,7 @@
           <div class="panel-heading">
             <div>
               <h2 id="profile-title">账号资料</h2>
-              <p>查看当前账号信息、订阅状态和会员有效期。</p>
+              <p>查看当前账号信息、订阅状态和注册时间。</p>
             </div>
           </div>
 
@@ -56,8 +56,8 @@
               <strong>{{ membershipPlanText }}</strong>
             </div>
             <div class="info-item">
-              <span>会员到期时间</span>
-              <strong>{{ profileVipExpireTimeText }}</strong>
+              <span>注册时间</span>
+              <strong>{{ profileRegisterTimeText }}</strong>
             </div>
           </div>
         </section>
@@ -145,24 +145,6 @@
                 />
               </el-select>
             </div>
-            <div class="preference-row stacked">
-              <div>
-                <strong>回复详略偏好</strong>
-                <span>用于记录你期望 AI 回复的详细程度；真正影响生成口径需后端后续接入。</span>
-              </div>
-              <el-select
-                v-model="interviewPreferenceForm.responseDetailPreference"
-                class="preference-select"
-                @change="handleInterviewPreferenceSave"
-              >
-                <el-option
-                  v-for="item in responseDetailOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </div>
           </div>
         </section>
 
@@ -170,7 +152,7 @@
           <div class="panel-heading">
             <div>
               <h2 id="security-title">账号安全</h2>
-              <p>修改登录密码、安全问题，并查看高风险账号操作状态。</p>
+              <p>修改登录密码、安全问题，并管理不可恢复的账号注销操作。</p>
             </div>
           </div>
 
@@ -194,6 +176,16 @@
               @click="handleSecurityModeChange('securityQuestion')"
             >
               修改安全问题
+            </button>
+            <button
+              type="button"
+              class="security-mode-tab danger"
+              :class="{ active: securityMode === 'accountDeletion' }"
+              role="tab"
+              :aria-selected="securityMode === 'accountDeletion'"
+              @click="handleSecurityModeChange('accountDeletion')"
+            >
+              注销账号
             </button>
           </div>
 
@@ -222,7 +214,7 @@
             </el-form>
 
             <el-form
-              v-else
+              v-else-if="securityMode === 'securityQuestion'"
               key="securityQuestion"
               ref="securityFormRef"
               :model="securityForm"
@@ -250,19 +242,102 @@
                 保存安全问题
               </el-button>
             </el-form>
+
+            <div v-else key="accountDeletion" class="account-delete-zone">
+              <div class="account-delete-context">
+                <div class="account-delete-warning" role="alert">
+                  <el-icon><Warning /></el-icon>
+                  <div>
+                    <strong>注销后不可恢复</strong>
+                    <span>系统会逻辑删除并匿名化账号，清理面试会话、聊天记录、简历诊断、JD 匹配、AI 润色记录、通知、额度和新手引导状态。</span>
+                  </div>
+                </div>
+
+                <div class="account-delete-steps">
+                  <div class="account-delete-step">
+                    <strong>1. 等待冷静期</strong>
+                    <span>进入本页后需要等待 15 秒，避免误触发高风险操作。</span>
+                  </div>
+                  <div class="account-delete-step">
+                    <strong>2. 验证登录密码</strong>
+                    <span>需要输入当前密码，并再次输入相同密码确认。</span>
+                  </div>
+                  <div class="account-delete-step">
+                    <strong>3. 回答安全问题</strong>
+                    <span>只有密码和安全问题答案都通过后才会注销账号。</span>
+                  </div>
+                </div>
+              </div>
+
+              <el-form
+                ref="accountDeleteFormRef"
+                :model="accountDeleteForm"
+                :rules="accountDeleteRules"
+                label-position="top"
+                class="settings-form account-delete-form"
+              >
+                <el-form-item label="当前密码" prop="oldPassword">
+                  <el-input v-model="accountDeleteForm.oldPassword" type="password" show-password autocomplete="current-password" />
+                </el-form-item>
+                <el-form-item label="再次输入当前密码" prop="confirmPassword">
+                  <el-input v-model="accountDeleteForm.confirmPassword" type="password" show-password autocomplete="current-password" />
+                </el-form-item>
+                <el-form-item label="安全问题" prop="securityAnswer">
+                  <div
+                    class="security-question-card"
+                    :class="{
+                      loading: accountDeleteQuestionLoading,
+                      expanded: accountDeleteQuestionExpanded,
+                      error: Boolean(accountDeleteQuestionError)
+                    }"
+                  >
+                    <div
+                      id="account-delete-security-question"
+                      class="security-question-text"
+                    >
+                      {{ accountDeleteQuestionText }}
+                    </div>
+                    <div class="security-question-actions">
+                      <el-button
+                        v-if="accountDeleteQuestionError"
+                        link
+                        type="primary"
+                        @click="fetchAccountDeleteSecurityQuestion"
+                      >
+                        重新加载
+                      </el-button>
+                      <button
+                        v-if="shouldShowAccountDeleteQuestionToggle"
+                        type="button"
+                        class="security-question-toggle"
+                        :aria-expanded="accountDeleteQuestionExpanded"
+                        aria-controls="account-delete-security-question"
+                        @click="accountDeleteQuestionExpanded = !accountDeleteQuestionExpanded"
+                      >
+                        {{ accountDeleteQuestionExpanded ? '收起' : '展开' }}
+                      </button>
+                    </div>
+                  </div>
+                  <el-input
+                    v-model="accountDeleteForm.securityAnswer"
+                    maxlength="100"
+                    show-word-limit
+                    autocomplete="off"
+                    placeholder="请输入安全问题答案"
+                  />
+                </el-form-item>
+                <el-button
+                  type="danger"
+                  :loading="accountDeleting"
+                  :disabled="accountDeleteCountdown > 0 || accountDeleteQuestionLoading || Boolean(accountDeleteQuestionError)"
+                  @click="handleAccountDeleteSubmit"
+                >
+                  {{ accountDeleteButtonText }}
+                </el-button>
+              </el-form>
+            </div>
           </Transition>
 
-          <div class="danger-zone">
-            <div class="preference-row danger-row">
-              <div>
-                <strong>账号注销</strong>
-                <span>删除账号及关联数据属于合规高风险操作，确认后会清理当前账号的面试、简历和本机登录态。</span>
-              </div>
-              <el-button type="danger" plain :loading="accountDeleting" @click="handleAccountDeleteConfirm">
-                注销账号
-              </el-button>
-            </div>
-          </div>
         </section>
 
         <section v-show="activeSection === 'privacy'" class="settings-panel" aria-labelledby="privacy-title">
@@ -329,7 +404,7 @@
             <div class="preference-row data-retention-row">
               <div>
                 <strong>数据保留说明</strong>
-                <span>当前页面只管理浏览器本机偏好。账号数据、面试记录、简历诊断记录仍由服务端按现有策略保留；真实删除和自动清理待后端能力接入。</span>
+                <span>账号数据由服务端按当前策略保留；面试记录和简历诊断记录可在数据管理中设置自动清理天数，手动清理仍需二次确认。</span>
               </div>
             </div>
           </div>
@@ -339,7 +414,7 @@
           <div class="panel-heading">
             <div>
               <h2 id="data-management-title">数据管理</h2>
-              <p>管理历史记录清理偏好；真实批量删除能力待后端接口接入。</p>
+              <p>管理历史记录手动清理与自动清理偏好；自动清理只在保存后按服务端低峰任务执行。</p>
             </div>
           </div>
 
@@ -370,7 +445,6 @@
               <el-select
                 v-model="interviewPreferenceForm.interviewRetentionDays"
                 class="preference-select"
-                @change="handleInterviewPreferenceSave"
               >
                 <el-option
                   v-for="item in retentionDayOptions"
@@ -379,6 +453,33 @@
                   :value="item.value"
                 />
               </el-select>
+            </div>
+            <div class="preference-row stacked">
+              <div>
+                <strong>简历诊断保留天数</strong>
+                <span>{{ resumeRetentionPreferenceText }}</span>
+              </div>
+              <el-select
+                v-model="interviewPreferenceForm.resumeRetentionDays"
+                class="preference-select"
+                :loading="userSettingsSaving"
+              >
+                <el-option
+                  v-for="item in retentionDayOptions"
+                  :key="`resume-${item.value}`"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+            </div>
+            <div class="preference-row data-management-save-row">
+              <div>
+                <strong>保存数据管理设置</strong>
+                <span>保留天数只在点击保存后同步到服务端，避免修改面试偏好时触发后端写入。</span>
+              </div>
+              <el-button type="primary" :loading="userSettingsSaving" @click="handleDataManagementSettingsSave">
+                保存设置
+              </el-button>
             </div>
           </div>
         </section>
@@ -531,15 +632,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Brush, DataAnalysis, FolderDelete, Memo, Lock, Refresh, Setting, Star, User } from '@element-plus/icons-vue'
-import { deleteAccount, updatePassword, updateSecurityQuestion } from '@/api/auth'
+import { Bell, Brush, DataAnalysis, FolderDelete, Memo, Lock, Refresh, Setting, Star, User, Warning } from '@element-plus/icons-vue'
+import { deleteAccount, getCurrentAccountSecurityQuestion, updatePassword, updateSecurityQuestion } from '@/api/auth'
 import { getGrowthOverview } from '@/api/growth'
 import { clearInterviewHistory, getInterviewJobRoles } from '@/api/interview'
 import { getMembershipPlans } from '@/api/membership'
 import { clearResumeHistory } from '@/api/resume'
+import { getUserSettings, saveUserSettings } from '@/api/userSettings'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
 import { FEEDBACK_MODE_OPTIONS, INTERVIEW_MODE_OPTIONS } from '@/constants/interview'
 import { useThemeStore } from '@/stores/theme'
@@ -560,11 +662,13 @@ const showOnboarding = ref(false)
 const securityMode = ref('password')
 const passwordFormRef = ref(null)
 const securityFormRef = ref(null)
+const accountDeleteFormRef = ref(null)
 const passwordSaving = ref(false)
 const securitySaving = ref(false)
 const accountDeleting = ref(false)
 const interviewHistoryClearing = ref(false)
 const resumeHistoryClearing = ref(false)
+const userSettingsSaving = ref(false)
 
 const sections = [
   { key: 'profile', label: '账号资料', icon: User },
@@ -622,10 +726,16 @@ const vipExpireTimeText = computed(() => {
   return `${y}-${m}-${d}`
 })
 
-const profileVipExpireTimeText = computed(() => {
-  // 账号资料区需要补齐第四项信息；非会员不展示空日期，避免误解为数据缺失。
-  if (!isVipUser.value) return '未开通会员'
-  return vipExpireTimeText.value === '--' ? '会员有效期未设置' : vipExpireTimeText.value
+const profileRegisterTimeText = computed(() => {
+  // 账号资料区展示用户主表 create_time；后端未返回或历史数据异常时保持明确占位。
+  const createTime = userInfo.value?.createTime
+  if (!createTime) return '--'
+  const date = new Date(createTime)
+  if (Number.isNaN(date.getTime())) return '--'
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 })
 
 const getPlanNameCn = (planName) => {
@@ -649,6 +759,13 @@ const membershipPlanText = computed(() => {
 
 const passwordForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const securityForm = ref({ oldPassword: '', securityQuestion: '', securityAnswer: '' })
+const accountDeleteForm = ref({ oldPassword: '', confirmPassword: '', securityAnswer: '' })
+const accountDeleteSecurityQuestion = ref('')
+const accountDeleteQuestionLoading = ref(false)
+const accountDeleteQuestionError = ref('')
+const accountDeleteQuestionExpanded = ref(false)
+const accountDeleteCountdown = ref(15)
+let accountDeleteTimer = null
 const notificationForm = ref(getSettingsPreferences())
 const interviewPreferenceForm = ref(getSettingsPreferences())
 
@@ -663,11 +780,6 @@ const difficultyPreferenceOptions = [
 
 const interviewModeOptions = INTERVIEW_MODE_OPTIONS
 const feedbackModeOptions = FEEDBACK_MODE_OPTIONS
-const responseDetailOptions = [
-  { label: '简洁', value: 'concise' },
-  { label: '标准', value: 'standard' },
-  { label: '详细', value: 'detailed' }
-]
 const retentionDayOptions = [
   { label: '不自动清理', value: 0 },
   { label: '保留 30 天', value: 30 },
@@ -689,14 +801,30 @@ const growthSummary = computed(() => {
 const retentionPreferenceText = computed(() => {
   const days = Number(interviewPreferenceForm.value.interviewRetentionDays || 0)
   if (!days) {
-    return '当前偏好为不自动清理。服务端自动清理能力待后端接入。'
+    return '当前设置为不自动清理；保存后服务端不会按天数删除面试记录。'
   }
-  return `当前浏览器记录偏好为保留 ${days} 天；真正自动清理历史记录需后端后续接入。`
+  return `服务端将每日低峰自动清理 ${days} 天前的已结束面试记录。`
+})
+
+const resumeRetentionPreferenceText = computed(() => {
+  const days = Number(interviewPreferenceForm.value.resumeRetentionDays || 0)
+  if (!days) {
+    return '当前设置为不自动清理；保存后服务端不会按天数删除简历诊断记录。'
+  }
+  return `服务端将每日低峰自动清理 ${days} 天前已完成或失败的简历诊断记录。`
 })
 
 const validateConfirmPassword = (rule, value, callback) => {
   if (value !== passwordForm.value.newPassword) {
     callback(new Error('两次输入的新密码不一致'))
+    return
+  }
+  callback()
+}
+
+const validateAccountDeleteConfirmPassword = (rule, value, callback) => {
+  if (value !== accountDeleteForm.value.oldPassword) {
+    callback(new Error('两次输入的当前密码不一致'))
     return
   }
   callback()
@@ -723,6 +851,36 @@ const securityRules = {
   ]
 }
 
+const accountDeleteRules = {
+  oldPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+  confirmPassword: [
+    { required: true, message: '请再次输入当前密码', trigger: 'blur' },
+    { validator: validateAccountDeleteConfirmPassword, trigger: 'blur' }
+  ],
+  securityAnswer: [
+    { required: true, message: '请输入安全问题答案', trigger: 'blur' },
+    { max: 100, message: '安全答案长度不能超过 100 个字符', trigger: 'blur' }
+  ]
+}
+
+const accountDeleteQuestionText = computed(() => {
+  if (accountDeleteQuestionLoading.value) return '正在加载安全问题...'
+  if (accountDeleteQuestionError.value) return accountDeleteQuestionError.value
+  return accountDeleteSecurityQuestion.value || '当前账号未加载到安全问题'
+})
+
+const shouldShowAccountDeleteQuestionToggle = computed(() => {
+  return !accountDeleteQuestionLoading.value &&
+    !accountDeleteQuestionError.value &&
+    accountDeleteQuestionText.value.length > 36
+})
+
+const accountDeleteButtonText = computed(() => {
+  if (accountDeleting.value) return '正在注销'
+  if (accountDeleteCountdown.value > 0) return `等待 ${accountDeleteCountdown.value} 秒后可注销`
+  return '确认注销账号'
+})
+
 const securityQuestionOptions = [
   '你的第一只宠物叫什么名字？',
   '你的出生城市是哪里？',
@@ -738,6 +896,29 @@ const syncPreferenceForms = (preferences) => {
   const nextPreferences = { ...preferences }
   notificationForm.value = nextPreferences
   interviewPreferenceForm.value = { ...nextPreferences }
+}
+
+const buildServerSettingsPayload = () => ({
+  interviewRetentionDays: Number(interviewPreferenceForm.value.interviewRetentionDays || 0),
+  resumeRetentionDays: Number(interviewPreferenceForm.value.resumeRetentionDays || 0)
+})
+
+const applyServerSettingsToLocalPreferences = (serverSettings) => {
+  const merged = saveSettingsPreferences({
+    ...getSettingsPreferences(),
+    interviewRetentionDays: Number(serverSettings?.interviewRetentionDays ?? 0),
+    resumeRetentionDays: Number(serverSettings?.resumeRetentionDays ?? 0)
+  })
+  syncPreferenceForms(merged)
+}
+
+const fetchUserSettings = async () => {
+  try {
+    const res = await getUserSettings()
+    applyServerSettingsToLocalPreferences(res?.data || {})
+  } catch {
+    ElMessage.warning('服务端设置暂时无法加载，当前页面保留本机偏好展示')
+  }
 }
 
 const fetchInterviewJobOptions = async () => {
@@ -785,9 +966,21 @@ const handleSecurityModeChange = (value) => {
   // 切换安全操作时清空未展示表单，防止两个高风险表单的输入状态互相干扰。
   if (value === 'password') {
     resetSecurityForm()
+    resetAccountDeleteForm()
+    clearAccountDeleteTimer()
+    return
+  }
+  if (value === 'securityQuestion') {
+    resetPasswordForm()
+    resetAccountDeleteForm()
+    clearAccountDeleteTimer()
     return
   }
   resetPasswordForm()
+  resetSecurityForm()
+  resetAccountDeleteForm()
+  startAccountDeleteCountdown()
+  fetchAccountDeleteSecurityQuestion()
 }
 
 const handlePasswordSave = async () => {
@@ -836,10 +1029,52 @@ const handleSecuritySave = async () => {
   }
 }
 
-const handleAccountDelete = async (oldPassword) => {
+const resetAccountDeleteForm = () => {
+  accountDeleteForm.value = { oldPassword: '', confirmPassword: '', securityAnswer: '' }
+  accountDeleteQuestionExpanded.value = false
+  accountDeleteFormRef.value?.resetFields()
+}
+
+const clearAccountDeleteTimer = () => {
+  if (accountDeleteTimer) {
+    clearInterval(accountDeleteTimer)
+    accountDeleteTimer = null
+  }
+}
+
+const startAccountDeleteCountdown = () => {
+  clearAccountDeleteTimer()
+  accountDeleteCountdown.value = 15
+  accountDeleteTimer = setInterval(() => {
+    accountDeleteCountdown.value = Math.max(0, accountDeleteCountdown.value - 1)
+    if (accountDeleteCountdown.value === 0) {
+      clearAccountDeleteTimer()
+    }
+  }, 1000)
+}
+
+const fetchAccountDeleteSecurityQuestion = async () => {
+  accountDeleteQuestionLoading.value = true
+  accountDeleteQuestionError.value = ''
+  accountDeleteQuestionExpanded.value = false
+  try {
+    const res = await getCurrentAccountSecurityQuestion()
+    accountDeleteSecurityQuestion.value = res?.data?.securityQuestion || ''
+    if (!accountDeleteSecurityQuestion.value) {
+      accountDeleteQuestionError.value = '当前账号未设置安全问题，暂不能注销账号'
+    }
+  } catch (err) {
+    accountDeleteSecurityQuestion.value = ''
+    accountDeleteQuestionError.value = err?.message || '安全问题加载失败，暂不能注销账号'
+  } finally {
+    accountDeleteQuestionLoading.value = false
+  }
+}
+
+const handleAccountDelete = async (payload) => {
   accountDeleting.value = true
   try {
-    await deleteAccount({ oldPassword })
+    await deleteAccount(payload)
     ElMessage.success('账号已注销')
     removeToken()
     userStore.clearUserInfo()
@@ -849,21 +1084,31 @@ const handleAccountDelete = async (oldPassword) => {
   }
 }
 
-const handleAccountDeleteConfirm = async () => {
+const handleAccountDeleteSubmit = async () => {
+  if (!accountDeleteFormRef.value) return
+  if (accountDeleteCountdown.value > 0) return
   try {
-    const { value } = await ElMessageBox.prompt(
-      '注销后将清理账号及关联业务数据。请输入当前密码确认操作。',
-      '账号注销确认',
+    await accountDeleteFormRef.value.validate()
+  } catch {
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      '确认注销后账号将不可恢复，系统会清理当前账号的面试、简历、通知、额度和本机登录态。请确认你已经备份必要数据。',
+      '最终确认：注销账号',
       {
         confirmButtonText: '确认注销',
         cancelButtonText: '取消',
         type: 'error',
-        inputType: 'password',
-        inputPlaceholder: '当前密码',
-        inputValidator: (value) => Boolean(value && value.trim()) || '请输入当前密码'
+        confirmButtonClass: 'el-button--danger'
       }
     )
-    await handleAccountDelete(value.trim())
+    await handleAccountDelete({
+      oldPassword: accountDeleteForm.value.oldPassword,
+      confirmPassword: accountDeleteForm.value.confirmPassword,
+      securityAnswer: accountDeleteForm.value.securityAnswer
+    })
   } catch {
     // 用户取消或接口失败时不清理登录态；接口失败的错误提示由请求层展示。
   }
@@ -944,6 +1189,24 @@ const handleInterviewPreferenceSave = () => {
   syncPreferenceForms(saveSettingsPreferences(interviewPreferenceForm.value))
 }
 
+const handleDataManagementSettingsSave = async () => {
+  const previousPreferences = getSettingsPreferences()
+  userSettingsSaving.value = true
+  try {
+    const res = await saveUserSettings(buildServerSettingsPayload())
+    syncPreferenceForms(saveSettingsPreferences({
+      ...interviewPreferenceForm.value,
+      ...res?.data
+    }))
+    ElMessage.success('设置已保存')
+  } catch (err) {
+    syncPreferenceForms(previousPreferences)
+    throw err
+  } finally {
+    userSettingsSaving.value = false
+  }
+}
+
 const handleDefaultJobChange = (value) => {
   const matchedJob = interviewJobOptions.value.find((item) => item.value === value)
   interviewPreferenceForm.value.defaultInterviewJobRole = matchedJob?.roleName || ''
@@ -976,9 +1239,21 @@ const handleClearLocalCacheConfirm = async () => {
   }
 }
 
+watch(activeSection, (value) => {
+  if (value === 'security' && securityMode.value === 'accountDeletion') {
+    // 每次重新进入注销页签都进入冷静期，并清空上次未提交的敏感输入。
+    resetAccountDeleteForm()
+    startAccountDeleteCountdown()
+    fetchAccountDeleteSecurityQuestion()
+    return
+  }
+  clearAccountDeleteTimer()
+})
+
 onMounted(async () => {
   const tasks = []
   if (!userStore.userInfo) tasks.push(userStore.fetchUserInfo())
+  tasks.push(fetchUserSettings())
   tasks.push(fetchInterviewJobOptions())
   tasks.push(fetchGrowthOverview())
   tasks.push(
@@ -990,6 +1265,10 @@ onMounted(async () => {
     })
   )
   await Promise.all(tasks)
+})
+
+onBeforeUnmount(() => {
+  clearAccountDeleteTimer()
 })
 </script>
 
@@ -1170,6 +1449,160 @@ onMounted(async () => {
   max-width: 520px;
 }
 
+.account-delete-zone {
+  width: 100%;
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.account-delete-context {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.account-delete-warning {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #f56c6c;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-card) 86%, #f56c6c 14%);
+  color: #b42318;
+}
+
+.account-delete-warning .el-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  font-size: 22px;
+}
+
+.account-delete-warning strong,
+.account-delete-warning span {
+  display: block;
+}
+
+.account-delete-warning strong {
+  font-size: 15px;
+}
+
+.account-delete-warning span {
+  margin-top: 6px;
+  color: var(--text-body);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.account-delete-steps {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.account-delete-step {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--border-card) 70%, #f56c6c 30%);
+  border-radius: 10px;
+  background: var(--bg-page);
+}
+
+.account-delete-step strong,
+.account-delete-step span {
+  display: block;
+}
+
+.account-delete-step strong {
+  color: var(--text-title);
+  font-size: 14px;
+}
+
+.account-delete-step span {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.account-delete-form {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 20px;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-page) 92%, #f56c6c 8%);
+}
+
+.account-delete-form .el-button--danger {
+  min-width: 168px;
+}
+
+.security-question-card {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-body);
+  font-size: 13px;
+}
+
+.security-question-card.loading {
+  color: var(--text-muted);
+}
+
+.security-question-card.error {
+  border-color: color-mix(in srgb, var(--border-card) 50%, #f56c6c 50%);
+  color: #b42318;
+}
+
+.security-question-text {
+  min-width: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.security-question-card.expanded .security-question-text {
+  display: block;
+  overflow: visible;
+}
+
+.security-question-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.security-question-toggle {
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--orange-deep);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.security-question-toggle:focus-visible {
+  outline: 2px solid var(--orange-main);
+  outline-offset: 2px;
+}
+
 .security-mode-tabs {
   max-width: 100%;
   display: inline-flex;
@@ -1199,9 +1632,18 @@ onMounted(async () => {
   color: var(--orange-main);
 }
 
+.security-mode-tab.danger {
+  color: #b42318;
+}
+
 .security-mode-tab.active {
   border-bottom-color: var(--orange-main);
   font-weight: 600;
+}
+
+.security-mode-tab.danger.active {
+  border-bottom-color: #f56c6c;
+  color: #b42318;
 }
 
 .security-mode-tab:focus-visible {
@@ -1484,6 +1926,14 @@ onMounted(async () => {
   .appearance-options {
     grid-template-columns: 1fr;
   }
+
+  .account-delete-zone {
+    grid-template-columns: 1fr;
+  }
+
+  .account-delete-steps {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1518,6 +1968,10 @@ onMounted(async () => {
 
   .appearance-preview {
     height: 64px;
+  }
+
+  .account-delete-form .el-button--danger {
+    width: 100%;
   }
 }
 </style>

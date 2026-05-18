@@ -1,8 +1,8 @@
 export const SETTINGS_PREFERENCES_KEY = 'ai_resume_settings_preferences'
 export const SETTINGS_PREFERENCES_UPDATED_EVENT = 'ai-resume-settings-preferences-updated'
 
-export const RESPONSE_DETAIL_PREFERENCE_OPTIONS = Object.freeze(['concise', 'standard', 'detailed'])
 export const INTERVIEW_RETENTION_DAY_OPTIONS = Object.freeze([0, 30, 90, 180, 365])
+export const RESUME_RETENTION_DAY_OPTIONS = Object.freeze([0, 30, 90, 180, 365])
 
 export const DEFAULT_SETTINGS_PREFERENCES = Object.freeze({
   notificationRealtimeEnabled: true,
@@ -13,8 +13,8 @@ export const DEFAULT_SETTINGS_PREFERENCES = Object.freeze({
   defaultInterviewDifficulty: 'primary',
   defaultInterviewMode: 'normal',
   defaultFeedbackMode: 'after_interview',
-  responseDetailPreference: 'standard',
-  interviewRetentionDays: 0
+  interviewRetentionDays: 0,
+  resumeRetentionDays: 0
 })
 
 const LOCAL_CACHE_KEYS = Object.freeze([
@@ -45,11 +45,11 @@ const optionOrDefault = (value, options, defaultValue) => (
   options.includes(value) ? value : defaultValue
 )
 
-const retentionDaysOrDefault = (value) => {
+const retentionDaysOrDefault = (value, options, defaultValue) => {
   const parsed = Number(value)
-  return INTERVIEW_RETENTION_DAY_OPTIONS.includes(parsed)
+  return options.includes(parsed)
     ? parsed
-    : DEFAULT_SETTINGS_PREFERENCES.interviewRetentionDays
+    : defaultValue
 }
 
 /**
@@ -93,12 +93,16 @@ export function normalizeSettingsPreferences(preferences = {}) {
       FEEDBACK_MODE_VALUES,
       DEFAULT_SETTINGS_PREFERENCES.defaultFeedbackMode
     ),
-    responseDetailPreference: optionOrDefault(
-      preferences.responseDetailPreference,
-      RESPONSE_DETAIL_PREFERENCE_OPTIONS,
-      DEFAULT_SETTINGS_PREFERENCES.responseDetailPreference
+    interviewRetentionDays: retentionDaysOrDefault(
+      preferences.interviewRetentionDays,
+      INTERVIEW_RETENTION_DAY_OPTIONS,
+      DEFAULT_SETTINGS_PREFERENCES.interviewRetentionDays
     ),
-    interviewRetentionDays: retentionDaysOrDefault(preferences.interviewRetentionDays)
+    resumeRetentionDays: retentionDaysOrDefault(
+      preferences.resumeRetentionDays,
+      RESUME_RETENTION_DAY_OPTIONS,
+      DEFAULT_SETTINGS_PREFERENCES.resumeRetentionDays
+    )
   }
 }
 

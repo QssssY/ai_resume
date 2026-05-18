@@ -35,7 +35,7 @@
               </div>
             </div>
           </div>
-          <div class="identity-right" v-if="isVipUser && !isAdmin">
+          <div class="identity-right">
             <div class="vip-badge">
               <svg
                 class="vip-icon"
@@ -48,25 +48,9 @@
                   points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
                 />
               </svg>
-              <span>会员有效期至</span>
+              <span>注册时间</span>
             </div>
-            <div class="vip-expire-time">{{ formatVipExpireTime }}</div>
-          </div>
-          <div class="identity-right" v-else>
-            <div class="guest-badge">
-              <svg
-                class="guest-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span>{{ isAdmin ? "管理员身份" : "普通用户" }}</span>
-            </div>
+            <div class="vip-expire-time">{{ formatRegisterTime }}</div>
           </div>
         </div>
       </div>
@@ -489,11 +473,12 @@ const roleBadgeClass = computed(() => {
   return "badge-normal";
 });
 
-// VIP 过期时间格式化
-const formatVipExpireTime = computed(() => {
-  const vipExpireTime = userStore.userInfo?.vipExpireTime;
-  if (!vipExpireTime) return "--";
-  const date = new Date(vipExpireTime);
+// 注册时间格式化，首页身份卡不再展示会员到期时间。
+const formatRegisterTime = computed(() => {
+  const createTime = userStore.userInfo?.createTime;
+  if (!createTime) return "--";
+  const date = new Date(createTime);
+  if (Number.isNaN(date.getTime())) return "--";
   return date.toLocaleDateString("zh-CN", {
     year: "numeric",
     month: "long",

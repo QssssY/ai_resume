@@ -45,11 +45,12 @@ const summary = computed(() => {
 
 // 等级样式类
 const gradeClass = computed(() => {
-  const g = grade.value?.toLowerCase()
-  if (g.includes('a') || g.includes('优') || g.includes('excellent')) return 'grade-excellent'
-  if (g.includes('b') || g.includes('良') || g.includes('good')) return 'grade-good'
-  if (g.includes('c') || g.includes('中') || g.includes('average')) return 'grade-average'
-  if (g.includes('d') || g.includes('差') || g.includes('poor')) return 'grade-poor'
+  const g = String(grade.value || '').trim().toLowerCase()
+  const gradeLetter = g.match(/^[sabcd](?=\b|\s|-|_|$)/)?.[0]
+  if (gradeLetter === 's' || gradeLetter === 'a' || g.includes('优') || g.includes('excellent')) return 'grade-excellent'
+  if (gradeLetter === 'b' || g.includes('良') || g.includes('good')) return 'grade-good'
+  if (gradeLetter === 'c' || g.includes('中') || g.includes('average')) return 'grade-average'
+  if (gradeLetter === 'd' || g.includes('差') || g.includes('poor')) return 'grade-poor'
   return 'grade-default'
 })
 </script>

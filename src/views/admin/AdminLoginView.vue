@@ -65,7 +65,7 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Right } from '@element-plus/icons-vue'
-import logoUrl from '@/assets/logo.jpg'
+import logoUrl from '@/assets/logo.png'
 import { useAdminUserStore } from '@/stores/adminUser'
 import { showAdminError, showAdminSuccess } from '@/utils/adminFeedback'
 

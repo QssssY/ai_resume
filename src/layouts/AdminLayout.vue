@@ -67,7 +67,7 @@ import {
   UserFilled,
 } from "@element-plus/icons-vue";
 import { useAdminUserStore } from "@/stores/adminUser";
-import logoUrl from "@/assets/logo.jpg";
+import logoUrl from "@/assets/logo.png";
 import { showAdminError, showAdminSuccess } from "@/utils/adminFeedback";
 
 const route = useRoute();
