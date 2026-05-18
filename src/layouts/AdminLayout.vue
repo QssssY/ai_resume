@@ -91,6 +91,7 @@ const navGroups = computed(() => [
       { path: "/admin/users", label: "用户权益", icon: UserFilled },
       { path: "/admin/audit-logs", label: "审计日志", icon: List },
       { path: "/admin/notifications", label: "通知公告", icon: Bell },
+      { path: "/admin/feedback", label: "问题反馈", icon: ChatLineRound },
       { path: "/admin/version-logs", label: "版本日志", icon: Collection }
     ]
   },

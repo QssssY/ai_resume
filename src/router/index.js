@@ -64,6 +64,12 @@ const routes = [
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
+        path: 'feedback',
+        name: 'AdminFeedback',
+        component: () => import('@/views/admin/AdminFeedbackView.vue'),
+        meta: { useLayout: false, requiresAdminAuth: true }
+      },
+      {
         path: 'version-logs',
         name: 'AdminVersionLogs',
         component: () => import('@/views/admin/AdminVersionLogView.vue'),

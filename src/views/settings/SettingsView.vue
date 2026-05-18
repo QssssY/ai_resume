@@ -484,6 +484,51 @@
           </div>
         </section>
 
+        <section v-show="activeSection === 'feedback'" class="settings-panel" aria-labelledby="feedback-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="feedback-title">问题反馈</h2>
+              <p>提交使用过程中遇到的问题或功能建议，管理员会在后台集中跟进。</p>
+            </div>
+          </div>
+
+          <el-form
+            ref="feedbackFormRef"
+            :model="feedbackForm"
+            :rules="feedbackRules"
+            label-position="top"
+            class="settings-form feedback-form"
+          >
+            <el-form-item label="反馈类型" prop="type">
+              <el-select v-model="feedbackForm.type" class="full-width">
+                <el-option label="问题反馈" value="bug" />
+                <el-option label="功能建议" value="suggestion" />
+                <el-option label="体验问题" value="experience" />
+                <el-option label="其他" value="other" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="标题" prop="title">
+              <el-input v-model="feedbackForm.title" maxlength="100" show-word-limit placeholder="简要描述问题或建议" />
+            </el-form-item>
+            <el-form-item label="详细内容" prop="content">
+              <el-input
+                v-model="feedbackForm.content"
+                type="textarea"
+                :rows="7"
+                maxlength="2000"
+                show-word-limit
+                placeholder="请描述出现问题的页面、操作步骤、期望结果或建议内容"
+              />
+            </el-form-item>
+            <el-form-item label="联系方式（选填）" prop="contact">
+              <el-input v-model="feedbackForm.contact" maxlength="100" show-word-limit placeholder="邮箱、手机号或其他便于联系的信息" />
+            </el-form-item>
+            <el-button type="primary" :loading="feedbackSubmitting" @click="handleFeedbackSubmit">
+              提交反馈
+            </el-button>
+          </el-form>
+        </section>
+
         <section v-show="activeSection === 'appearance'" class="settings-panel" aria-labelledby="appearance-title">
           <div class="panel-heading">
             <div>
@@ -635,8 +680,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Brush, DataAnalysis, FolderDelete, Memo, Lock, Refresh, Setting, Star, User, Warning } from '@element-plus/icons-vue'
+import { Bell, Brush, ChatLineRound, DataAnalysis, FolderDelete, Memo, Lock, Refresh, Setting, Star, User, Warning } from '@element-plus/icons-vue'
 import { deleteAccount, getCurrentAccountSecurityQuestion, updatePassword, updateSecurityQuestion } from '@/api/auth'
+import { createUserFeedback } from '@/api/feedback'
 import { getGrowthOverview } from '@/api/growth'
 import { clearInterviewHistory, getInterviewJobRoles } from '@/api/interview'
 import { getMembershipPlans } from '@/api/membership'
@@ -669,6 +715,8 @@ const accountDeleting = ref(false)
 const interviewHistoryClearing = ref(false)
 const resumeHistoryClearing = ref(false)
 const userSettingsSaving = ref(false)
+const feedbackFormRef = ref(null)
+const feedbackSubmitting = ref(false)
 
 const sections = [
   { key: 'profile', label: '账号资料', icon: User },
@@ -676,6 +724,7 @@ const sections = [
   { key: 'security', label: '账号安全', icon: Lock },
   { key: 'privacy', label: '隐私与数据', icon: DataAnalysis },
   { key: 'dataManagement', label: '数据管理', icon: FolderDelete },
+  { key: 'feedback', label: '问题反馈', icon: ChatLineRound },
   { key: 'appearance', label: '外观偏好', icon: Brush },
   { key: 'notification', label: '通知偏好', icon: Bell },
   { key: 'onboarding', label: '新手引导', icon: Memo },
@@ -760,6 +809,7 @@ const membershipPlanText = computed(() => {
 const passwordForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const securityForm = ref({ oldPassword: '', securityQuestion: '', securityAnswer: '' })
 const accountDeleteForm = ref({ oldPassword: '', confirmPassword: '', securityAnswer: '' })
+const feedbackForm = ref({ type: 'bug', title: '', content: '', contact: '' })
 const accountDeleteSecurityQuestion = ref('')
 const accountDeleteQuestionLoading = ref(false)
 const accountDeleteQuestionError = ref('')
@@ -861,6 +911,19 @@ const accountDeleteRules = {
     { required: true, message: '请输入安全问题答案', trigger: 'blur' },
     { max: 100, message: '安全答案长度不能超过 100 个字符', trigger: 'blur' }
   ]
+}
+
+const feedbackRules = {
+  type: [{ required: true, message: '请选择反馈类型', trigger: 'change' }],
+  title: [
+    { required: true, message: '请输入反馈标题', trigger: 'blur' },
+    { min: 2, max: 100, message: '反馈标题长度应为 2-100 个字符', trigger: 'blur' }
+  ],
+  content: [
+    { required: true, message: '请输入反馈内容', trigger: 'blur' },
+    { min: 10, max: 2000, message: '反馈内容长度应为 10-2000 个字符', trigger: 'blur' }
+  ],
+  contact: [{ max: 100, message: '联系方式不能超过 100 个字符', trigger: 'blur' }]
 }
 
 const accountDeleteQuestionText = computed(() => {
@@ -1239,6 +1302,34 @@ const handleClearLocalCacheConfirm = async () => {
   }
 }
 
+const resetFeedbackForm = () => {
+  feedbackForm.value = { type: 'bug', title: '', content: '', contact: '' }
+  feedbackFormRef.value?.clearValidate()
+}
+
+const handleFeedbackSubmit = async () => {
+  if (!feedbackFormRef.value) return
+  try {
+    await feedbackFormRef.value.validate()
+  } catch {
+    return
+  }
+
+  feedbackSubmitting.value = true
+  try {
+    await createUserFeedback({
+      type: feedbackForm.value.type,
+      title: feedbackForm.value.title.trim(),
+      content: feedbackForm.value.content.trim(),
+      contact: feedbackForm.value.contact.trim()
+    })
+    ElMessage.success('反馈已提交')
+    resetFeedbackForm()
+  } finally {
+    feedbackSubmitting.value = false
+  }
+}
+
 watch(activeSection, (value) => {
   if (value === 'security' && securityMode.value === 'accountDeletion') {
     // 每次重新进入注销页签都进入冷静期，并清空上次未提交的敏感输入。
@@ -1447,6 +1538,14 @@ onBeforeUnmount(() => {
 
 .settings-form {
   max-width: 520px;
+}
+
+.feedback-form {
+  width: 100%;
+}
+
+.full-width {
+  width: 100%;
 }
 
 .account-delete-zone {

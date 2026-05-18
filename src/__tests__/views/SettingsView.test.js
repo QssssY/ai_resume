@@ -8,6 +8,7 @@ import { getMembershipPlans } from '@/api/membership'
 import { clearResumeHistory } from '@/api/resume'
 import { getUserSettings, saveUserSettings } from '@/api/userSettings'
 import { deleteAccount, getCurrentAccountSecurityQuestion } from '@/api/auth'
+import { createUserFeedback } from '@/api/feedback'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { getSettingsPreferences, saveSettingsPreferences } from '@/utils/settingsPreferences'
@@ -73,6 +74,10 @@ vi.mock('@/api/growth', () => ({
       }
     }
   }))
+}))
+
+vi.mock('@/api/feedback', () => ({
+  createUserFeedback: vi.fn(() => Promise.resolve({ data: 100 }))
 }))
 
 vi.mock('@/stores/user', () => ({
@@ -153,6 +158,7 @@ describe('SettingsView', () => {
     expect(wrapper.find('.settings-nav').text()).not.toContain('注销账号')
     expect(wrapper.text()).toContain('隐私与数据')
     expect(wrapper.text()).toContain('数据管理')
+    expect(wrapper.text()).toContain('问题反馈')
     expect(wrapper.text()).toContain('外观偏好')
     expect(wrapper.text()).toContain('通知偏好')
     expect(wrapper.text()).toContain('新手引导')
@@ -188,14 +194,14 @@ describe('SettingsView', () => {
 
     expect(wrapper.vm.securityMode).toBe('password')
     expect(wrapper.find('input[autocomplete="new-password"]').exists()).toBe(true)
-    expect(wrapper.find('.settings-form .el-select').exists()).toBe(false)
+    expect(wrapper.find('section[aria-labelledby="security-title"] .settings-form .el-select').exists()).toBe(false)
 
     wrapper.vm.handleSecurityModeChange('securityQuestion')
     await flushPromises()
     await waitForSecurityTransition()
 
     expect(wrapper.find('input[autocomplete="new-password"]').exists()).toBe(false)
-    expect(wrapper.find('.settings-form .el-select').exists()).toBe(true)
+    expect(wrapper.find('section[aria-labelledby="security-title"] .settings-form .el-select').exists()).toBe(true)
   })
 
   it('renders account deletion as an account security tab', async () => {
@@ -476,5 +482,32 @@ describe('SettingsView', () => {
     expect(getSettingsPreferences().defaultInterviewMode).toBe('normal')
     expect(localStorage.getItem('ai_resume_token')).toBe('user-token')
     expect(localStorage.getItem('ai_resume_admin_token')).toBe('admin-token')
+  })
+
+  it('submits user feedback from settings center and resets form', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.activeSection = 'feedback'
+    wrapper.vm.feedbackForm = {
+      type: 'suggestion',
+      title: ' 增加导出提示 ',
+      content: '这里是一段超过十个字符的功能建议内容',
+      contact: 'user@example.com'
+    }
+    await wrapper.vm.handleFeedbackSubmit()
+
+    expect(createUserFeedback).toHaveBeenCalledWith({
+      type: 'suggestion',
+      title: '增加导出提示',
+      content: '这里是一段超过十个字符的功能建议内容',
+      contact: 'user@example.com'
+    })
+    expect(wrapper.vm.feedbackForm).toMatchObject({
+      type: 'bug',
+      title: '',
+      content: '',
+      contact: ''
+    })
   })
 })
