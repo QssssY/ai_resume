@@ -140,19 +140,20 @@ const activeSections = computed(() => {
   return props.sectionsConfig || DEFAULT_SECTIONS
 })
 
-// 判断section是否有数据可显示
-function isSectionVisible(sec) {
-  const data = getSectionData(sec)
-  if (data == null) return false
-  if (typeof data === 'string') return data.trim().length > 0
-  if (Array.isArray(data)) return data.length > 0
-  return true
-}
+	// 判断section是否有数据可显示
+	function isSectionVisible(sec) {
+	  if (sec.visible === false) return false
+	  const data = getSectionData(sec)
+	  if (data == null) return false
+	  if (typeof data === 'string') return data.trim().length > 0
+	  if (Array.isArray(data)) return data.length > 0
+	  return true
+	}
 
-// 获取section对应的数据
-function getSectionData(sec) {
-  return props.resumeData[sec.key]
-}
+	// 获取section对应的数据
+	function getSectionData(sec) {
+	  return props.resumeData[sec.key]
+	}
 </script>
 
 <style scoped>
@@ -248,6 +249,31 @@ function getSectionData(sec) {
   color: #4B5563;
   line-height: 1.7;
   white-space: pre-wrap;
+}
+
+/* ---- 联系方式列表 base ---- */
+.meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  margin-top: 8px;
+  font-size: 13px;
+  /* 不设 color：继承父级（.template-renderer 默认 #1f2937），深色模板会自行覆盖 */
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* 项与项之间的小圆点分隔符（颜色跟随文字，用 opacity 降强调级别） */
+.meta-item + .meta-item::before {
+  content: "·";
+  margin-right: 6px;
+  opacity: 0.45;
+  font-weight: 600;
 }
 
 .meta-icon {

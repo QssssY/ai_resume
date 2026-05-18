@@ -34,11 +34,12 @@ export const useTemplateEditorStore = defineStore('templateEditor', () => {
   // 可新增的段落类型（所有类型都可重复添加）
   const availableSectionTypes = computed(() => SECTION_TYPES)
 
-  function loadTemplate(id, data) {
+  function loadTemplate(id, data, customSectionsConfig) {
     templateId.value = id
     resumeData.value = JSON.parse(JSON.stringify(data))
-    // 重置段落配置为默认
-    sectionsConfig.value = JSON.parse(JSON.stringify(DEFAULT_SECTIONS))
+    sectionsConfig.value = customSectionsConfig
+      ? JSON.parse(JSON.stringify(customSectionsConfig))
+      : JSON.parse(JSON.stringify(DEFAULT_SECTIONS))
   }
 
   function updateBasic(field, value) {

@@ -839,7 +839,7 @@ const handleCommand = (command) => {
     }
     localStorage.removeItem("token");
     removeToken();
-    userStore.clearUserInfo();
+  userStore.clearUserInfo();
     ElMessage.success("已退出登录");
     router.push("/");
   }
