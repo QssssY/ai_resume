@@ -343,6 +343,18 @@
                 </svg>
                 会员中心
               </el-dropdown-item>
+              <el-dropdown-item command="activity">
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                个人动态中心
+              </el-dropdown-item>
               <el-dropdown-item command="logout" class="logout-item">
                 <svg
                   class="dropdown-icon"
@@ -943,6 +955,8 @@ const handleCommand = (command) => {
     router.push("/dashboard");
   } else if (command === "membership") {
     router.push("/membership");
+  } else if (command === "activity") {
+    router.push("/community/my");
   } else if (command === "nickname") {
     // 打开弹窗时填充当前昵称
     nicknameForm.value.nickname = userStore.userInfo?.nickname || "";

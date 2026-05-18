@@ -72,6 +72,12 @@
               </svg>
               <span>{{ post.commentCount || 0 }}</span>
             </button>
+            <button class="act-btn" :class="{ active: post.favorited, 'active-fav': post.favorited }" @click="handleFavorite">
+              <svg viewBox="0 0 24 24" :fill="post.favorited ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+              <span>收藏</span>
+            </button>
             <button class="act-btn" @click="handleShare">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="18" cy="5" r="3" />
@@ -89,7 +95,7 @@
       <!-- 下半部分：评论区 -->
       <section ref="commentSectionRef" class="comment-area">
         <div class="comment-inner">
-          <CommentSection :post-id="postId" :post-user-id="post?.userId" />
+          <CommentSection :post-id="postId" :post-user-id="post?.userId" @comment-deleted="post.commentCount = Math.max(0, (post.commentCount || 0) - 1)" />
         </div>
       </section>
     </template>
@@ -116,7 +122,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getPostDetail, togglePostLike } from '@/api/community'
+import { getPostDetail, togglePostLike, togglePostFavorite } from '@/api/community'
 import ImageGrid from '@/components/community/ImageGrid.vue'
 import CommentSection from '@/components/community/CommentSection.vue'
 import defaultAvatar from '@/assets/user.png'
@@ -171,6 +177,15 @@ const handleLike = async () => {
       : Math.max(0, (post.value.likeCount || 0) - 1)
   } catch (err) {
     console.error('点赞失败:', err)
+  }
+}
+
+const handleFavorite = async () => {
+  try {
+    await togglePostFavorite(post.value.id)
+    post.value.favorited = !post.value.favorited
+  } catch (err) {
+    console.error('收藏失败:', err)
   }
 }
 
@@ -447,6 +462,15 @@ onMounted(async () => {
 
 .act-btn.active:hover {
   background: rgba(255, 77, 106, 0.1);
+}
+
+.act-btn.active-fav {
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.06);
+}
+
+.act-btn.active-fav:hover {
+  background: rgba(245, 166, 35, 0.1);
 }
 
 .act-btn svg {

@@ -71,6 +71,17 @@ export function togglePostLike(postId) {
 }
 
 /**
+ * 收藏/取消收藏帖子
+ * @param {number|string} postId
+ */
+export function togglePostFavorite(postId) {
+  return request({
+    url: `/api/community/posts/${postId}/favorite`,
+    method: 'post'
+  })
+}
+
+/**
  * 获取帖子评论列表
  * @param {number|string} postId
  * @param {Object} params
@@ -153,6 +164,20 @@ export function getLikedPosts(params) {
     url: '/api/community/posts',
     method: 'get',
     params: { ...params, filter: 'liked' }
+  })
+}
+
+/**
+ * 获取当前用户收藏的帖子列表
+ * @param {Object} params
+ * @param {number} params.pageNum
+ * @param {number} params.pageSize
+ */
+export function getFavoritedPosts(params) {
+  return request({
+    url: '/api/community/posts',
+    method: 'get',
+    params: { ...params, filter: 'favorited' }
   })
 }
 

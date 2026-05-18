@@ -1,5 +1,5 @@
 <template>
-  <div class="comment-section">
+  <div class="comment-section" ref="commentSectionRef">
     <!-- 评论区标题 -->
     <div class="section-header">
       <div class="header-left">
@@ -83,7 +83,7 @@
               </svg>
             </button>
           </div>
-          <p class="comment-content">{{ comment.content }}</p>
+          <p class="comment-content clickable" @click.prevent="startReply(comment)">{{ comment.content }}</p>
 
           <!-- 展开/收起回复 -->
           <button
@@ -119,6 +119,7 @@
                     </span>
                     <span class="reply-dot">·</span>
                     <span class="reply-time">{{ formatTime(reply.createTime) }}</span>
+                    <button class="btn-reply btn-reply-nested" @click="startReply(comment, reply)">回复</button>
                     <button
                       v-if="reply.deletable"
                       class="btn-delete-comment"
@@ -146,42 +147,42 @@
           </Transition>
 
           <!-- 回复输入框（内联，出现在回复列表下方） -->
-          <Transition name="reply-expand">
-            <div v-if="replyTarget && replyTarget.id === comment.id" class="reply-composer">
-              <div class="reply-composer-header">
-                <span class="reply-to-hint">回复 @{{ replyTarget._replyToName || replyTarget.authorName }}</span>
-                <button class="btn-cancel-reply" @click="cancelReply">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
+          <div v-if="replyTarget && replyTarget.id === comment.id" class="reply-composer">
+            <div class="reply-composer-header">
+              <span class="reply-to-hint">回复 @{{ replyTarget._replyToName || replyTarget.authorName }}</span>
+              <button class="btn-cancel-reply" @click="cancelReply">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div class="reply-composer-body">
+              <textarea
+                ref="replyInputRef"
+                v-model="replyText"
+                class="reply-input"
+                :placeholder="`回复 @${replyTarget._replyToName || replyTarget.authorName}...`"
+                rows="1"
+                maxlength="500"
+                @input="autoResizeReply"
+                @keydown="handleReplyKeydown"
+                autofocus
+              />
+              <div class="reply-composer-actions">
+                <span class="char-count" :class="{ warn: replyText.length > 450 }">
+                  {{ replyText.length }}<span class="char-sep">/</span>500
+                </span>
+                <button
+                  class="btn-submit"
+                  :disabled="!replyText.trim() || submittingReply"
+                  @click="submitReply"
+                >
+                  <span v-if="submittingReply" class="btn-spinner"></span>
+                  <span v-else>回复</span>
                 </button>
               </div>
-              <div class="reply-composer-body">
-                <textarea
-                  ref="replyInputRef"
-                  v-model="replyText"
-                  class="reply-input"
-                  :placeholder="`回复 @${replyTarget._replyToName || replyTarget.authorName}...`"
-                  rows="1"
-                  maxlength="500"
-                  @input="autoResizeReply"
-                />
-                <div class="reply-composer-actions">
-                  <span class="char-count" :class="{ warn: replyText.length > 450 }">
-                    {{ replyText.length }}<span class="char-sep">/</span>500
-                  </span>
-                  <button
-                    class="btn-submit"
-                    :disabled="!replyText.trim() || submittingReply"
-                    @click="submitReply"
-                  >
-                    <span v-if="submittingReply" class="btn-spinner"></span>
-                    <span v-else>回复</span>
-                  </button>
-                </div>
-              </div>
             </div>
-          </Transition>
+          </div>
         </div>
       </div>
     </TransitionGroup>
@@ -210,7 +211,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, nextTick } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getComments, createComment, deleteComment, getReplies } from '@/api/community'
 import { useUserStore } from '@/stores/user'
@@ -227,6 +228,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['commentDeleted'])
+
 const currentUserId = computed(() => userStore.userInfo?.id)
 
 const userStore = useUserStore()
@@ -241,6 +244,7 @@ const commentText = ref('')
 const composerFocused = ref(false)
 const pageNum = ref(1)
 const pageSize = 20
+const commentSectionRef = ref(null)
 const hasMore = ref(false)
 const textareaRef = ref(null)
 
@@ -340,6 +344,7 @@ const handleDeleteComment = async (comment) => {
     })
     await deleteComment(props.postId, comment.id)
     ElMessage.success('评论已删除')
+    emit('commentDeleted')
     fetchComments(1)
   } catch (err) {
     if (err !== 'cancel') {
@@ -350,20 +355,20 @@ const handleDeleteComment = async (comment) => {
 
 const startReply = (comment, replyTo) => {
   // 切换行为：点击同一评论的回复按钮则关闭，点击其他评论则切换
-  if (replyTarget.value && replyTarget.value.id === comment.id) {
+  // comment 是顶层评论，replyTo 是被回复的子回复（如果有）
+  const targetId = replyTo ? replyTo.id : comment.id
+  if (replyTarget.value && replyTarget.value._targetId === targetId) {
     cancelReply()
     return
   }
   replyTarget.value = {
     ...comment,
+    _targetId: targetId,
     _replyToName: replyTo ? replyTo.authorName : comment.authorName,
-    _replyToUserId: replyTo ? replyTo.userId : comment.userId
+    _replyToUserId: replyTo ? replyTo.userId : comment.userId,
+    _ancestorId: comment.id
   }
   replyText.value = ''
-  nextTick(() => {
-    replyInputRef.value?.focus()
-    autoResizeReply()
-  })
 }
 
 const cancelReply = () => {
@@ -371,13 +376,28 @@ const cancelReply = () => {
   replyText.value = ''
 }
 
+// 监听 replyTarget 变化，自动聚焦回复输入框
+watch(replyTarget, (newVal) => {
+  if (newVal) {
+    nextTick(() => {
+      setTimeout(() => {
+        if (replyInputRef.value) {
+          replyInputRef.value.focus()
+          const len = replyInputRef.value.value.length
+          replyInputRef.value.setSelectionRange(len, len)
+        }
+      }, 50)
+    })
+  }
+})
+
 const submitReply = async () => {
   const content = replyText.value.trim()
   if (!content || !replyTarget.value) return
 
   submittingReply.value = true
   try {
-    const parentId = replyTarget.value.id
+    const parentId = replyTarget.value._ancestorId || replyTarget.value.id
     const replyToUserId = replyTarget.value._replyToUserId
     await createComment(props.postId, { content, parentCommentId: parentId, replyToUserId })
     ElMessage.success('回复成功')
@@ -392,6 +412,14 @@ const submitReply = async () => {
     console.error('回复失败:', err)
   } finally {
     submittingReply.value = false
+  }
+}
+
+const handleReplyKeydown = (e) => {
+  // Alt+Enter 发送回复
+  if (e.altKey && e.key === 'Enter') {
+    e.preventDefault()
+    submitReply()
   }
 }
 
@@ -426,6 +454,7 @@ const handleDeleteReply = async (parentComment, reply) => {
     })
     await deleteComment(props.postId, reply.id)
     ElMessage.success('回复已删除')
+    emit('commentDeleted')
     fetchReplies(parentComment.id)
     fetchComments(1)
   } catch (err) {
@@ -459,7 +488,23 @@ const formatTime = (time) => {
   return `${month}-${day}`
 }
 
-onMounted(() => fetchComments())
+// 点击空白区域收起回复框
+const handleClickOutside = (e) => {
+  if (!replyTarget.value) return
+  // 检查点击的目标是否在评论区域内
+  if (commentSectionRef.value && !commentSectionRef.value.contains(e.target)) {
+    cancelReply()
+  }
+}
+
+onMounted(() => {
+  fetchComments()
+  document.addEventListener('mousedown', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', handleClickOutside)
+})
 </script>
 
 <style scoped>
@@ -867,6 +912,18 @@ onMounted(() => fetchComments())
   letter-spacing: 0.2px;
 }
 
+.comment-content.clickable {
+  cursor: pointer;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.comment-content.clickable:hover {
+  background-color: var(--bg-elevated);
+}
+
 /* —— 评论列表动画 —— */
 .comment-list-enter-active {
   animation: commentEnter 0.35s ease both;
@@ -970,6 +1027,11 @@ onMounted(() => fetchComments())
 .btn-reply:hover {
   color: var(--orange-main);
   background: var(--orange-light-bg);
+}
+
+.btn-reply-nested {
+  font-size: 11px;
+  padding: 1px 6px;
 }
 
 /* —— 展开/收起回复 —— */

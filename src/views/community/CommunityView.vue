@@ -109,6 +109,7 @@
           :post="post"
           @click="goToDetail(post.id)"
           @like="handleLike(post)"
+          @favorite="handleFavorite(post)"
           @share="handleShare(post)"
         />
       </template>
@@ -141,13 +142,23 @@
       </div>
     </div>
 
-    <!-- 悬浮发布按钮 -->
-    <button class="fab-button" @click="showEditor = true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <line x1="5" y1="12" x2="19" y2="12" />
-      </svg>
-    </button>
+    <!-- 悬浮按钮组 -->
+    <div class="fab-group">
+      <!-- 刷新按钮 -->
+      <button class="fab-button fab-refresh" @click="handleRefresh" :class="{ refreshing: isRefreshing }">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6" />
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+        </svg>
+      </button>
+      <!-- 发布按钮 -->
+      <button class="fab-button fab-post" @click="showEditor = true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+    </div>
 
     <!-- 发布帖子弹窗 -->
     <el-dialog
@@ -186,10 +197,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getPostList, togglePostLike, getInteractionUnreadCount } from '@/api/community'
+import { getPostList, togglePostLike, togglePostFavorite, getInteractionUnreadCount } from '@/api/community'
 import PostCard from '@/components/community/PostCard.vue'
 import PostEditor from '@/components/community/PostEditor.vue'
 
@@ -207,6 +218,7 @@ const showEditor = ref(false)
 const showShareDialog = ref(false)
 const shareLink = ref('')
 const unreadCount = ref(0)
+const isRefreshing = ref(false)
 const LAST_SEEN_KEY = 'community_last_interaction_seen'
 
 const fetchPosts = async (page = 1, append = false) => {
@@ -276,6 +288,15 @@ const handleLike = async (post) => {
   }
 }
 
+const handleFavorite = async (post) => {
+  try {
+    await togglePostFavorite(post.id)
+    post.favorited = !post.favorited
+  } catch (err) {
+    console.error('收藏失败:', err)
+  }
+}
+
 const handleShare = (post) => {
   shareLink.value = `${window.location.origin}/community/post/${post.id}`
   showShareDialog.value = true
@@ -304,18 +325,34 @@ const onPostSuccess = () => {
   fetchPosts(1)
 }
 
+const handleRefresh = async () => {
+  if (isRefreshing.value) return
+  isRefreshing.value = true
+  posts.value = []
+  await fetchPosts(1)
+  isRefreshing.value = false
+}
+
 const resetEditor = () => {
   // dialog closed
 }
 
-onMounted(() => {
-  fetchPosts(1)
+const refreshUnreadCount = () => {
   const lastSeen = localStorage.getItem(LAST_SEEN_KEY)
   if (lastSeen) {
     getInteractionUnreadCount(lastSeen).then(res => {
-      if (res.code === 200) unreadCount.value = res.data || 0
-    }).catch(() => {})
+      if (res.code === 200) {
+        unreadCount.value = res.data || 0
+      }
+    })
+  } else {
+    unreadCount.value = 0
   }
+}
+
+onMounted(() => {
+  fetchPosts(1)
+  refreshUnreadCount()
 })
 </script>
 
@@ -703,11 +740,19 @@ onMounted(() => {
   letter-spacing: 2px;
 }
 
-/* 【悬浮发布按钮】品牌渐变，带呼吸脉冲阴影 */
-.fab-button {
+/* 【悬浮按钮组】固定在右下角 */
+.fab-group {
   position: fixed;
   bottom: 32px;
   right: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 100;
+}
+
+/* 【悬浮按钮】品牌渐变，带呼吸脉冲阴影 */
+.fab-button {
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -720,11 +765,13 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 100;
+}
+
+/* 【发布按钮呼吸脉冲】阴影周期性放大缩小，吸引注意力 */
+.fab-post {
   animation: fab-pulse 2.5s ease-in-out infinite;
 }
 
-/* 【FAB呼吸脉冲】阴影周期性放大缩小，吸引注意力 */
 @keyframes fab-pulse {
   0%, 100% { box-shadow: 0 4px 16px rgba(255, 140, 66, 0.4); }
   50% { box-shadow: 0 4px 24px rgba(255, 140, 66, 0.6); }
@@ -733,6 +780,9 @@ onMounted(() => {
 .fab-button:hover {
   transform: translateY(-2px) scale(1.06);
   box-shadow: 0 8px 28px rgba(255, 140, 66, 0.5);
+}
+
+.fab-post:hover {
   animation: none;
 }
 
@@ -743,6 +793,15 @@ onMounted(() => {
 .fab-button svg {
   width: 24px;
   height: 24px;
+}
+
+/* 【刷新按钮】旋转动画 */
+.fab-refresh.refreshing svg {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* 【发布弹窗】统一圆角与阴影 */
@@ -806,9 +865,12 @@ onMounted(() => {
     align-self: flex-end;
   }
 
-  .fab-button {
+  .fab-group {
     bottom: 20px;
     right: 20px;
+  }
+
+  .fab-button {
     width: 50px;
     height: 50px;
   }

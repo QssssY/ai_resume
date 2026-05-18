@@ -74,7 +74,7 @@
       </TransitionGroup>
 
       <!-- 加载更多 -->
-      <div v-if="commentedState.hasMore.value" class="load-more">
+      <div v-if="commentedState.hasMore.value && commentedState.comments.value.length >= pageSize" class="load-more">
         <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
           <span v-if="loadingMore" class="btn-spinner"></span>
           <span v-else>加载更多</span>
@@ -132,7 +132,7 @@
       </TransitionGroup>
 
       <!-- 加载更多 -->
-      <div v-if="currentTabState.hasMore.value" class="load-more">
+      <div v-if="currentTabState.hasMore.value && currentTabState.posts.value.length >= pageSize" class="load-more">
         <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
           <span v-if="loadingMore" class="btn-spinner"></span>
           <span v-else>加载更多</span>
@@ -224,8 +224,31 @@
         </div>
       </div>
 
+      <!-- 收藏分组 -->
+      <div v-if="interactionsState.favorites.value.length > 0" class="interaction-section">
+        <div class="interaction-section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+          </svg>
+          <span>收藏 ({{ interactionsState.totalFavorites.value }})</span>
+        </div>
+        <div class="interaction-list">
+          <div v-for="item in interactionsState.favorites.value" :key="`fav-${item.userId}-${item.postId}`" class="interaction-card" @click="goToDetail(item.postId)">
+            <div class="interaction-card-main">
+              <span class="actor-name">{{ item.userName }}</span>
+              <span class="action-text">收藏了你的帖子</span>
+              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
+            </div>
+            <div class="interaction-post-ref">
+              <span class="category-dot" :class="item.postCategory"></span>
+              <span class="post-snippet">{{ item.postContent }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 加载更多 -->
-      <div v-if="interactionsState.hasMore.value" class="load-more">
+      <div v-if="interactionsState.hasMore.value && (interactionsState.likes.value.length + interactionsState.comments.value.length + interactionsState.replies.value.length + interactionsState.favorites.value.length) >= pageSize" class="load-more">
         <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
           <span v-if="loadingMore" class="btn-spinner"></span>
           <span v-else>加载更多</span>
@@ -277,7 +300,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getMyPosts, getLikedPosts, getMyComments, deletePost, getMyInteractions, getInteractionUnreadCount } from '@/api/community'
+import { getMyPosts, getLikedPosts, getFavoritedPosts, getMyComments, deletePost, getMyInteractions, getInteractionUnreadCount } from '@/api/community'
 
 const router = useRouter()
 
@@ -285,6 +308,7 @@ const router = useRouter()
 const tabs = [
   { key: 'mine', label: '我的帖子' },
   { key: 'liked', label: '点赞过的帖子' },
+  { key: 'favorited', label: '收藏的帖子' },
   { key: 'commented', label: '评论过的帖子' },
   { key: 'interactions', label: '互动信息' }
 ]
@@ -294,14 +318,17 @@ const activeTab = ref('mine')
 // 每个标签独立的状态
 const mineState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
 const likedState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const favoritedState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
 const commentedState = { comments: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
 const interactionsState = {
   likes: ref([]),
   comments: ref([]),
   replies: ref([]),
+  favorites: ref([]),
   totalLikes: ref(0),
   totalComments: ref(0),
   totalReplies: ref(0),
+  totalFavorites: ref(0),
   pageNum: ref(1),
   hasMore: ref(false),
   loading: ref(false)
@@ -310,11 +337,12 @@ const interactionsState = {
 // 未读互动数量
 const unreadCount = ref(0)
 const LAST_SEEN_KEY = 'community_last_interaction_seen'
+let interactionsViewed = false
 
-const postStateMap = { mine: mineState, liked: likedState }
+const postStateMap = { mine: mineState, liked: likedState, favorited: favoritedState }
 const currentTabState = computed(() => activeTab.value === 'commented' ? commentedState : postStateMap[activeTab.value])
 
-const pageSize = 15
+const pageSize = 5
 const loadingMore = ref(false)
 
 // 标签下划线指示器位置
@@ -326,18 +354,19 @@ const indicatorStyle = computed(() => {
 // 加载状态判断
 const isLoading = computed(() => {
   if (activeTab.value === 'commented') return commentedState.loading.value && commentedState.comments.value.length === 0
-  if (activeTab.value === 'interactions') return interactionsState.loading.value && interactionsState.likes.value.length === 0 && interactionsState.comments.value.length === 0 && interactionsState.replies.value.length === 0
+  if (activeTab.value === 'interactions') return interactionsState.loading.value && interactionsState.likes.value.length === 0 && interactionsState.comments.value.length === 0 && interactionsState.replies.value.length === 0 && interactionsState.favorites.value.length === 0
   return currentTabState.value.loading.value && currentTabState.value.posts.value.length === 0
 })
 
 // 互动信息是否有数据
-const hasInteractions = computed(() => interactionsState.likes.value.length > 0 || interactionsState.comments.value.length > 0 || interactionsState.replies.value.length > 0)
+const hasInteractions = computed(() => interactionsState.likes.value.length > 0 || interactionsState.comments.value.length > 0 || interactionsState.replies.value.length > 0 || interactionsState.favorites.value.length > 0)
 
 // 空状态文案
 const emptyInfo = computed(() => {
   const map = {
     mine: { title: '还没有发布过帖子', desc: '去社区分享你的面试经验吧' },
     liked: { title: '还没有点赞过帖子', desc: '去社区浏览并点赞感兴趣的帖子吧' },
+    favorited: { title: '还没有收藏过帖子', desc: '去社区收藏感兴趣的帖子吧' },
     commented: { title: '还没有评论过帖子', desc: '去社区参与讨论吧' },
     interactions: { title: '还没有收到互动', desc: '发布帖子后，其他用户的点赞和评论会显示在这里' }
   }
@@ -385,13 +414,12 @@ const fetchTabData = async (tab, page = 1, append = false) => {
       const res = await getMyComments({ pageNum: page, pageSize })
       if (res.code === 200) {
         const records = res.data?.list || []
-        const total = res.data?.total || 0
         if (append) {
           state.comments.value.push(...records)
         } else {
           state.comments.value = records
         }
-        state.hasMore.value = state.comments.value.length < total
+        state.hasMore.value = records.length === pageSize
         state.pageNum.value = page
       }
     } catch (err) {
@@ -409,21 +437,45 @@ const fetchTabData = async (tab, page = 1, append = false) => {
       const res = await getMyInteractions({ pageNum: page, pageSize })
       if (res.code === 200) {
         const data = res.data || {}
+        const newLikes = data.likes || []
+        const newComments = data.comments || []
+        const newReplies = data.replies || []
+        const newFavorites = data.favorites || []
         if (append) {
-          state.likes.value.push(...(data.likes || []))
-          state.comments.value.push(...(data.comments || []))
-          state.replies.value.push(...(data.replies || []))
+          // 每种类型独立判断：本页有新数据才追加
+          const likeKey = (i) => `${i.userId}-${i.postId}`
+          const commentKey = (i) => `${i.userId}-${i.commentContent}-${i.createTime}`
+          const replyKey = (i) => `${i.userId}-${i.replyContent}-${i.createTime}`
+          const favKey = (i) => `${i.userId}-${i.postId}`
+          if (newLikes.length > 0) {
+            const existing = new Set(state.likes.value.map(likeKey))
+            state.likes.value.push(...newLikes.filter(i => !existing.has(likeKey(i))))
+          }
+          if (newComments.length > 0) {
+            const existing = new Set(state.comments.value.map(commentKey))
+            state.comments.value.push(...newComments.filter(i => !existing.has(commentKey(i))))
+          }
+          if (newReplies.length > 0) {
+            const existing = new Set(state.replies.value.map(replyKey))
+            state.replies.value.push(...newReplies.filter(i => !existing.has(replyKey(i))))
+          }
+          if (newFavorites.length > 0) {
+            const existing = new Set(state.favorites.value.map(favKey))
+            state.favorites.value.push(...newFavorites.filter(i => !existing.has(favKey(i))))
+          }
         } else {
-          state.likes.value = data.likes || []
-          state.comments.value = data.comments || []
-          state.replies.value = data.replies || []
+          state.likes.value = newLikes
+          state.comments.value = newComments
+          state.replies.value = newReplies
+          state.favorites.value = newFavorites
         }
         state.totalLikes.value = data.totalLikes || 0
         state.totalComments.value = data.totalComments || 0
         state.totalReplies.value = data.totalReplies || 0
-        const loadedTotal = state.likes.value.length + state.comments.value.length + state.replies.value.length
-        const actualTotal = state.totalLikes.value + state.totalComments.value + state.totalReplies.value
-        state.hasMore.value = loadedTotal < actualTotal
+        state.totalFavorites.value = data.totalFavorites || 0
+        const loadedTotal = state.likes.value.length + state.comments.value.length + state.replies.value.length + state.favorites.value.length
+        const actualTotal = state.totalLikes.value + state.totalComments.value + state.totalReplies.value + state.totalFavorites.value
+        state.hasMore.value = loadedTotal < actualTotal && (newLikes.length + newComments.length + newReplies.length + newFavorites.length) > 0
         state.pageNum.value = page
       }
     } catch (err) {
@@ -435,20 +487,19 @@ const fetchTabData = async (tab, page = 1, append = false) => {
   } else {
     // 帖子标签：获取帖子列表
     const state = postStateMap[tab]
-    const apiMap = { mine: getMyPosts, liked: getLikedPosts }
+    const apiMap = { mine: getMyPosts, liked: getLikedPosts, favorited: getFavoritedPosts }
     if (page === 1) state.loading.value = true
     else loadingMore.value = true
     try {
       const res = await apiMap[tab]({ pageNum: page, pageSize })
       if (res.code === 200) {
         const records = res.data?.list || []
-        const total = res.data?.total || 0
         if (append) {
           state.posts.value.push(...records)
         } else {
           state.posts.value = records
         }
-        state.hasMore.value = state.posts.value.length < total
+        state.hasMore.value = records.length === pageSize
         state.pageNum.value = page
       }
     } catch (err) {
@@ -469,9 +520,13 @@ const switchTab = (tab) => {
     }
   } else if (tab === 'interactions') {
     // 清除未读标记
-    localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString())
+    const d = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    const now = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    localStorage.setItem(LAST_SEEN_KEY, now)
     unreadCount.value = 0
-    if (interactionsState.likes.value.length === 0 && interactionsState.comments.value.length === 0 && interactionsState.replies.value.length === 0 && !interactionsState.loading.value) {
+    interactionsViewed = true
+    if (interactionsState.likes.value.length === 0 && interactionsState.comments.value.length === 0 && interactionsState.replies.value.length === 0 && interactionsState.favorites.value.length === 0 && !interactionsState.loading.value) {
       fetchTabData(tab, 1)
     }
   } else {
@@ -539,7 +594,7 @@ onMounted(() => {
   const lastSeen = localStorage.getItem(LAST_SEEN_KEY)
   if (lastSeen) {
     getInteractionUnreadCount(lastSeen).then(res => {
-      if (res.code === 200) {
+      if (res.code === 200 && !interactionsViewed) {
         unreadCount.value = res.data || 0
       }
     }).catch(() => {})
@@ -668,7 +723,7 @@ onMounted(() => {
   position: absolute;
   top: 4px;
   left: 4px;
-  width: calc((100% - 8px) / 4);
+  width: calc((100% - 8px) / 5);
   height: calc(100% - 8px);
   background: linear-gradient(135deg, var(--orange-main), var(--orange-deep));
   border-radius: 9px;

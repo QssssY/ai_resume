@@ -50,6 +50,16 @@
         </svg>
         <span>{{ post.commentCount || 0 }}</span>
       </button>
+      <button
+        class="action-btn"
+        :class="{ favorited: post.favorited }"
+        @click.stop="$emit('favorite')"
+      >
+        <svg viewBox="0 0 24 24" :fill="post.favorited ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+        </svg>
+        <span>收藏</span>
+      </button>
       <button class="action-btn" @click.stop="$emit('share')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="18" cy="5" r="3" />
@@ -75,7 +85,7 @@ defineProps({
   }
 })
 
-defineEmits(['click', 'like', 'share'])
+defineEmits(['click', 'like', 'favorite', 'share'])
 
 const categoryLabel = (cat) => {
   const map = { interview_exp: '面试经验', referral: '内推信息' }
@@ -309,6 +319,16 @@ const formatTime = (time) => {
 .action-btn.liked:hover {
   color: #ff4d6a;
   background: rgba(255, 77, 106, 0.08);
+}
+
+/* 【已收藏状态】金色高亮 */
+.action-btn.favorited {
+  color: #f5a623;
+}
+
+.action-btn.favorited:hover {
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.08);
 }
 
 .action-btn svg {
