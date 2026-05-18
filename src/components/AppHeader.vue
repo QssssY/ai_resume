@@ -1031,6 +1031,15 @@ const handlePasswordSave = async () => {
     });
     ElMessage.success("密码修改成功，请重新登录");
     passwordDialogVisible.value = false;
+    // 断开 SSE 连接和轮询，防止连接泄漏
+    if (sseController) {
+      sseController.abort();
+      sseController = null;
+    }
+    if (notificationTimer) {
+      clearInterval(notificationTimer);
+      notificationTimer = null;
+    }
     // 清除登录态，跳转登录页
     localStorage.removeItem("token");
     removeToken();

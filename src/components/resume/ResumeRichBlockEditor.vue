@@ -108,7 +108,7 @@ const createEditor = () => {
       handleKeyDown(view, event) {
         if (event.ctrlKey && event.key === 'Enter') {
           event.preventDefault()
-          view.dispatch(view.state.tr.replaceSelectionWith(view.state.schema.nodes.hardBreak.create()).scrollIntoView())
+          editor.commands.setHardBreak()
           return true
         }
 

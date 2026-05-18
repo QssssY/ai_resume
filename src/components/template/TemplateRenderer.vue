@@ -140,19 +140,20 @@ const activeSections = computed(() => {
   return props.sectionsConfig || DEFAULT_SECTIONS
 })
 
-// 判断section是否有数据可显示
-function isSectionVisible(sec) {
-  const data = getSectionData(sec)
-  if (data == null) return false
-  if (typeof data === 'string') return data.trim().length > 0
-  if (Array.isArray(data)) return data.length > 0
-  return true
-}
+	// 判断section是否有数据可显示
+	function isSectionVisible(sec) {
+	  if (sec.visible === false) return false
+	  const data = getSectionData(sec)
+	  if (data == null) return false
+	  if (typeof data === 'string') return data.trim().length > 0
+	  if (Array.isArray(data)) return data.length > 0
+	  return true
+	}
 
-// 获取section对应的数据
-function getSectionData(sec) {
-  return props.resumeData[sec.key]
-}
+	// 获取section对应的数据
+	function getSectionData(sec) {
+	  return props.resumeData[sec.key]
+	}
 </script>
 
 <style scoped>

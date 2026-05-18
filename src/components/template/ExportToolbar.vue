@@ -160,6 +160,10 @@ async function exportImage() {
     if (!canvas) return
 
     canvas.toBlob((blob) => {
+      if (!blob) {
+        ElMessage.error('图片导出失败，请重试')
+        return
+      }
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
