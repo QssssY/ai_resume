@@ -3,18 +3,14 @@ import { getToken, getTokenType, removeToken, isLoggedIn } from '@/utils/auth'
 import router from '@/router'
 
 /**
- * 将 HTML 发送到后端，由 Chrome headless 生成文字型 PDF 并返回。
- * 使用独立 axios 实例处理 blob 响应（共享 request 实例的响应拦截器会破坏 blob 数据）。
- * @param {string} html - 完整 HTML（含内联 CSS）
- * @returns {Promise<Blob>} PDF 二进制
+ * 构建带认证头的请求配置
  */
-export function exportPdfFromHtml(html) {
-  // 发送前先检查登录状态，避免发出必然失败的请求
+function buildAuthConfig(extraConfig = {}) {
   if (!isLoggedIn()) {
     removeToken()
     const currentPath = router.currentRoute?.value?.fullPath || '/'
     router.push({ path: '/login', query: { redirect: currentPath } })
-    return Promise.reject(new Error('请先登录'))
+    throw new Error('请先登录')
   }
 
   const headers = {}
@@ -23,31 +19,36 @@ export function exportPdfFromHtml(html) {
     headers.Authorization = `${getTokenType()} ${token}`
   }
 
-  return axios.post('/api/resume/export-pdf', { html }, {
-    responseType: 'blob',
+  return {
     headers,
     timeout: 60000,
-  }).then((res) => {
-    // 响应为 200，但 Blob 为空
-    if (!res.data || res.data.size === 0) {
-      throw new Error('服务端返回了空的 PDF 数据，请尝试重新登录后重试')
+    ...extraConfig,
+  }
+}
+
+/**
+ * 步骤一：调用后端生成 PDF
+ *
+ * 后端返回 Result 格式 JSON: { code: 200, message: "PDF 生成成功", data: { fileId, fileName, fileSize } }
+ *
+ * @param {string} html - 完整 HTML（含内联 CSS）
+ * @returns {Promise<{ fileId: string, fileName: string, fileSize: number }>}
+ */
+export async function exportPdfFromHtml(html) {
+  const config = buildAuthConfig({ timeout: 60000 })
+
+  try {
+    const res = await axios.post('/api/resume/export-pdf', { html }, config)
+
+    if (res.data && res.data.code === 200 && res.data.data) {
+      return res.data.data
     }
 
-    const contentType = (res.headers?.['content-type'] || '').toLowerCase()
-    // 如果 Content-Type 是文本或 JSON（说明服务端返回了错误），尝试读取
-    if (contentType.includes('text') || contentType.includes('json')) {
-      return res.data.text().then((text) => {
-        throw new Error(text || '服务端返回了非 PDF 内容')
-      })
-    }
-
-    return res.data
-  }).catch((err) => {
-    // 服务端返回了错误响应（非 2xx）
+    throw new Error((res.data && res.data.message) || 'PDF 生成失败')
+  } catch (err) {
     if (err.response) {
       const { status, data, headers: resHeaders } = err.response
 
-      // 401 认证过期 → 清除 token 并跳转登录页
       if (status === 401) {
         removeToken()
         const currentPath = router.currentRoute?.value?.fullPath || '/'
@@ -55,7 +56,6 @@ export function exportPdfFromHtml(html) {
         throw new Error('登录已过期，请重新登录')
       }
 
-      // 尝试从 blob 响应中读取服务端错误消息
       if (data instanceof Blob) {
         const ct = (resHeaders?.['content-type'] || '').toLowerCase()
         if (ct.includes('text') || ct.includes('json')) {
@@ -80,7 +80,34 @@ export function exportPdfFromHtml(html) {
       throw new Error('网络连接失败，请检查网络后重试')
     }
     throw err
-  })
+  }
+}
+
+/**
+ * 步骤二：根据 fileId 下载 PDF 文件到本地
+ *
+ * 后端返回 application/pdf 文件流，通过临时 <a> 标签触发浏览器保存对话框。
+ *
+ * @param {string} fileId - 步骤一返回的文件唯一标识
+ * @param {string} fileName - 下载文件名
+ * @returns {void}
+ */
+export function downloadPdfFile(fileId, fileName) {
+  if (!fileId) {
+    throw new Error('缺少文件标识，无法下载')
+  }
+
+  const token = getToken()
+  if (!token) {
+    throw new Error('未登录或登录已过期，请重新登录')
+  }
+
+  const a = document.createElement('a')
+  a.href = `/api/resume/download-pdf/${fileId}?token=${encodeURIComponent(token)}`
+  a.download = fileName || `resume-${fileId}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
 
 /**
@@ -92,7 +119,6 @@ export function exportPdfFromHtml(html) {
 export function serializeElementToHtml(element, cssText) {
   const clone = element.cloneNode(true)
 
-  /* 去掉 Vue scoped 属性残留（遍历所有后代，而非依赖无效的 CSS 属性选择器 [data-v-]） */
   clone.querySelectorAll('*').forEach((node) => {
     Array.from(node.attributes).forEach((attr) => {
       if (attr.name.startsWith('data-v-')) node.removeAttribute(attr.name)
@@ -102,13 +128,11 @@ export function serializeElementToHtml(element, cssText) {
     if (attr.name.startsWith('data-v-')) clone.removeAttribute(attr.name)
   })
 
-  /* 去掉 style 标签上的 scoped 属性 */
   clone.querySelectorAll('style').forEach((s) => {
     s.removeAttribute('scoped')
     s.removeAttribute('data-v-')
   })
 
-  /* 清除照片区域残留的无效 <img>（src 为空或 about:blank 的残留图片） */
   clone.querySelectorAll('.photo-frame img, .header-photo img').forEach((img) => {
     const src = img.getAttribute('src') || ''
     if (!src || src === 'about:blank') {
@@ -128,7 +152,7 @@ export function serializeElementToHtml(element, cssText) {
 }
 
 /**
- * 清除 CSS 中的 [data-v-xxxxx] scoped 选择器后缀，使选择器能在导出 HTML 中生效。
+ * 清除 CSS 中的 [data-v-xxxxx] scoped 选择器后缀。
  * @param {string} css
  * @returns {string}
  */
