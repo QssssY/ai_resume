@@ -217,8 +217,8 @@
             <button
               class="voice-icon-btn"
               type="button"
-              :aria-label="voiceCall.isVoiceMode.value ? '切换静音' : '开始通话'"
-              :title="voiceCall.isVoiceMode.value ? '切换静音' : '开始通话'"
+              :aria-label="voiceCall.isManualResumePending.value ? '继续收音' : voiceCall.isVoiceMode.value ? '切换静音' : '开始通话'"
+              :title="voiceCall.isManualResumePending.value ? '继续收音' : voiceCall.isVoiceMode.value ? '切换静音' : '开始通话'"
               :disabled="!voiceFeatureSupported || replyLocked"
               @click="handleMicControl"
             >
@@ -276,7 +276,7 @@
               @click="handleToggleMute"
             >
               <el-icon><Microphone /></el-icon>
-              {{ voiceCall.isMuted.value ? '取消静音' : '静音' }}
+              {{ voiceCall.isManualResumePending.value ? '继续收音' : voiceCall.isMuted.value ? '取消静音' : '静音' }}
             </el-button>
             <el-button
               plain
@@ -383,6 +383,7 @@ import {
 } from "@/api/interview";
 import { ElMessage } from "element-plus";
 import { getToken } from "@/utils/auth";
+import { getSettingsPreferences } from "@/utils/settingsPreferences";
 import { useSpeechToText } from "@/composables/useSpeechToText";
 import { useTextToSpeech } from "@/composables/useTextToSpeech";
 import { useVoiceCall } from "@/composables/useVoiceCall";
@@ -392,6 +393,7 @@ import userAvatarImg from "@/assets/user.png";
 
 const router = useRouter();
 const route = useRoute();
+const settingsPreferences = getSettingsPreferences();
 
 const sessionId = computed(() => route.params.sessionId);
 const chatContainer = ref(null);
@@ -417,6 +419,7 @@ const voiceCallTitle = computed(() => {
   if (!voiceFeatureSupported.value) return "当前浏览器不支持语音通话";
   if (!voiceCall.isVoiceMode.value) return "语音面试待开始";
   if (voiceCall.isMuted.value) return "已静音";
+  if (voiceCall.isManualResumePending.value) return "等待继续收音";
   if (replyLocked.value || voiceCall.isAiSpeaking.value) return "AI 正在回复";
   if (voiceCall.isListening.value) return "正在聆听";
   return "通话准备中";
@@ -425,8 +428,10 @@ const voiceCallDescription = computed(() => {
   if (!voiceFeatureSupported.value) return "请切换到支持 Web Speech API 的 Chrome 浏览器，或返回创建文字面试。";
   if (!voiceCall.isVoiceMode.value) return "点击开始通话后再授权麦克风，页面刷新不会自动开麦。";
   if (voiceCall.isMuted.value) return "麦克风已关闭，取消静音后会继续收音。";
+  if (voiceCall.isManualResumePending.value) return "已取消静音，再次点击麦克风后继续收音。";
   if (replyLocked.value || voiceCall.isAiSpeaking.value) return "AI 朗读时会暂停收音，避免播报内容被误识别。";
-  return "说完后静音 3 秒会自动发送本轮回答。";
+  if (!settingsPreferences.voiceAutoSubmitDelayMs) return "当前已关闭静音自动提交，请使用停止收听并发送。";
+  return `说完后静音 ${settingsPreferences.voiceAutoSubmitDelayMs / 1000} 秒会自动发送本轮回答。`;
 });
 let openingPollingTimer = null;
 
@@ -456,6 +461,15 @@ const {
 } = useSpeechToText();
 
 const textToSpeech = useTextToSpeech({
+  rate: settingsPreferences.voiceSpeakingRate,
+  pitch: settingsPreferences.voicePitch,
+  volume: settingsPreferences.voiceVolume,
+  voicePreference: {
+    type: settingsPreferences.voicePreferredType,
+    name: settingsPreferences.voiceName,
+    voiceURI: settingsPreferences.voiceURI,
+    lang: settingsPreferences.voiceLang,
+  },
   onEnd: () => {
     voiceCall.resumeListening();
   },
@@ -476,11 +490,15 @@ const voiceCall = useVoiceCall({
   },
   textToSpeech,
   isReplying: replyLocked,
+  silenceTimeoutMs: settingsPreferences.voiceAutoSubmitDelayMs,
+  muteResumeMode: settingsPreferences.voiceMuteResumeMode,
   onSend: (content) => sendMessage(content),
 });
 
 const sttLang = computed(() =>
-  sessionData.value?.interviewMode === 'foreign_interviewer' ? 'en-US' : 'zh-CN'
+  settingsPreferences.voiceRecognitionLanguage === 'auto'
+    ? (sessionData.value?.interviewMode === 'foreign_interviewer' ? 'en-US' : 'zh-CN')
+    : settingsPreferences.voiceRecognitionLanguage
 );
 
 const sttDraftBase = ref('');
@@ -1076,6 +1094,10 @@ const handleEndVoiceCall = () => {
 
 const handleToggleMute = () => {
   const muted = voiceCall.toggleMute();
+  if (voiceCall.isManualResumePending.value) {
+    ElMessage.success("已取消静音，再次点击麦克风后继续收音");
+    return;
+  }
   ElMessage.success(muted ? "已静音" : "已取消静音");
 };
 

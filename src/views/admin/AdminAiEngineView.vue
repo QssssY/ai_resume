@@ -406,6 +406,42 @@
           />
         </el-form-item>
 
+        <div class="connectivity-test-panel" aria-live="polite">
+          <el-button
+            type="primary"
+            plain
+            :loading="connectivityTestLoading"
+            :disabled="submitLoading"
+            @click="handleConnectivityTest"
+          >
+            <el-icon><Connection /></el-icon>
+            测试连通性
+          </el-button>
+          <span class="field-tip">
+            新增时使用当前输入的 API Key；编辑时未输入新 Key 则使用已保存密钥。
+          </span>
+          <el-alert
+            v-if="connectivityTestResult"
+            class="connectivity-test-result"
+            :type="connectivityTestResult.success ? 'success' : 'error'"
+            :closable="false"
+            :title="connectivityTestResult.message"
+            show-icon
+          >
+            <div class="connectivity-test-detail">
+              <span v-if="connectivityTestResult.latencyMs !== null">
+                耗时：{{ connectivityTestResult.latencyMs }}ms
+              </span>
+              <span v-if="connectivityTestResult.responsePreview">
+                返回：{{ connectivityTestResult.responsePreview }}
+              </span>
+              <span v-if="connectivityTestResult.errorMessage">
+                原因：{{ connectivityTestResult.errorMessage }}
+              </span>
+            </div>
+          </el-alert>
+        </div>
+
         <el-row :gutter="12">
           <el-col :span="8">
             <el-form-item label="温度" prop="temperature">
@@ -467,12 +503,13 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Edit, Search } from '@element-plus/icons-vue'
+import { Connection, Edit, Search } from '@element-plus/icons-vue'
 import {
   createAdminAiEngine,
   deleteAiEngine,
   deleteAiEngines,
   getAdminAiEngines,
+  testAdminAiEngineConnectivity,
   toggleAdminAiEngineActive,
   toggleAiEnginesBatchActive,
   updateAdminAiEngine
@@ -508,6 +545,8 @@ const pagination = reactive({
 const dialogVisible = ref(false)
 const isEditMode = ref(false)
 const submitLoading = ref(false)
+const connectivityTestLoading = ref(false)
+const connectivityTestResult = ref(null)
 const formRef = ref(null)
 /** 正在切换状态的行 ID 集合（per-row 锁，避免全局互斥） */
 const toggleLoadingIds = ref(new Set())
@@ -810,6 +849,7 @@ const resetFormData = () => {
   formData.isActive = 1
   formData.sort = 0
   formData.remark = ''
+  connectivityTestResult.value = null
 }
 
 /**
@@ -822,6 +862,68 @@ const fillBaseUrlByProvider = () => {
     return
   }
   formData.baseUrl = providerBaseUrlSuggestion.value
+  connectivityTestResult.value = null
+}
+
+/**
+ * 构建连通测试请求。
+ * 作用：测试当前表单值，不落库；编辑态 API Key 留空时由后端读取已保存密钥。
+ */
+const buildConnectivityTestPayload = () => {
+  const payload = {
+    id: isEditMode.value ? formData.id : null,
+    providerType: String(formData.providerType || '').trim(),
+    modelName: String(formData.modelName || '').trim(),
+    baseUrl: String(formData.baseUrl || '').trim(),
+    thinkingMode: formData.thinkingMode || 'none',
+    temperature: formData.temperature,
+    maxTokens: formData.maxTokens,
+    timeoutMs: formData.timeoutMs
+  }
+  if (formData.apiKey) {
+    payload.apiKey = String(formData.apiKey).trim()
+  }
+  return payload
+}
+
+/**
+ * 测试当前 AI 引擎配置是否可连通。
+ */
+const handleConnectivityTest = async () => {
+  if (!formRef.value) return
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
+
+  connectivityTestLoading.value = true
+  connectivityTestResult.value = null
+  try {
+    const res = await testAdminAiEngineConnectivity(buildConnectivityTestPayload())
+    const result = res?.data || {}
+    connectivityTestResult.value = {
+      success: Boolean(result.success),
+      message: result.message || (result.success ? '连通测试成功' : '连通测试失败'),
+      latencyMs: result.latencyMs ?? null,
+      responsePreview: result.responsePreview || '',
+      errorMessage: result.errorMessage || ''
+    }
+    if (connectivityTestResult.value.success) {
+      showAdminSuccess(connectivityTestResult.value.message)
+    } else {
+      showAdminError(connectivityTestResult.value.message)
+    }
+  } catch (error) {
+    const message = error?.message || '连通测试失败'
+    connectivityTestResult.value = {
+      success: false,
+      message,
+      latencyMs: null,
+      responsePreview: '',
+      errorMessage: message
+    }
+    showAdminError(message)
+  } finally {
+    connectivityTestLoading.value = false
+  }
 }
 
 /**
@@ -987,6 +1089,7 @@ const handlePageSizeChange = (nextPageSize) => {
  */
 const openEditDialog = (row) => {
   isEditMode.value = true
+  connectivityTestResult.value = null
   editOriginalPayload.value = {
     engineCode: row.engineCode || '',
     engineName: row.engineName || '',
@@ -1322,6 +1425,27 @@ watch(
     }
   }
 )
+
+/**
+ * 表单关键配置变化后清空旧测试结果，避免管理员误读过期状态。
+ */
+watch(
+  () => [
+    formData.providerType,
+    formData.modelName,
+    formData.baseUrl,
+    formData.apiKey,
+    formData.thinkingMode,
+    formData.temperature,
+    formData.maxTokens,
+    formData.timeoutMs
+  ],
+  () => {
+    if (connectivityTestResult.value) {
+      connectivityTestResult.value = null
+    }
+  }
+)
 </script>
 
 <style scoped>
@@ -1517,6 +1641,26 @@ watch(
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+}
+
+.connectivity-test-panel {
+  margin: -4px 0 18px 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.connectivity-test-result {
+  width: 100%;
+}
+
+.connectivity-test-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .filter-icon {

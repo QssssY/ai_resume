@@ -3,6 +3,7 @@ export const SETTINGS_PREFERENCES_UPDATED_EVENT = 'ai-resume-settings-preference
 
 export const INTERVIEW_RETENTION_DAY_OPTIONS = Object.freeze([0, 30, 90, 180, 365])
 export const RESUME_RETENTION_DAY_OPTIONS = Object.freeze([0, 30, 90, 180, 365])
+export const VOICE_AUTO_SUBMIT_DELAY_OPTIONS = Object.freeze([0, 2000, 3000, 5000])
 
 export const DEFAULT_SETTINGS_PREFERENCES = Object.freeze({
   notificationRealtimeEnabled: true,
@@ -13,6 +14,17 @@ export const DEFAULT_SETTINGS_PREFERENCES = Object.freeze({
   defaultInterviewDifficulty: 'primary',
   defaultInterviewMode: 'normal',
   defaultFeedbackMode: 'after_interview',
+  defaultInterviewInteractionType: 0,
+  voiceSpeakingRate: 0.92,
+  voicePitch: 1.06,
+  voiceVolume: 1,
+  voiceMuteResumeMode: 'auto',
+  voiceAutoSubmitDelayMs: 3000,
+  voiceRecognitionLanguage: 'auto',
+  voicePreferredType: 'natural_zh',
+  voiceName: '',
+  voiceURI: '',
+  voiceLang: '',
   interviewRetentionDays: 0,
   resumeRetentionDays: 0
 })
@@ -32,6 +44,10 @@ const INTERVIEW_MODE_VALUES = Object.freeze([
   'foreign_interviewer'
 ])
 const FEEDBACK_MODE_VALUES = Object.freeze(['after_interview', 'immediate'])
+const INTERACTION_TYPE_VALUES = Object.freeze([0, 1])
+const VOICE_MUTE_RESUME_MODE_VALUES = Object.freeze(['auto', 'manual'])
+const VOICE_RECOGNITION_LANGUAGE_VALUES = Object.freeze(['auto', 'zh-CN', 'en-US'])
+const VOICE_PREFERRED_TYPE_VALUES = Object.freeze(['natural_zh', 'female', 'male', 'system', 'custom'])
 
 const booleanOrDefault = (value, defaultValue) => (
   typeof value === 'boolean' ? value : defaultValue
@@ -50,6 +66,14 @@ const retentionDaysOrDefault = (value, options, defaultValue) => {
   return options.includes(parsed)
     ? parsed
     : defaultValue
+}
+
+const numberInRangeOrDefault = (value, min, max, defaultValue) => {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    return defaultValue
+  }
+  return parsed
 }
 
 /**
@@ -92,6 +116,61 @@ export function normalizeSettingsPreferences(preferences = {}) {
       preferences.defaultFeedbackMode,
       FEEDBACK_MODE_VALUES,
       DEFAULT_SETTINGS_PREFERENCES.defaultFeedbackMode
+    ),
+    defaultInterviewInteractionType: optionOrDefault(
+      Number(preferences.defaultInterviewInteractionType),
+      INTERACTION_TYPE_VALUES,
+      DEFAULT_SETTINGS_PREFERENCES.defaultInterviewInteractionType
+    ),
+    voiceSpeakingRate: numberInRangeOrDefault(
+      preferences.voiceSpeakingRate,
+      0.7,
+      1.2,
+      DEFAULT_SETTINGS_PREFERENCES.voiceSpeakingRate
+    ),
+    voicePitch: numberInRangeOrDefault(
+      preferences.voicePitch,
+      0.8,
+      1.3,
+      DEFAULT_SETTINGS_PREFERENCES.voicePitch
+    ),
+    voiceVolume: numberInRangeOrDefault(
+      preferences.voiceVolume,
+      0,
+      1,
+      DEFAULT_SETTINGS_PREFERENCES.voiceVolume
+    ),
+    voiceMuteResumeMode: optionOrDefault(
+      preferences.voiceMuteResumeMode,
+      VOICE_MUTE_RESUME_MODE_VALUES,
+      DEFAULT_SETTINGS_PREFERENCES.voiceMuteResumeMode
+    ),
+    voiceAutoSubmitDelayMs: retentionDaysOrDefault(
+      preferences.voiceAutoSubmitDelayMs,
+      VOICE_AUTO_SUBMIT_DELAY_OPTIONS,
+      DEFAULT_SETTINGS_PREFERENCES.voiceAutoSubmitDelayMs
+    ),
+    voiceRecognitionLanguage: optionOrDefault(
+      preferences.voiceRecognitionLanguage,
+      VOICE_RECOGNITION_LANGUAGE_VALUES,
+      DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionLanguage
+    ),
+    voicePreferredType: optionOrDefault(
+      preferences.voicePreferredType,
+      VOICE_PREFERRED_TYPE_VALUES,
+      DEFAULT_SETTINGS_PREFERENCES.voicePreferredType
+    ),
+    voiceName: stringOrDefault(
+      preferences.voiceName,
+      DEFAULT_SETTINGS_PREFERENCES.voiceName
+    ),
+    voiceURI: stringOrDefault(
+      preferences.voiceURI,
+      DEFAULT_SETTINGS_PREFERENCES.voiceURI
+    ),
+    voiceLang: stringOrDefault(
+      preferences.voiceLang,
+      DEFAULT_SETTINGS_PREFERENCES.voiceLang
     ),
     interviewRetentionDays: retentionDaysOrDefault(
       preferences.interviewRetentionDays,

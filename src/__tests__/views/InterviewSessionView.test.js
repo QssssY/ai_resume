@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 import ElementPlus from 'element-plus'
 import InterviewSessionView from '@/views/interview/InterviewSessionView.vue'
 import { getInterviewSession, streamInterviewMessage } from '@/api/interview'
+import { saveSettingsPreferences } from '@/utils/settingsPreferences'
 
 const push = vi.fn()
 const back = vi.fn()
@@ -190,6 +191,7 @@ const mountView = () => {
 describe('InterviewSessionView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     mountedWrappers = []
     useSpeechToTextCall = 0
     sttSupported.value = true
@@ -418,6 +420,18 @@ describe('InterviewSessionView', () => {
     expect(wrapper.find('.voice-call-overlay [title="停止收听并发送"]').exists()).toBe(true)
   })
 
+  it('uses explicit local speech recognition language preference', async () => {
+    saveSettingsPreferences({
+      voiceRecognitionLanguage: 'en-US'
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(sttLanguage.value).toBe('en-US')
+    expect(voiceSttLanguage.value).toBe('en-US')
+  })
+
   it('speaks the opening message once when the first voice call starts', async () => {
     getInterviewSession.mockResolvedValue({
       data: {
@@ -444,6 +458,34 @@ describe('InterviewSessionView', () => {
     await wrapper.vm.$nextTick()
 
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses local voice speaking preferences for opening speech', async () => {
+    saveSettingsPreferences({
+      voiceSpeakingRate: 1.1,
+      voicePitch: 0.95,
+      voiceVolume: 0.6
+    })
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [
+          { id: 1, messageRole: 'assistant', content: '你好，我是本次 AI 面试官。', createTime: '2026-05-19 14:00:00' },
+        ],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const utterance = window.speechSynthesis.speak.mock.calls[0][0]
+    expect(utterance.rate).toBe(1.1)
+    expect(utterance.pitch).toBe(0.95)
+    expect(utterance.volume).toBe(0.6)
   })
 
   it('cancels voice recognition before speaking the opening message', async () => {

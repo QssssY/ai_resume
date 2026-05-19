@@ -57,7 +57,8 @@ describe('InterviewEntryView', () => {
       defaultInterviewJobRoleCode: 'frontend',
       defaultInterviewDifficulty: 'advanced',
       defaultInterviewMode: 'tech_leader',
-      defaultFeedbackMode: 'immediate'
+      defaultFeedbackMode: 'immediate',
+      defaultInterviewInteractionType: 1
     })
 
     const wrapper = mountView()
@@ -68,7 +69,22 @@ describe('InterviewEntryView', () => {
     expect(wrapper.vm.selectedRoleCode).toBe('frontend')
     expect(wrapper.vm.selectedDifficulty).toBe('advanced')
     expect(wrapper.vm.selectedMode).toBe('tech_leader')
-    expect(wrapper.vm.selectedFeedbackMode).toBe('immediate')
+    expect(wrapper.vm.selectedFeedbackMode).toBe('after_interview')
+    expect(wrapper.vm.selectedInteractionType).toBe(1)
+  })
+
+  it('keeps text interaction when default voice preference is unsupported', async () => {
+    delete window.SpeechRecognition
+    delete window.webkitSpeechRecognition
+    delete window.speechSynthesis
+    saveSettingsPreferences({
+      defaultInterviewInteractionType: 1
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.vm.selectedInteractionType).toBe(0)
   })
 
   it('lets route query override local default preferences', async () => {

@@ -70,6 +70,63 @@ describe('useTextToSpeech', () => {
     expect(spokenUtterances[0].pitch).toBe(1.06)
   })
 
+  it('uses configured speaking style when provided', () => {
+    const tts = useTextToSpeech({ rate: 1.1, pitch: 0.95, volume: 0.6 })
+
+    tts.speak('你好。')
+
+    expect(tts.rate.value).toBe(1.1)
+    expect(tts.pitch.value).toBe(0.95)
+    expect(tts.volume.value).toBe(0.6)
+    expect(spokenUtterances[0].rate).toBe(1.1)
+    expect(spokenUtterances[0].pitch).toBe(0.95)
+    expect(spokenUtterances[0].volume).toBe(0.6)
+  })
+
+  it('uses custom configured browser voice when available', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural', voiceURI: 'xiaoxiao-uri' },
+      { lang: 'zh-CN', name: 'Microsoft Yunxi Natural', voiceURI: 'yunxi-uri' },
+    ])
+    const tts = useTextToSpeech({
+      voicePreference: {
+        type: 'custom',
+        name: 'Microsoft Yunxi Natural',
+        voiceURI: 'yunxi-uri',
+        lang: 'zh-CN',
+      },
+    })
+
+    tts.speak('Hello.')
+
+    expect(spokenUtterances[0].voice.name).toBe('Microsoft Yunxi Natural')
+  })
+
+  it('can use system default voice without assigning a browser voice', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural', voiceURI: 'xiaoxiao-uri' },
+    ])
+    const tts = useTextToSpeech({ voicePreference: { type: 'system' } })
+
+    tts.speak('Hello.')
+
+    expect(tts.voice.value).toBeNull()
+    expect(spokenUtterances[0].voice).toBeUndefined()
+    expect(spokenUtterances[0].lang).toBe('zh-CN')
+  })
+
+  it('prefers configured gender voice when browser names expose one', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural', voiceURI: 'xiaoxiao-uri' },
+      { lang: 'zh-CN', name: 'Microsoft Yunxi Natural', voiceURI: 'yunxi-uri' },
+    ])
+    const tts = useTextToSpeech({ voicePreference: { type: 'male' } })
+
+    tts.speak('Hello.')
+
+    expect(spokenUtterances[0].voice.name).toBe('Microsoft Yunxi Natural')
+  })
+
   it('stop clears speech queue', () => {
     const tts = useTextToSpeech()
 

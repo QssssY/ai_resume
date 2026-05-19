@@ -13,9 +13,10 @@ export function useTextToSpeech(options = {}) {
   const isPaused = ref(false)
   const voices = ref([])
   const selectedVoice = ref(null)
-  const rate = ref(0.92)
-  const pitch = ref(1.06)
-  const volume = ref(1)
+  const rate = ref(Number(options.rate ?? 0.92))
+  const pitch = ref(Number(options.pitch ?? 1.06))
+  const volume = ref(Number(options.volume ?? 1))
+  const voicePreference = ref(options.voicePreference || { type: 'natural_zh' })
 
   let buffer = ''
   let pendingCount = 0
@@ -35,7 +36,11 @@ export function useTextToSpeech(options = {}) {
       .trim()
   }
 
-  const getVoiceScore = (voice) => {
+  const isFemaleVoiceName = (name) => /xiaoxiao|xiaoyi|xiaobei|xiaoxuan|huihui|yaoyao|hanhan|tingting|meijia|female|woman|girl|zira|aria|jenny|susan|samantha|victoria/.test(name)
+
+  const isMaleVoiceName = (name) => /yunxi|yunyang|yunjian|kangkang|male|man|boy|david|mark|george|daniel/.test(name)
+
+  const getVoiceScore = (voice, preferredType = 'natural_zh') => {
     const lang = voice.lang?.toLowerCase() || ''
     const name = voice.name?.toLowerCase() || ''
     let score = 0
@@ -46,13 +51,34 @@ export function useTextToSpeech(options = {}) {
     if (/xiaoxiao|xiaoyi|xiaobei|yunxi|xiaoxuan|natural|neural|premium/.test(name)) score += 12
     if (/microsoft|google/.test(name)) score += 4
     if (voice.localService === false) score += 2
+    if (preferredType === 'female' && isFemaleVoiceName(name)) score += 16
+    if (preferredType === 'male' && isMaleVoiceName(name)) score += 16
 
     return score
   }
 
-  const pickPreferredVoice = (availableVoices) => {
+  const matchCustomVoice = (availableVoices, preference) => {
+    if (!preference?.voiceURI && !preference?.name) return null
+    return availableVoices.find((voice) => (
+      (preference.voiceURI && voice.voiceURI === preference.voiceURI) ||
+      (
+        preference.name &&
+        voice.name === preference.name &&
+        (!preference.lang || voice.lang === preference.lang)
+      )
+    )) || null
+  }
+
+  const pickPreferredVoice = (availableVoices, preference = voicePreference.value) => {
+    if (preference?.type === 'system') return null
+
+    if (preference?.type === 'custom') {
+      const customVoice = matchCustomVoice(availableVoices, preference)
+      if (customVoice) return customVoice
+    }
+
     return [...availableVoices]
-      .sort((left, right) => getVoiceScore(right) - getVoiceScore(left))[0]
+      .sort((left, right) => getVoiceScore(right, preference?.type) - getVoiceScore(left, preference?.type))[0]
       || null
   }
 
@@ -145,6 +171,11 @@ export function useTextToSpeech(options = {}) {
     selectedVoice.value = voice
   }
 
+  const setVoicePreference = (preference) => {
+    voicePreference.value = preference || { type: 'natural_zh' }
+    selectedVoice.value = pickPreferredVoice(voices.value)
+  }
+
   refreshVoices()
   if (isSupported.value && speechSynthesisRef.value) {
     speechSynthesisRef.value.onvoiceschanged = refreshVoices
@@ -169,6 +200,7 @@ export function useTextToSpeech(options = {}) {
     pitch,
     volume,
     setVoice,
+    setVoicePreference,
     speak,
     speakStreaming,
     flushRemaining,

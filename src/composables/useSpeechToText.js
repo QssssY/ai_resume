@@ -30,6 +30,7 @@ export function useSpeechToText() {
   let voiceActivityTimer = null
   let voiceActivityStartedAt = 0
   let hasTranscriptResult = false
+  let startRunId = 0
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
   isSupported.value = !!SpeechRecognition
@@ -130,13 +131,27 @@ export function useSpeechToText() {
     clearState()
     ignoreResults = false
     isStarting = true
+    startRunId += 1
+    const currentStartRunId = startRunId
     hasTranscriptResult = false
     voiceActivityStartedAt = 0
 
     try {
       await startVoiceActivityMonitor()
     } catch {
+      if (currentStartRunId !== startRunId || !isStarting || ignoreResults) {
+        cleanupVoiceActivity()
+        isStarting = false
+        return
+      }
       error.value = MICROPHONE_PERMISSION_ERROR_MESSAGE
+      cleanupVoiceActivity()
+      isStarting = false
+      return
+    }
+
+    if (currentStartRunId !== startRunId || !isStarting || ignoreResults) {
+      // 启动麦克风监测是异步过程；若开场白播报前已经取消收音，必须清理刚返回的媒体资源并停止后续识别。
       cleanupVoiceActivity()
       isStarting = false
       return
@@ -221,6 +236,10 @@ export function useSpeechToText() {
   }
 
   const stop = () => {
+    if (isStarting) {
+      startRunId += 1
+      isStarting = false
+    }
     if (recognition && isRecording.value) {
       try {
         recognition.stop()
@@ -234,6 +253,7 @@ export function useSpeechToText() {
   }
 
   const cancel = () => {
+    startRunId += 1
     ignoreResults = true
     isStarting = false
     isRecording.value = false

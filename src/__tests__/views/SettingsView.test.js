@@ -153,6 +153,8 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('设置中心')
     expect(wrapper.text()).toContain('账号资料')
     expect(wrapper.text()).toContain('面试偏好')
+    expect(wrapper.text()).toContain('默认交互方式')
+    expect(wrapper.text()).toContain('语音通话偏好')
     expect(wrapper.text()).toContain('账号安全')
     expect(wrapper.text()).toContain('注销账号')
     expect(wrapper.find('.settings-nav').text()).not.toContain('注销账号')
@@ -246,6 +248,17 @@ describe('SettingsView', () => {
     wrapper.vm.interviewPreferenceForm.defaultInterviewDifficulty = 'advanced'
     wrapper.vm.interviewPreferenceForm.defaultInterviewMode = 'tech_leader'
     wrapper.vm.interviewPreferenceForm.defaultFeedbackMode = 'immediate'
+    wrapper.vm.interviewPreferenceForm.defaultInterviewInteractionType = 1
+    wrapper.vm.interviewPreferenceForm.voiceSpeakingRate = 1.1
+    wrapper.vm.interviewPreferenceForm.voicePitch = 0.95
+    wrapper.vm.interviewPreferenceForm.voiceVolume = 0.6
+    wrapper.vm.interviewPreferenceForm.voiceMuteResumeMode = 'manual'
+    wrapper.vm.interviewPreferenceForm.voiceAutoSubmitDelayMs = 5000
+    wrapper.vm.interviewPreferenceForm.voiceRecognitionLanguage = 'en-US'
+    wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
+    wrapper.vm.interviewPreferenceForm.voiceName = 'Microsoft Xiaoxiao Natural'
+    wrapper.vm.interviewPreferenceForm.voiceURI = 'xiaoxiao-uri'
+    wrapper.vm.interviewPreferenceForm.voiceLang = 'zh-CN'
     wrapper.vm.interviewPreferenceForm.interviewRetentionDays = 90
     wrapper.vm.interviewPreferenceForm.resumeRetentionDays = 180
     await wrapper.vm.handleDefaultJobChange('frontend')
@@ -259,9 +272,84 @@ describe('SettingsView', () => {
       defaultInterviewDifficulty: 'advanced',
       defaultInterviewMode: 'tech_leader',
       defaultFeedbackMode: 'immediate',
+      defaultInterviewInteractionType: 1,
+      voiceSpeakingRate: 1.1,
+      voicePitch: 0.95,
+      voiceVolume: 0.6,
+      voiceMuteResumeMode: 'manual',
+      voiceAutoSubmitDelayMs: 5000,
+      voiceRecognitionLanguage: 'en-US',
+      voicePreferredType: 'custom',
+      voiceName: 'Microsoft Xiaoxiao Natural',
+      voiceURI: 'xiaoxiao-uri',
+      voiceLang: 'zh-CN',
       interviewRetentionDays: 90,
       resumeRetentionDays: 180
     })
+  })
+
+  it('resets local voice preferences without changing other interview settings', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.interviewPreferenceForm.defaultInterviewDifficulty = 'advanced'
+    wrapper.vm.interviewPreferenceForm.voiceSpeakingRate = 1.1
+    wrapper.vm.interviewPreferenceForm.voicePitch = 0.95
+    wrapper.vm.interviewPreferenceForm.voiceVolume = 0.6
+    wrapper.vm.interviewPreferenceForm.voiceMuteResumeMode = 'manual'
+    wrapper.vm.interviewPreferenceForm.voiceAutoSubmitDelayMs = 5000
+    wrapper.vm.interviewPreferenceForm.voiceRecognitionLanguage = 'en-US'
+    wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
+    wrapper.vm.interviewPreferenceForm.voiceName = 'Microsoft Xiaoxiao Natural'
+    wrapper.vm.interviewPreferenceForm.voiceURI = 'xiaoxiao-uri'
+    wrapper.vm.interviewPreferenceForm.voiceLang = 'zh-CN'
+    wrapper.vm.handleInterviewPreferenceSave()
+    await flushPromises()
+
+    wrapper.vm.handleVoicePreferenceReset()
+    await flushPromises()
+
+    expect(getSettingsPreferences()).toMatchObject({
+      defaultInterviewDifficulty: 'advanced',
+      voiceSpeakingRate: 0.92,
+      voicePitch: 1.06,
+      voiceVolume: 1,
+      voiceMuteResumeMode: 'auto',
+      voiceAutoSubmitDelayMs: 3000,
+      voiceRecognitionLanguage: 'auto',
+      voicePreferredType: 'natural_zh',
+      voiceName: '',
+      voiceURI: '',
+      voiceLang: ''
+    })
+  })
+
+  it('uses responsive class for custom browser voice selector', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.activeSection = 'interview'
+    wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
+    await flushPromises()
+
+    expect(wrapper.find('.browser-voice-select').exists()).toBe(true)
+    const browserVoiceSelect = wrapper.findAllComponents({ name: 'ElSelect' })
+      .find((select) => select.classes().includes('browser-voice-select'))
+    expect(browserVoiceSelect.props('fitInputWidth')).toBe(true)
+    expect(browserVoiceSelect.props('popperClass')).toBe('browser-voice-select-popper')
+  })
+
+  it('renders voice preview as an accessible icon button', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.activeSection = 'interview'
+    await flushPromises()
+
+    const previewButton = wrapper.find('.voice-preview-button')
+    expect(previewButton.exists()).toBe(true)
+    expect(previewButton.attributes('aria-label')).toBe('试听当前 AI 播报声音')
+    expect(previewButton.find('svg.voice-preview-icon').exists()).toBe(true)
   })
 
   it('loads server settings and renders resume retention preference', async () => {

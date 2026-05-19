@@ -70,6 +70,26 @@ describe('useSpeechToText', () => {
     expect(recognitionInstance.abort).toHaveBeenCalled()
   })
 
+  it('does not start recognition after async microphone startup is cancelled', async () => {
+    let resolveUserMedia
+    const pendingUserMedia = new Promise((resolve) => {
+      resolveUserMedia = resolve
+    })
+    navigator.mediaDevices.getUserMedia = vi.fn(() => pendingUserMedia)
+    const speech = useSpeechToText()
+
+    const startPromise = speech.start()
+    speech.cancel()
+    resolveUserMedia({ getTracks: () => [mediaTrack] })
+    await startPromise
+
+    expect(recognitionInstance).toBeNull()
+    expect(speech.isRecording.value).toBe(false)
+    expect(speech.error.value).toBe('')
+    expect(mediaTrack.stop).toHaveBeenCalled()
+    expect(audioContext.close).toHaveBeenCalled()
+  })
+
   it('stops recognition and releases microphone immediately when stopped', async () => {
     const speech = useSpeechToText()
 

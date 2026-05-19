@@ -63,6 +63,18 @@ describe('useVoiceCall', () => {
     expect(call.pendingMessage.value).toBe('')
   })
 
+  it('does not auto send when silence timeout is disabled', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend, silenceTimeoutMs: 0 })
+    call.startVoiceCall()
+
+    speech.finalTranscript.value = '我负责订单模块'
+    await nextTick()
+    vi.advanceTimersByTime(5000)
+
+    expect(onSend).not.toHaveBeenCalled()
+    expect(call.pendingMessage.value).toBe('我负责订单模块')
+  })
+
   it('preserves English spaces across transcript updates', async () => {
     const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
     call.startVoiceCall()
@@ -123,6 +135,23 @@ describe('useVoiceCall', () => {
 
     expect(call.toggleMute()).toBe(false)
     expect(call.isMuted.value).toBe(false)
+    expect(speech.start).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits for a second click after unmute in manual resume mode', () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend, muteResumeMode: 'manual' })
+    call.startVoiceCall()
+
+    expect(call.toggleMute()).toBe(true)
+    expect(call.toggleMute()).toBe(false)
+
+    expect(call.isMuted.value).toBe(false)
+    expect(call.isManualResumePending.value).toBe(true)
+    expect(speech.start).toHaveBeenCalledTimes(1)
+
+    expect(call.toggleMute()).toBe(false)
+
+    expect(call.isManualResumePending.value).toBe(false)
     expect(speech.start).toHaveBeenCalledTimes(2)
   })
 

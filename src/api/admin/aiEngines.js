@@ -38,6 +38,19 @@ export function updateAdminAiEngine(data) {
 }
 
 /**
+ * 测试 AI 引擎配置连通性。
+ * @param {{id?: number, providerType: string, modelName: string, baseUrl: string, apiKey?: string, thinkingMode?: string, temperature?: number, maxTokens?: number, timeoutMs?: number}} data
+ * @returns {Promise}
+ */
+export function testAdminAiEngineConnectivity(data) {
+  return adminRequest({
+    url: '/api/admin/ai-engines/connectivity-test',
+    method: 'post',
+    data
+  })
+}
+
+/**
  * 启用或禁用 AI 引擎配置。
  * @param {number} id
  * @param {number} isActive - 1 启用，0 禁用

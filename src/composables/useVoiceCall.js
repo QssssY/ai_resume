@@ -2,6 +2,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 
 const DEFAULT_SILENCE_TIMEOUT_MS = 3000
 const CHECK_INTERVAL_MS = 500
+const MUTE_RESUME_MODE_AUTO = 'auto'
 const UNSUPPORTED_SPEECH_ERROR_MESSAGE = '当前浏览器不支持语音识别，已降级为手动输入'
 const UNSUPPORTED_TTS_ERROR_MESSAGE = '当前浏览器不支持语音播报，已降级为手动输入'
 
@@ -17,6 +18,7 @@ export function useVoiceCall(options) {
   const callDuration = ref(0)
   const pendingMessage = ref('')
   const error = ref('')
+  const isManualResumePending = ref(false)
 
   let durationTimer = null
   let silenceTimer = null
@@ -24,7 +26,8 @@ export function useVoiceCall(options) {
   let lastFinal = ''
   let lastInterim = ''
 
-  const silenceTimeoutMs = options.silenceTimeoutMs || DEFAULT_SILENCE_TIMEOUT_MS
+  const silenceTimeoutMs = Number(options.silenceTimeoutMs ?? DEFAULT_SILENCE_TIMEOUT_MS)
+  const muteResumeMode = options.muteResumeMode || MUTE_RESUME_MODE_AUTO
 
   const clearTimers = () => {
     if (durationTimer) {
@@ -39,6 +42,7 @@ export function useVoiceCall(options) {
 
   const resetSpeechState = () => {
     pendingMessage.value = ''
+    isManualResumePending.value = false
     lastSpeechAt = 0
     lastFinal = options.speech.finalTranscript.value || ''
     lastInterim = options.speech.interimTranscript.value || ''
@@ -83,7 +87,7 @@ export function useVoiceCall(options) {
 
   const checkSilence = () => {
     if (!isVoiceMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
-    if (!options.speech.isRecording.value && !isMuted.value) {
+    if (!options.speech.isRecording.value && !isMuted.value && !isManualResumePending.value) {
       resumeListening()
     }
     // 人声活动优先于文本结果刷新静音计时，避免识别文本尚未回调时误判用户已停止说话。
@@ -91,7 +95,7 @@ export function useVoiceCall(options) {
       lastSpeechAt = Date.now()
       return
     }
-    if (!pendingMessage.value.trim() || !lastSpeechAt) return
+    if (!silenceTimeoutMs || !pendingMessage.value.trim() || !lastSpeechAt) return
     if (Date.now() - lastSpeechAt >= silenceTimeoutMs) {
       autoSendTranscript()
     }
@@ -140,12 +144,21 @@ export function useVoiceCall(options) {
     if (!isVoiceMode.value) {
       return false
     }
+    if (!isMuted.value && isManualResumePending.value) {
+      isManualResumePending.value = false
+      resumeListening()
+      return false
+    }
     isMuted.value = !isMuted.value
     if (isMuted.value) {
       options.speech.stop?.()
       return true
     }
-    resumeListening()
+    if (muteResumeMode === MUTE_RESUME_MODE_AUTO) {
+      resumeListening()
+    } else {
+      isManualResumePending.value = true
+    }
     return false
   }
 
@@ -220,6 +233,7 @@ export function useVoiceCall(options) {
     callDuration,
     pendingMessage,
     error,
+    isManualResumePending,
     startVoiceCall,
     endVoiceCall,
     toggleMute,

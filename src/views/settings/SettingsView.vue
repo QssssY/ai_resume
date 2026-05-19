@@ -145,6 +145,198 @@
                 />
               </el-select>
             </div>
+            <div class="preference-row stacked">
+              <div>
+                <strong>默认交互方式</strong>
+                <span>进入模拟面试入口页时默认选择文字面试或语音面试；浏览器不支持语音能力时会保持文字面试。</span>
+              </div>
+              <el-select
+                v-model="interviewPreferenceForm.defaultInterviewInteractionType"
+                class="preference-select"
+                @change="handleInterviewPreferenceSave"
+              >
+                <el-option
+                  v-for="item in interactionModeOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+            </div>
+          </div>
+
+          <div class="voice-preference-block">
+            <div class="voice-preference-heading">
+              <h3>语音通话偏好</h3>
+              <p>这些设置只影响当前浏览器里的语音面试收音、自动提交和 AI 播报。</p>
+            </div>
+
+            <div class="preference-list">
+              <div class="preference-row stacked">
+                <div>
+                  <strong>AI 播报声音</strong>
+                  <span>使用当前浏览器可用的系统语音，音色偏好只保存在本机。</span>
+                </div>
+                <div class="voice-control">
+                  <el-select
+                    v-model="interviewPreferenceForm.voicePreferredType"
+                    class="preference-select"
+                    @change="handleVoicePreferredTypeChange"
+                  >
+                    <el-option
+                      v-for="item in voicePreferredTypeOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                  <el-button
+                    type="primary"
+                    plain
+                    class="voice-preview-button"
+                    title="试听"
+                    aria-label="试听当前 AI 播报声音"
+                    :disabled="!previewTextToSpeech.isSupported.value"
+                    @click="handleVoicePreview"
+                  >
+                    <svg
+                      class="voice-preview-icon"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" />
+                      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                      <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+                    </svg>
+                  </el-button>
+                </div>
+              </div>
+              <div
+                v-if="interviewPreferenceForm.voicePreferredType === 'custom'"
+                class="preference-row stacked"
+              >
+                <div>
+                  <strong>浏览器 voice 列表</strong>
+                  <span>不同浏览器和系统安装的语音包不同，找不到已选音色时会回到默认中文自然音色。</span>
+                </div>
+                <el-select
+                  v-model="selectedBrowserVoiceKey"
+                  class="preference-select browser-voice-select"
+                  filterable
+                  fit-input-width
+                  popper-class="browser-voice-select-popper"
+                  :disabled="browserVoiceOptions.length === 0"
+                  placeholder="当前浏览器暂无可用 voice"
+                >
+                  <el-option
+                    v-for="item in browserVoiceOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </el-select>
+              </div>
+              <div class="preference-row stacked">
+                <div>
+                  <strong>AI 播报语速</strong>
+                  <span>默认略慢，便于听清面试官问题。</span>
+                </div>
+                <el-slider
+                  v-model="interviewPreferenceForm.voiceSpeakingRate"
+                  class="preference-slider"
+                  :min="0.7"
+                  :max="1.2"
+                  :step="0.01"
+                  :format-tooltip="formatSpeechRate"
+                  @change="handleInterviewPreferenceSave"
+                />
+              </div>
+              <div class="preference-row stacked">
+                <div>
+                  <strong>AI 播报音调</strong>
+                  <span>控制浏览器语音合成的音调高低。</span>
+                </div>
+                <el-slider
+                  v-model="interviewPreferenceForm.voicePitch"
+                  class="preference-slider"
+                  :min="0.8"
+                  :max="1.3"
+                  :step="0.01"
+                  :format-tooltip="formatSpeechPitch"
+                  @change="handleInterviewPreferenceSave"
+                />
+              </div>
+              <div class="preference-row stacked">
+                <div>
+                  <strong>AI 播报音量</strong>
+                  <span>只影响浏览器 TTS 播报音量，不改变系统音量。</span>
+                </div>
+                <el-slider
+                  v-model="interviewPreferenceForm.voiceVolume"
+                  class="preference-slider"
+                  :min="0"
+                  :max="1"
+                  :step="0.01"
+                  :format-tooltip="formatSpeechVolume"
+                  @change="handleInterviewPreferenceSave"
+                />
+              </div>
+              <div class="preference-row stacked">
+                <div>
+                  <strong>取消静音后恢复</strong>
+                  <span>选择取消静音后是否立即继续收音。</span>
+                </div>
+                <el-select
+                  v-model="interviewPreferenceForm.voiceMuteResumeMode"
+                  class="preference-select"
+                  @change="handleInterviewPreferenceSave"
+                >
+                  <el-option label="自动继续识别" value="auto" />
+                  <el-option label="再次点击麦克风后继续" value="manual" />
+                </el-select>
+              </div>
+              <div class="preference-row stacked">
+                <div>
+                  <strong>自动提交等待时间</strong>
+                  <span>用户停止说话后等待多久自动发送本轮回答。</span>
+                </div>
+                <el-select
+                  v-model="interviewPreferenceForm.voiceAutoSubmitDelayMs"
+                  class="preference-select"
+                  @change="handleInterviewPreferenceSave"
+                >
+                  <el-option label="不自动提交" :value="0" />
+                  <el-option label="等待 2 秒" :value="2000" />
+                  <el-option label="等待 3 秒" :value="3000" />
+                  <el-option label="等待 5 秒" :value="5000" />
+                </el-select>
+              </div>
+              <div class="preference-row stacked">
+                <div>
+                  <strong>语音识别语言</strong>
+                  <span>自动模式会在外企面试官使用英文，其它面试模式使用中文普通话。</span>
+                </div>
+                <el-select
+                  v-model="interviewPreferenceForm.voiceRecognitionLanguage"
+                  class="preference-select"
+                  @change="handleInterviewPreferenceSave"
+                >
+                  <el-option label="自动匹配面试模式" value="auto" />
+                  <el-option label="中文普通话" value="zh-CN" />
+                  <el-option label="英文" value="en-US" />
+                </el-select>
+              </div>
+              <div class="preference-row stacked">
+                <div>
+                  <strong>重置语音偏好</strong>
+                  <span>恢复 AI 播报声音、语速、音调、音量、静音恢复、自动提交和识别语言的默认值。</span>
+                </div>
+                <el-button plain class="preference-action" @click="handleVoicePreferenceReset">
+                  重置偏好
+                </el-button>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -689,12 +881,14 @@ import { getMembershipPlans } from '@/api/membership'
 import { clearResumeHistory } from '@/api/resume'
 import { getUserSettings, saveUserSettings } from '@/api/userSettings'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
-import { FEEDBACK_MODE_OPTIONS, INTERVIEW_MODE_OPTIONS } from '@/constants/interview'
+import { useTextToSpeech } from '@/composables/useTextToSpeech'
+import { FEEDBACK_MODE_OPTIONS, INTERACTION_MODE_OPTIONS, INTERVIEW_MODE_OPTIONS } from '@/constants/interview'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import { removeToken } from '@/utils/auth'
 import {
   clearLocalSettingsCache,
+  DEFAULT_SETTINGS_PREFERENCES,
   getSettingsPreferences,
   saveSettingsPreferences
 } from '@/utils/settingsPreferences'
@@ -818,6 +1012,7 @@ const accountDeleteCountdown = ref(15)
 let accountDeleteTimer = null
 const notificationForm = ref(getSettingsPreferences())
 const interviewPreferenceForm = ref(getSettingsPreferences())
+const previewTextToSpeech = useTextToSpeech()
 
 const themeChoice = ref(themeStore.followSystem ? 'system' : themeStore.manualTheme)
 const resolvedThemeText = computed(() => themeStore.resolvedTheme === 'dark' ? '暗色' : '亮色')
@@ -830,6 +1025,14 @@ const difficultyPreferenceOptions = [
 
 const interviewModeOptions = INTERVIEW_MODE_OPTIONS
 const feedbackModeOptions = FEEDBACK_MODE_OPTIONS
+const interactionModeOptions = INTERACTION_MODE_OPTIONS
+const voicePreferredTypeOptions = [
+  { label: '默认中文自然音色', value: 'natural_zh' },
+  { label: '女声优先', value: 'female' },
+  { label: '男声优先', value: 'male' },
+  { label: '系统默认', value: 'system' },
+  { label: '指定浏览器音色', value: 'custom' }
+]
 const retentionDayOptions = [
   { label: '不自动清理', value: 0 },
   { label: '保留 30 天', value: 30 },
@@ -862,6 +1065,38 @@ const resumeRetentionPreferenceText = computed(() => {
     return '当前设置为不自动清理；保存后服务端不会按天数删除简历诊断记录。'
   }
   return `服务端将每日低峰自动清理 ${days} 天前已完成或失败的简历诊断记录。`
+})
+
+const formatSpeechRate = (value) => `${Number(value).toFixed(2)}x`
+const formatSpeechPitch = (value) => Number(value).toFixed(2)
+const formatSpeechVolume = (value) => `${Math.round(Number(value) * 100)}%`
+const buildVoiceKey = (voice) => `${voice.voiceURI || ''}|||${voice.name || ''}|||${voice.lang || ''}`
+
+const browserVoiceOptions = computed(() => previewTextToSpeech.voices.value.map((voice) => ({
+  label: `${voice.name || 'Unknown'}${voice.lang ? ` (${voice.lang})` : ''}`,
+  value: buildVoiceKey(voice),
+  voice
+})))
+
+const selectedBrowserVoiceKey = computed({
+  get() {
+    if (!interviewPreferenceForm.value.voiceName && !interviewPreferenceForm.value.voiceURI) return ''
+    return [
+      interviewPreferenceForm.value.voiceURI || '',
+      interviewPreferenceForm.value.voiceName || '',
+      interviewPreferenceForm.value.voiceLang || ''
+    ].join('|||')
+  },
+  set(value) {
+    handleBrowserVoiceChange(value)
+  }
+})
+
+const buildVoicePreferenceFromForm = () => ({
+  type: interviewPreferenceForm.value.voicePreferredType,
+  name: interviewPreferenceForm.value.voiceName,
+  voiceURI: interviewPreferenceForm.value.voiceURI,
+  lang: interviewPreferenceForm.value.voiceLang
 })
 
 const validateConfirmPassword = (rule, value, callback) => {
@@ -1250,6 +1485,58 @@ const handleNotificationPreferenceSave = () => {
 
 const handleInterviewPreferenceSave = () => {
   syncPreferenceForms(saveSettingsPreferences(interviewPreferenceForm.value))
+}
+
+const handleVoicePreferredTypeChange = () => {
+  if (interviewPreferenceForm.value.voicePreferredType !== 'custom') {
+    interviewPreferenceForm.value.voiceName = ''
+    interviewPreferenceForm.value.voiceURI = ''
+    interviewPreferenceForm.value.voiceLang = ''
+  } else if (!selectedBrowserVoiceKey.value && browserVoiceOptions.value.length > 0) {
+    selectedBrowserVoiceKey.value = browserVoiceOptions.value[0].value
+    return
+  }
+  previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
+  handleInterviewPreferenceSave()
+}
+
+const handleBrowserVoiceChange = (value) => {
+  const matchedOption = browserVoiceOptions.value.find((item) => item.value === value)
+  const voice = matchedOption?.voice
+  interviewPreferenceForm.value.voiceName = voice?.name || ''
+  interviewPreferenceForm.value.voiceURI = voice?.voiceURI || ''
+  interviewPreferenceForm.value.voiceLang = voice?.lang || ''
+  previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
+  handleInterviewPreferenceSave()
+}
+
+const handleVoicePreview = () => {
+  previewTextToSpeech.rate.value = Number(interviewPreferenceForm.value.voiceSpeakingRate)
+  previewTextToSpeech.pitch.value = Number(interviewPreferenceForm.value.voicePitch)
+  previewTextToSpeech.volume.value = Number(interviewPreferenceForm.value.voiceVolume)
+  previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
+  previewTextToSpeech.speak('你好，我是你的 AI 面试官。')
+}
+
+const handleVoicePreferenceReset = () => {
+  const resetPreferences = {
+    voiceSpeakingRate: DEFAULT_SETTINGS_PREFERENCES.voiceSpeakingRate,
+    voicePitch: DEFAULT_SETTINGS_PREFERENCES.voicePitch,
+    voiceVolume: DEFAULT_SETTINGS_PREFERENCES.voiceVolume,
+    voiceMuteResumeMode: DEFAULT_SETTINGS_PREFERENCES.voiceMuteResumeMode,
+    voiceAutoSubmitDelayMs: DEFAULT_SETTINGS_PREFERENCES.voiceAutoSubmitDelayMs,
+    voiceRecognitionLanguage: DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionLanguage,
+    voicePreferredType: DEFAULT_SETTINGS_PREFERENCES.voicePreferredType,
+    voiceName: DEFAULT_SETTINGS_PREFERENCES.voiceName,
+    voiceURI: DEFAULT_SETTINGS_PREFERENCES.voiceURI,
+    voiceLang: DEFAULT_SETTINGS_PREFERENCES.voiceLang
+  }
+  syncPreferenceForms(saveSettingsPreferences({
+    ...interviewPreferenceForm.value,
+    ...resetPreferences
+  }))
+  previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
+  ElMessage.success('语音偏好已恢复默认')
 }
 
 const handleDataManagementSettingsSave = async () => {
@@ -1930,6 +2217,10 @@ onBeforeUnmount(() => {
   display: block;
 }
 
+.preference-row > div:first-child {
+  min-width: 0;
+}
+
 .preference-row strong {
   color: var(--text-title);
   font-size: 14px;
@@ -1950,6 +2241,123 @@ onBeforeUnmount(() => {
 .preference-select {
   width: 260px;
   flex-shrink: 0;
+}
+
+.preference-slider {
+  width: 260px;
+  flex-shrink: 0;
+}
+
+.browser-voice-select {
+  width: min(100%, 360px);
+  max-width: 100%;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.preference-action {
+  flex: 0 0 auto;
+}
+
+.voice-control {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.voice-control .preference-select {
+  min-width: 0;
+}
+
+.voice-preview-button {
+  width: 42px;
+  min-width: 42px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  transition:
+    border-color 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+    background-color 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+    color 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.16s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.voice-preview-button:hover:not(.is-disabled) {
+  color: #fff;
+  background: var(--orange-main);
+  border-color: var(--orange-main);
+  box-shadow: 0 8px 18px rgba(255, 140, 66, 0.22);
+  transform: translateY(-1px);
+}
+
+.voice-preview-button:active:not(.is-disabled) {
+  box-shadow: 0 4px 10px rgba(255, 140, 66, 0.18);
+  transform: translateY(0) scale(0.96);
+}
+
+.voice-preview-button:focus-visible {
+  outline: 2px solid var(--orange-main);
+  outline-offset: 2px;
+}
+
+.voice-preview-button.is-disabled {
+  box-shadow: none;
+  transform: none;
+}
+
+.voice-preview-icon {
+  width: 19px;
+  height: 19px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.voice-preview-button:hover:not(.is-disabled) .voice-preview-icon {
+  transform: scale(1.08);
+}
+
+:global(.browser-voice-select-popper) {
+  width: min(360px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px);
+}
+
+:global(.browser-voice-select-popper .el-select-dropdown__wrap) {
+  max-height: min(300px, calc(100vh - 180px));
+}
+
+:global(.browser-voice-select-popper .el-select-dropdown__item) {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-preference-block {
+  margin-top: 22px;
+}
+
+.voice-preference-heading {
+  margin-bottom: 12px;
+}
+
+.voice-preference-heading h3 {
+  margin: 0;
+  color: var(--text-title);
+  font-size: 16px;
+}
+
+.voice-preference-heading p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .danger-zone {
@@ -2057,7 +2465,25 @@ onBeforeUnmount(() => {
     width: 100%;
   }
 
-  .preference-select {
+  .preference-select,
+  .preference-slider {
+    width: 100%;
+  }
+
+  .voice-control {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: center;
+  }
+
+  .voice-preview-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .browser-voice-select {
     width: 100%;
   }
 
@@ -2071,6 +2497,19 @@ onBeforeUnmount(() => {
 
   .account-delete-form .el-button--danger {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  :global(.browser-voice-select-popper) {
+    width: calc(100vw - 24px) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-preview-button,
+  .voice-preview-icon {
+    transition-duration: 0.01ms;
   }
 }
 </style>

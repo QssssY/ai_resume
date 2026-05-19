@@ -464,6 +464,14 @@ const applyStoredInterviewPreferences = () => {
   if (FEEDBACK_MODE_OPTIONS.some((item) => item.value === preferences.defaultFeedbackMode)) {
     selectedFeedbackMode.value = preferences.defaultFeedbackMode;
   }
+  if (preferences.defaultInterviewInteractionType === INTERACTION_TYPE_VOICE && speechApiSupported) {
+    selectedInteractionType.value = INTERACTION_TYPE_VOICE;
+    if (selectedFeedbackMode.value === "immediate") {
+      selectedFeedbackMode.value = "after_interview";
+    }
+  } else {
+    selectedInteractionType.value = INTERACTION_TYPE_TEXT;
+  }
 
   // 默认岗位必须仍存在于当前启用岗位列表，避免本机旧缓存把入口页带到不可用配置。
   const matchedJob = findJobOption(preferences.defaultInterviewJobRoleCode)
