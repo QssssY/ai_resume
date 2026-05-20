@@ -45,6 +45,7 @@
 <script setup>
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { isResumePhotoFileTooLarge, RESUME_PHOTO_SIZE_LIMIT_TEXT } from '@/utils/resumePhoto'
 
 const props = defineProps({
   modelValue: { type: Object, required: true }
@@ -64,8 +65,8 @@ function onPhotoChange(event) {
     event.target.value = ''
     return
   }
-  if (file.size > 5 * 1024 * 1024) {
-    ElMessage.warning('照片文件大小不能超过 5MB')
+  if (isResumePhotoFileTooLarge(file.size)) {
+    ElMessage.warning(`照片文件大小不能超过 ${RESUME_PHOTO_SIZE_LIMIT_TEXT}`)
     event.target.value = ''
     return
   }

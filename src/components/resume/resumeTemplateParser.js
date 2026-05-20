@@ -1,4 +1,4 @@
-let blockIdSeed = 0
+const generateBlockId = (prefix = 'resume_block') => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
 const SECTION_SPECS = [
   {
@@ -81,8 +81,6 @@ const TRAILING_METADATA_LINE_PATTERNS = [
   /\(String\)\s*,/,
   /^<==\s*Updates:/i,
 ]
-
-const generateBlockId = () => `resume_block_${++blockIdSeed}`
 
 const escapeHtml = (value) => {
   return String(value || '')

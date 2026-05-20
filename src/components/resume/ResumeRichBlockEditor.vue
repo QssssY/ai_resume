@@ -7,10 +7,11 @@
 <script setup>
 import { computed, onBeforeUnmount, watch } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
-import { Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import HardBreak from '@tiptap/extension-hard-break'
 import { TextStyle } from '@tiptap/extension-text-style'
+import { FontSize, FONT_SIZE_MAX, FONT_SIZE_MIN } from './extensions/fontSize'
+import { sanitizeRichTextHtml } from './resumeSanitizer'
 
 const props = defineProps({
   block: {
@@ -30,57 +31,10 @@ const emit = defineEmits([
   'request-remove-empty',
 ])
 
-const FontSize = Extension.create({
-  name: 'fontSize',
-  addOptions() {
-    return {
-      types: ['textStyle'],
-    }
-  },
-  addGlobalAttributes() {
-    return [
-      {
-        types: this.options.types,
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: (element) => {
-              const size = element.style.fontSize || ''
-              return size ? size.replace('px', '') : null
-            },
-            renderHTML: (attributes) => {
-              if (!attributes.fontSize) {
-                return {}
-              }
-              return {
-                style: `font-size: ${attributes.fontSize}px`,
-              }
-            },
-          },
-        },
-      },
-    ]
-  },
-  addCommands() {
-    return {
-      setFontSize:
-        (fontSize) =>
-        ({ chain }) => {
-          return chain().setMark('textStyle', { fontSize }).run()
-        },
-      unsetFontSize:
-        () =>
-        ({ chain }) => {
-          return chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run()
-        },
-    }
-  },
-})
-
 const createEditor = () => {
   return new Editor({
     editable: props.mode === 'preview',
-    content: props.block.html || '<p></p>',
+    content: sanitizeRichTextHtml(props.block.html) || '<p></p>',
     extensions: [
       StarterKit.configure({
         heading: false,
@@ -102,6 +56,9 @@ const createEditor = () => {
       }),
     ],
     editorProps: {
+      transformPastedHTML(html) {
+        return sanitizeRichTextHtml(html)
+      },
       attributes: {
         class: 'rich-block-prosemirror',
       },
@@ -177,7 +134,7 @@ const adjustSelectionFontSize = (delta) => {
   }
 
   const currentSize = Number.parseFloat(editor.getAttributes('textStyle').fontSize || '14') || 14
-  const nextSize = Math.min(28, Math.max(12, currentSize + delta))
+  const nextSize = Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, currentSize + delta))
   editor.chain().focus().setFontSize(String(nextSize)).run()
   return true
 }
@@ -211,7 +168,7 @@ watch(
     if (nextHtml === editor.getHTML()) {
       return
     }
-    editor.commands.setContent(nextHtml || '<p></p>', false)
+    editor.commands.setContent(sanitizeRichTextHtml(nextHtml) || '<p></p>', false)
   },
 )
 

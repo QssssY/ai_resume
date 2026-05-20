@@ -86,28 +86,64 @@ export async function exportPdfFromHtml(html) {
 /**
  * 步骤二：根据 fileId 下载 PDF 文件到本地
  *
- * 后端返回 application/pdf 文件流，通过临时 <a> 标签触发浏览器保存对话框。
+ * 后端返回 application/pdf 文件流，用 Axios 携带认证头下载，避免登录 token 暴露在 URL 中。
  *
  * @param {string} fileId - 步骤一返回的文件唯一标识
  * @param {string} fileName - 下载文件名
- * @returns {void}
+ * @returns {Promise<void>}
  */
-export function downloadPdfFile(fileId, fileName) {
+export async function downloadPdfFile(fileId, fileName) {
   if (!fileId) {
     throw new Error('缺少文件标识，无法下载')
   }
 
-  const token = getToken()
-  if (!token) {
-    throw new Error('未登录或登录已过期，请重新登录')
-  }
+  const config = buildAuthConfig({
+    responseType: 'blob',
+    timeout: 60000,
+  })
 
-  const a = document.createElement('a')
-  a.href = `/api/resume/download-pdf/${fileId}?token=${encodeURIComponent(token)}`
-  a.download = fileName || `resume-${fileId}.pdf`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  try {
+    const res = await axios.get(`/api/resume/download-pdf/${fileId}`, config)
+    const contentType = (res.headers?.['content-type'] || '').toLowerCase()
+    if (contentType.includes('json') || contentType.includes('text')) {
+      const text = await res.data.text()
+      let message = text
+      try {
+        const parsed = JSON.parse(text)
+        message = parsed.message || parsed.error || text
+      } catch (_) { /* 非 JSON 文本 */ }
+      throw new Error(message || 'PDF 下载失败')
+    }
+    if (!res.data || res.data.size === 0) {
+      throw new Error('服务端返回了空的 PDF 文件')
+    }
+
+    const url = URL.createObjectURL(res.data)
+    try {
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName || `resume-${fileId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  } catch (err) {
+    if (err.response?.status === 401) {
+      removeToken()
+      const currentPath = router.currentRoute?.value?.fullPath || '/'
+      router.push({ path: '/login', query: { redirect: currentPath } })
+      throw new Error('登录已过期，请重新登录')
+    }
+    if (err.code === 'ECONNABORTED') {
+      throw new Error('PDF 下载请求超时，请稍后重试')
+    }
+    if (err.message === 'Network Error') {
+      throw new Error('网络连接失败，请检查网络后重试')
+    }
+    throw err
+  }
 }
 
 /**

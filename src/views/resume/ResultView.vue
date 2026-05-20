@@ -568,6 +568,7 @@
                 <div class="job-match-block-title">润色后的简历内容</div>
                 <div class="polish-actions">
                   <n-button size="small" ghost @click="copyPolishedResume">复制内容</n-button>
+                  <n-button size="small" type="primary" :loading="documentSaving" @click="handleSaveDocument">保存编辑</n-button>
                   <n-button size="small" type="primary" :loading="pdfExporting" @click="exportResumePdf">导出 PDF</n-button>
                   <n-button size="small" ghost :loading="imageExporting" @click="exportResumeImage">导出图片</n-button>
                 </div>
@@ -576,7 +577,12 @@
                 支持直接编辑文案、切换标题样式、调整段落顺序；可导出为 PDF 或图片格式。
               </div>
               <div v-if="polishResult?.polishedResumeText" class="polish-preview-shell">
-                <ResumeTemplate ref="resumeTemplateRef" :text="polishResult.polishedResumeText" mode="preview" />
+                <ResumeTemplate
+                  ref="resumeTemplateRef"
+                  :text="polishResult.polishedResumeText"
+                  :document-json="polishResult.documentJson || ''"
+                  mode="preview"
+                />
               </div>
             </div>
 
@@ -620,8 +626,8 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { analyzeResumeJobMatch, analyzeResumePolish, getResumeTask } from '@/api/resume'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
+import { analyzeResumeJobMatch, analyzeResumePolish, getResumeTask, savePolishDocument } from '@/api/resume'
 import { useUserStore } from '@/stores/user'
 import { NButton, NInput, useMessage } from 'naive-ui'
 const message = useMessage()
@@ -657,6 +663,7 @@ const polishSectionRef = ref(null)
 const pdfExporting = ref(false)
 const imageExporting = ref(false)
 const resumeTemplateRef = ref(null)
+const documentSaving = ref(false)
 
 const taskId = computed(() => route.params.taskId)
 
@@ -666,8 +673,7 @@ const isCompleted = computed(() => task.value?.status === 2)
 const isFailed = computed(() => task.value?.status === 3)
 const PENDING_POLL_INTERVAL = 5000
 const PROCESSING_POLL_INTERVAL = 7000
-const POLL_MAX_ROUNDS = 90 // 最多轮询 90 轮，约 10 分钟
-let pollRounds = 0
+const POLL_MAX_ROUNDS = 90
 const pollTimeout = ref(false)
 
 const statusText = computed(() => {
@@ -994,31 +1000,30 @@ const fetchTaskDetail = async (options = {}) => {
 
 const startPolling = () => {
   stopPolling()
-  pollRounds = 0
+  let pollRounds = 0
   pollTimeout.value = false
+
+  const scheduleNextPoll = () => {
+    if (!isPending.value && !isProcessing.value) {
+      stopPolling()
+      return
+    }
+
+    if (pollRounds >= POLL_MAX_ROUNDS) {
+      stopPolling()
+      pollTimeout.value = true
+      return
+    }
+    pollRounds++
+
+    const nextInterval = isPending.value ? PENDING_POLL_INTERVAL : PROCESSING_POLL_INTERVAL
+    pollTimer.value = setTimeout(async () => {
+      await fetchTaskDetail({ silent: true })
+      scheduleNextPoll()
+    }, nextInterval)
+  }
+
   scheduleNextPoll()
-}
-
-// 轮询改为递归 setTimeout，只在上一轮完成后再安排下一轮，避免持续打满慢接口。
-const scheduleNextPoll = () => {
-  if (!isPending.value && !isProcessing.value) {
-    stopPolling()
-    return
-  }
-
-  // 超过最大轮询次数时停止轮询，提示用户稍后查看
-  if (pollRounds >= POLL_MAX_ROUNDS) {
-    stopPolling()
-    pollTimeout.value = true
-    return
-  }
-  pollRounds++
-
-  const nextInterval = isPending.value ? PENDING_POLL_INTERVAL : PROCESSING_POLL_INTERVAL
-  pollTimer.value = setTimeout(async () => {
-    await fetchTaskDetail({ silent: true })
-    scheduleNextPoll()
-  }, nextInterval)
 }
 
 const stopPolling = () => {
@@ -1074,8 +1079,8 @@ const recoverLatestPolishResultAfterTimeout = async () => {
         await applyLatestPolishResult(latestTask.latestPolishResult)
         return true
       }
-    } catch (error) {
-      console.error('[AI 简历润色] 超时后回查失败:', error)
+    } catch {
+      // 回查失败静默忽略，轮询继续
     }
   }
   return false
@@ -1107,7 +1112,6 @@ const triggerAiPolishPlaceholder = async () => {
       message.warning('AI 润色请求超时，正在等待后端完成，请稍后刷新查看结果')
       return
     }
-    console.error('[AI 简历润色] 执行失败:', err)
     message.error(err?.message || 'AI 简历润色失败，请稍后重试')
   } finally {
     polishLoading.value = false
@@ -1137,7 +1141,7 @@ const submitJobMatchAnalysis = async () => {
     }
     message.success('岗位匹配分析完成')
   } catch (err) {
-    console.error('[岗位匹配分析] 执行失败:', err)
+    message.error(err?.message || '岗位匹配分析失败，请稍后重试')
   } finally {
     jobMatchLoading.value = false
   }
@@ -1149,9 +1153,15 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopPolling()
-  // 恢复页面滚动
   document.body.style.overflow = ''
   document.documentElement.style.overflow = ''
+  unwatch()
+})
+
+onBeforeRouteLeave(() => {
+  if (resumeTemplateRef.value?.isDirty?.()) {
+    return window.confirm('有未保存的编辑内容，确定要离开吗？')
+  }
 })
 
 const unwatch = watch(() => task.value?.status, (newStatus) => {
@@ -1178,6 +1188,30 @@ watch(task, (newTask) => {
   }
 }, { deep: true })
 
+const handleSaveDocument = async () => {
+  if (!polishResult.value?.polishRecordId || !resumeTemplateRef.value) {
+    message.warning('暂无可保存的编辑内容')
+    return
+  }
+  documentSaving.value = true
+  try {
+    const documentJson = resumeTemplateRef.value.getResumeDocumentJson()
+    const editedPlainText = resumeTemplateRef.value.getResumePlainText()
+    await savePolishDocument(polishResult.value.polishRecordId, { documentJson, editedPlainText })
+    polishResult.value = {
+      ...polishResult.value,
+      documentJson,
+      editedPlainText,
+    }
+    resumeTemplateRef.value.markClean?.()
+    message.success('保存成功')
+  } catch (err) {
+    message.error(err?.message || '保存失败，请稍后重试')
+  } finally {
+    documentSaving.value = false
+  }
+}
+
 const copyPolishedResume = async () => {
   // 优先复制模板中已渲染的真实文本，否则回退到 AI 原始结果
   const editedText =
@@ -1192,7 +1226,6 @@ const copyPolishedResume = async () => {
     await navigator.clipboard.writeText(editedText)
     message.success('已复制到剪贴板')
   } catch (err) {
-    console.error('[AI 润色] 复制失败:', err)
     message.error('复制失败，请手动选择复制')
   }
 }
@@ -1294,7 +1327,6 @@ const exportResumePdf = async () => {
 
     message.success('PDF 已导出')
   } catch (err) {
-    console.error('[PDF导出] 失败:', err)
     message.error('PDF 导出失败，请稍后重试')
   } finally {
     pdfExporting.value = false
@@ -1335,16 +1367,11 @@ const exportResumeImage = async () => {
 
     message.success('简历图片已导出')
   } catch (err) {
-    console.error('[图片导出] 失败:', err)
     message.error('图片导出失败，请稍后重试')
   } finally {
     imageExporting.value = false
   }
 }
-
-onUnmounted(() => {
-  unwatch()
-})
 </script>
 
 <style scoped>
@@ -1361,10 +1388,8 @@ onUnmounted(() => {
 
   min-height: 100%;
   background: var(--bg-page);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  padding: var(--space-lg);
-  box-sizing: border-box;
   font-family: var(--font-body);
+  padding: var(--space-lg);
   color: var(--text-body);
   max-width: 960px;
   margin: 0 auto;

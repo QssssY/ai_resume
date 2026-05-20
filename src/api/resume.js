@@ -87,6 +87,20 @@ export function analyzeResumePolish(data) {
 }
 
 /**
+ * 保存用户编辑的简历文档
+ * @param {string|number} polishRecordId - 润色记录 ID
+ * @param {{documentJson: string, editedPlainText?: string}} data - 文档保存请求
+ * @returns {Promise}
+ */
+export function savePolishDocument(polishRecordId, data) {
+  return request({
+    url: `/api/resume/polish-records/${polishRecordId}/document`,
+    method: 'put',
+    data
+  })
+}
+
+/**
  * 从文件URL中提取文件名
  * @param {string} fileUrl - 文件URL
  * @returns {string} 文件名

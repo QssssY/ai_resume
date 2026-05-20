@@ -134,8 +134,8 @@ async function exportTextPdf() {
       }
     )
 
-    // 4. 用户确认 → 直接用 <a> 标签导航下载（非 XHR，避免 IDM 拦截产生双重下载）
-    downloadPdfFile(result.fileId, result.fileName)
+    // 4. 用户确认后使用认证头下载，避免登录 token 出现在 URL、浏览器历史或代理日志中。
+    await downloadPdfFile(result.fileId, result.fileName)
     ElMessage.success('PDF 已下载（文字型，可选中复制）')
 
   } catch (err) {

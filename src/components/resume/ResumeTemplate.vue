@@ -1,20 +1,20 @@
 <template>
   <div ref="resumeRef" :class="['resume-template', `resume-template--${mode}`]">
     <div v-if="isPreview" class="editor-toolbar">
-      <button type="button" class="editor-tool" :disabled="!canUndo" @mousedown.prevent @click="undoTemplateChange">
+      <button type="button" class="editor-tool" :disabled="!history.canUndo.value" aria-label="撤销" @mousedown.prevent @click="history.undo">
         上一步
       </button>
-      <button type="button" class="editor-tool" :disabled="!canRedo" @mousedown.prevent @click="redoTemplateChange">
+      <button type="button" class="editor-tool" :disabled="!history.canRedo.value" aria-label="重做" @mousedown.prevent @click="history.redo">
         下一步
       </button>
       <span class="toolbar-separator"></span>
-      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="toggleBold">
+      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" aria-label="加粗" @mousedown.prevent @click="toggleBold">
         B
       </button>
-      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="decreaseFontSize">
+      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" aria-label="减小字号" @mousedown.prevent @click="decreaseFontSize">
         A-
       </button>
-      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" @mousedown.prevent @click="increaseFontSize">
+      <button type="button" class="editor-tool" :disabled="!hasActiveEditableTarget" aria-label="增大字号" @mousedown.prevent @click="increaseFontSize">
         A+
       </button>
       <span class="toolbar-separator"></span>
@@ -153,15 +153,12 @@
               <span v-else class="photo-placeholder">照片预留区</span>
             </div>
 
-            <div v-if="isPreview" class="photo-actions">
-              <button type="button" class="photo-action" @click="triggerPhotoUpload">
-                {{ photoDataUrl ? '更换照片' : '上传照片' }}
-              </button>
-              <button v-if="photoDataUrl" type="button" class="photo-action photo-action--ghost" @click="clearPhoto">
+            <div v-if="isPreview && photoDataUrl" class="photo-actions">
+              <button type="button" class="photo-action photo-action--ghost" @click="clearPhoto">
                 清空照片
               </button>
             </div>
-            <p class="photo-tip">{{ photoDataUrl ? '导出时将保留当前照片' : '照片预留区' }}</p>
+            <p class="photo-tip">{{ photoDataUrl ? '仅当前页面与导出保留，保存模板不包含头像' : '保存模板不包含头像' }}</p>
           </div>
         </div>
       </section>
@@ -312,11 +309,15 @@
 </template>
 
 <script setup>
-import DOMPurify from 'dompurify'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import ResumeInlineRichEditor from './ResumeInlineRichEditor.vue'
 import ResumeRichBlockEditor from './ResumeRichBlockEditor.vue'
+import { sanitizeRichTextHtml } from './resumeSanitizer'
+import { cleanExportClone } from './resumeExportHelpers'
+import { FONT_SIZE_MIN, FONT_SIZE_FIELD_MAX } from './extensions/fontSize'
+import { useResumeHistory } from './composables/useResumeHistory'
+import { isResumePhotoFileTooLarge, RESUME_PHOTO_SIZE_LIMIT_TEXT } from '@/utils/resumePhoto'
 import {
   buildResumeTemplateModel,
   createEmptyLabelBlock,
@@ -325,6 +326,10 @@ import {
 
 const props = defineProps({
   text: {
+    type: String,
+    default: '',
+  },
+  documentJson: {
     type: String,
     default: '',
   },
@@ -339,20 +344,62 @@ const isPreview = computed(() => props.mode === 'preview')
 const resumeRef = ref(null)
 const photoInputRef = ref(null)
 const photoDataUrl = ref('')
+const photoGeneration = ref(0)
 const header = ref(createEmptyHeaderModel())
 const sections = ref([])
 const activeTarget = ref(createEmptyActiveTarget())
 const draggingBlockId = ref('')
 const metaDraggingId = ref('')
 const dragOverState = ref(createEmptyDragState())
-const historyState = ref({
-  past: [],
-  future: [],
-})
-const suspendHistory = ref(false)
-const historyTimer = ref(null)
+const initialSignature = ref('')
 const richBlockRefs = new Map()
 const headerFieldRefs = new Map()
+
+const history = useResumeHistory({
+  buildSnapshot: () => ({
+    header: cloneModel(header.value),
+    sections: cloneModel(sections.value),
+    photoGeneration: photoGeneration.value,
+    photoDataUrl: photoDataUrl.value,
+    activeTarget: cloneModel(activeTarget.value),
+  }),
+  applySnapshot: async (snapshot) => {
+    history.suspendHistory.value = true
+    header.value = normalizeHeaderModel(snapshot.header)
+    sections.value = normalizeSectionsModel(snapshot.sections)
+    if (snapshot.photoDataUrl !== null) {
+      photoDataUrl.value = snapshot.photoDataUrl || ''
+      photoGeneration.value = snapshot.photoGeneration ?? photoGeneration.value
+    }
+    activeTarget.value = snapshot.activeTarget || createEmptyActiveTarget()
+    resetDragState()
+    resetMetaDragState()
+    await nextTick()
+
+    if (activeTarget.value.type === 'header_field') {
+      const location = findHeaderFieldById(activeTarget.value.id)
+      if (location) {
+        headerFieldRefs.get(location.field.id)?.focusEditor?.()
+      }
+    } else if (activeTarget.value.type === 'block') {
+      const location = findBlockLocation(activeTarget.value.id)
+      if (location) {
+        const richEditor = richBlockRefs.get(location.block.id)
+        if (richEditor?.focusEditor) {
+          richEditor.focusEditor()
+        } else {
+          const plainInput = resumeRef.value?.querySelector(
+            `[data-block-id="${location.block.id}"] input, [data-block-id="${location.block.id}"] textarea`,
+          )
+          plainInput?.focus()
+        }
+      }
+    }
+
+    history.suspendHistory.value = false
+  },
+  isEditable: isPreview,
+})
 
 function createEmptyActiveTarget() {
   return {
@@ -520,14 +567,6 @@ const activeBlockId = computed(() => {
 
 const hasActiveEditableTarget = computed(() => {
   return !!activeTarget.value.id
-})
-
-const canUndo = computed(() => {
-  return historyState.value.past.length > 1
-})
-
-const canRedo = computed(() => {
-  return historyState.value.future.length > 0
 })
 
 function setRichBlockRef(blockId, instance) {
@@ -724,18 +763,6 @@ function handleDocumentPointerDown(event) {
   }
 }
 
-/**
- * 简历富文本允许保留基础排版标签和内联样式，但必须先净化再做 DOM 解析，
- * 避免历史数据或外部导入内容把脚本、事件属性等危险节点带进编辑器链路。
- */
-function sanitizeRichTextHtml(html) {
-  return DOMPurify.sanitize(String(html || ''), {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'span', 'div', 'ul', 'ol', 'li'],
-    ALLOWED_ATTR: ['style'],
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-  })
-}
-
 function stripHtmlToText(html) {
   if (!html) {
     return ''
@@ -790,152 +817,50 @@ function sanitizeIncomingResumeText(text) {
 
 function applyTemplateText(text) {
   const model = cloneModel(buildResumeTemplateModel(sanitizeIncomingResumeText(text)))
-  suspendHistory.value = true
+  history.suspendHistory.value = true
   header.value = normalizeHeaderModel(model.header)
   sections.value = normalizeSectionsModel(model.sections)
   photoDataUrl.value = ''
   activeTarget.value = createEmptyActiveTarget()
   resetDragState()
   resetMetaDragState()
-  suspendHistory.value = false
-  initializeHistory()
+  history.suspendHistory.value = false
+  history.initialize()
+  initialSignature.value = history.getSignature()
 }
 
-function createSnapshot() {
-  return {
-    header: cloneModel(header.value),
-    sections: cloneModel(sections.value),
-    photoDataUrl: photoDataUrl.value,
-    activeTarget: cloneModel(activeTarget.value),
+/** 从已保存的文档 JSON 恢复编辑器状态（优先于纯文本解析）。 */
+function applyDocumentJson(jsonStr) {
+  try {
+    const doc = JSON.parse(jsonStr)
+    history.suspendHistory.value = true
+    header.value = normalizeHeaderModel(doc.header)
+    sections.value = normalizeSectionsModel(doc.sections)
+    activeTarget.value = createEmptyActiveTarget()
+    resetDragState()
+    resetMetaDragState()
+    history.suspendHistory.value = false
+    history.initialize()
+    initialSignature.value = history.getSignature()
+  } catch {
+    applyTemplateText(props.text)
   }
-}
-
-function createSnapshotRecord() {
-  const snapshot = createSnapshot()
-  return {
-    signature: JSON.stringify(snapshot),
-    snapshot,
-  }
-}
-
-function initializeHistory() {
-  historyState.value = {
-    past: [createSnapshotRecord()],
-    future: [],
-  }
-}
-
-/**
- * 结构性操作立即入历史栈，文本输入走节流快照。
- * 这样既能保证撤销/重做覆盖整份模板，又不会因为每个字符输入都生成一条历史记录。
- */
-function recordHistoryNow() {
-  if (!isPreview.value || suspendHistory.value) {
-    return
-  }
-
-  if (historyTimer.value) {
-    clearTimeout(historyTimer.value)
-    historyTimer.value = null
-  }
-
-  const record = createSnapshotRecord()
-  const lastRecord = historyState.value.past[historyState.value.past.length - 1]
-  if (lastRecord?.signature === record.signature) {
-    return
-  }
-
-  historyState.value.past.push(record)
-  if (historyState.value.past.length > 80) {
-    historyState.value.past.shift()
-  }
-  historyState.value.future = []
-}
-
-function queueHistorySnapshot() {
-  if (!isPreview.value || suspendHistory.value) {
-    return
-  }
-
-  if (historyTimer.value) {
-    clearTimeout(historyTimer.value)
-  }
-
-  historyTimer.value = setTimeout(() => {
-    historyTimer.value = null
-    recordHistoryNow()
-  }, 280)
-}
-
-async function restoreSnapshot(snapshot) {
-  suspendHistory.value = true
-  header.value = normalizeHeaderModel(snapshot.header)
-  sections.value = normalizeSectionsModel(snapshot.sections)
-  photoDataUrl.value = snapshot.photoDataUrl || ''
-  activeTarget.value = snapshot.activeTarget || createEmptyActiveTarget()
-  resetDragState()
-  resetMetaDragState()
-  await nextTick()
-
-  if (activeTarget.value.type === 'header_field') {
-    const location = findHeaderFieldById(activeTarget.value.id)
-    if (location) {
-      headerFieldRefs.get(location.field.id)?.focusEditor?.()
-    }
-  } else if (activeTarget.value.type === 'block') {
-    const location = findBlockLocation(activeTarget.value.id)
-    if (location) {
-      const richEditor = richBlockRefs.get(location.block.id)
-      if (richEditor?.focusEditor) {
-        richEditor.focusEditor()
-      } else {
-        const plainInput = resumeRef.value?.querySelector(
-          `[data-block-id="${location.block.id}"] input, [data-block-id="${location.block.id}"] textarea`,
-        )
-        plainInput?.focus()
-      }
-    }
-  }
-
-  suspendHistory.value = false
-}
-
-async function undoTemplateChange() {
-  if (!isPreview.value) {
-    return
-  }
-
-  recordHistoryNow()
-  if (historyState.value.past.length <= 1) {
-    return
-  }
-
-  const current = historyState.value.past.pop()
-  historyState.value.future.push(current)
-  await restoreSnapshot(historyState.value.past[historyState.value.past.length - 1].snapshot)
-}
-
-async function redoTemplateChange() {
-  if (!isPreview.value || !historyState.value.future.length) {
-    return
-  }
-
-  recordHistoryNow()
-  const nextRecord = historyState.value.future.pop()
-  historyState.value.past.push(nextRecord)
-  await restoreSnapshot(nextRecord.snapshot)
 }
 
 watch(
   () => props.text,
   (nextText) => {
-    applyTemplateText(nextText)
+    if (props.documentJson) {
+      applyDocumentJson(props.documentJson)
+    } else {
+      applyTemplateText(nextText)
+    }
   },
   { immediate: true },
 )
 
 watch([header, sections, photoDataUrl], () => {
-  queueHistorySnapshot()
+  history.queueSnapshot()
 }, { deep: true })
 
 onMounted(() => {
@@ -944,8 +869,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleDocumentPointerDown)
-  if (historyTimer.value) {
-    clearTimeout(historyTimer.value)
+  if (history.historyTimer.value) {
+    clearTimeout(history.historyTimer.value)
   }
 })
 
@@ -974,13 +899,13 @@ async function insertBlockAfter(currentBlockId, nextBlock) {
     }
     firstSection.blocks.push(nextBlock)
     await focusBlock(nextBlock.id)
-    recordHistoryNow()
+    history.recordNow()
     return
   }
 
   location.section.blocks.splice(location.blockIndex + 1, 0, nextBlock)
   await focusBlock(nextBlock.id)
-  recordHistoryNow()
+  history.recordNow()
 }
 
 /**
@@ -1002,7 +927,7 @@ async function replaceBlock(blockId, nextBlock) {
 
   location.section.blocks.splice(location.blockIndex, 1, nextBlock)
   await focusBlock(nextBlock.id)
-  recordHistoryNow()
+  history.recordNow()
 }
 
 function canToggleBlockToLabel(block) {
@@ -1092,7 +1017,7 @@ async function removeBlockAndFocus(blockId) {
     clearActiveState()
   }
 
-  recordHistoryNow()
+  history.recordNow()
 }
 
 async function removeEmptyBlock(blockId) {
@@ -1143,7 +1068,7 @@ async function deleteCurrentTarget() {
 
   location.field.html = '<p></p>'
   await focusHeaderField(location.field.id, location.kind)
-  recordHistoryNow()
+  history.recordNow()
 }
 
 function getHeaderFieldBaseSize(field) {
@@ -1196,7 +1121,7 @@ function toggleFieldBold(field) {
 
 function adjustFieldFontSize(field, delta) {
   const current = Number.parseFloat(field.style?.fontSize || getHeaderFieldBaseSize(field)) || getHeaderFieldBaseSize(field)
-  field.style.fontSize = Math.min(48, Math.max(12, current + delta))
+  field.style.fontSize = Math.min(FONT_SIZE_FIELD_MAX, Math.max(FONT_SIZE_MIN, current + delta))
 }
 
 function toggleBlockBold(block) {
@@ -1206,7 +1131,7 @@ function toggleBlockBold(block) {
 
 function adjustBlockFontSize(block, delta) {
   const current = Number.parseFloat(block.style?.fontSize || getBlockBaseSize(block)) || getBlockBaseSize(block)
-  block.style.fontSize = Math.min(48, Math.max(12, current + delta))
+  block.style.fontSize = Math.min(FONT_SIZE_FIELD_MAX, Math.max(FONT_SIZE_MIN, current + delta))
 }
 
 function toggleBold() {
@@ -1222,12 +1147,12 @@ function toggleBold() {
     }
 
     if (headerFieldRefs.get(location.field.id)?.toggleBoldSelection?.()) {
-      recordHistoryNow()
+      history.recordNow()
       return
     }
 
     toggleFieldBold(location.field)
-    recordHistoryNow()
+    history.recordNow()
     return
   }
 
@@ -1237,12 +1162,12 @@ function toggleBold() {
   }
 
   if (isRichTextBlock(block) && richBlockRefs.get(block.id)?.toggleBoldSelection?.()) {
-    recordHistoryNow()
+    history.recordNow()
     return
   }
 
   toggleBlockBold(block)
-  recordHistoryNow()
+  history.recordNow()
 }
 
 function updateCurrentFontSize(delta) {
@@ -1258,12 +1183,12 @@ function updateCurrentFontSize(delta) {
     }
 
     if (headerFieldRefs.get(location.field.id)?.adjustSelectionFontSize?.(delta)) {
-      recordHistoryNow()
+      history.recordNow()
       return
     }
 
     adjustFieldFontSize(location.field, delta)
-    recordHistoryNow()
+    history.recordNow()
     return
   }
 
@@ -1273,12 +1198,12 @@ function updateCurrentFontSize(delta) {
   }
 
   if (isRichTextBlock(block) && richBlockRefs.get(block.id)?.adjustSelectionFontSize?.(delta)) {
-    recordHistoryNow()
+    history.recordNow()
     return
   }
 
   adjustBlockFontSize(block, delta)
-  recordHistoryNow()
+  history.recordNow()
 }
 
 function increaseFontSize() {
@@ -1302,12 +1227,12 @@ function resetCurrentStyle() {
     }
 
     if (headerFieldRefs.get(location.field.id)?.resetSelectionStyle?.()) {
-      recordHistoryNow()
+      history.recordNow()
       return
     }
 
     location.field.style = createStyleModel()
-    recordHistoryNow()
+    history.recordNow()
     return
   }
 
@@ -1317,12 +1242,12 @@ function resetCurrentStyle() {
   }
 
   if (isRichTextBlock(block) && richBlockRefs.get(block.id)?.resetSelectionStyle?.()) {
-    recordHistoryNow()
+    history.recordNow()
     return
   }
 
   block.style = createStyleModel()
-  recordHistoryNow()
+  history.recordNow()
 }
 
 function resetDragState() {
@@ -1405,7 +1330,7 @@ async function handleBlockDrop(sectionId, blockId, position) {
   targetSection.blocks.splice(insertIndex, 0, draggedBlock)
   resetDragState()
   await focusBlock(draggedBlock.id)
-  recordHistoryNow()
+  history.recordNow()
 }
 
 function handleMetaDragStart(itemId, event) {
@@ -1435,7 +1360,7 @@ async function handleMetaDrop(targetId) {
   header.value.metaItems.splice(toIndex, 0, moved)
   resetMetaDragState()
   await focusHeaderField(moved.id, 'meta')
-  recordHistoryNow()
+  history.recordNow()
 }
 
 async function addMetaItem() {
@@ -1445,7 +1370,7 @@ async function addMetaItem() {
   })
   header.value.metaItems.push(field)
   await focusHeaderField(field.id, 'meta')
-  recordHistoryNow()
+  history.recordNow()
 }
 
 async function removeMetaItem(itemId) {
@@ -1461,7 +1386,7 @@ async function removeMetaItem(itemId) {
   } else {
     clearActiveState()
   }
-  recordHistoryNow()
+  history.recordNow()
 }
 
 async function addSummaryLine() {
@@ -1471,7 +1396,7 @@ async function addSummaryLine() {
   })
   header.value.summaryLines.push(field)
   await focusHeaderField(field.id, 'summary')
-  recordHistoryNow()
+  history.recordNow()
 }
 
 async function removeSummaryLine(itemId) {
@@ -1487,22 +1412,50 @@ async function removeSummaryLine(itemId) {
   } else {
     clearActiveState()
   }
-  recordHistoryNow()
+  history.recordNow()
 }
 
-function handlePhotoChange(event) {
+const ALLOWED_IMAGE_MAGIC = [
+  { mime: 'image/jpeg', bytes: [0xFF, 0xD8, 0xFF] },
+  { mime: 'image/png', bytes: [0x89, 0x50, 0x4E, 0x47] },
+  { mime: 'image/webp', header: 'RIFF', offset8: 'WEBP' },
+]
+
+function validateImageMagicBytes(buffer) {
+  const view = new Uint8Array(buffer)
+  for (const spec of ALLOWED_IMAGE_MAGIC) {
+    if (spec.bytes) {
+      if (spec.bytes.every((b, i) => view[i] === b)) return true
+    }
+    if (spec.header === 'RIFF' && view.length >= 12) {
+      const dec = new TextDecoder()
+      if (dec.decode(view.slice(0, 4)) === 'RIFF' && dec.decode(view.slice(8, 12)) === 'WEBP') return true
+    }
+  }
+  return false
+}
+
+async function handlePhotoChange(event) {
   const file = event.target.files?.[0]
   if (!file) {
     return
   }
 
-  if (!file.type.startsWith('image/')) {
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+    ElMessage.warning('仅支持 JPG、PNG、WebP 格式的照片')
     event.target.value = ''
     return
   }
 
-  if (file.size > 5 * 1024 * 1024) {
-    ElMessage.warning('照片文件大小不能超过 5MB')
+  if (isResumePhotoFileTooLarge(file.size)) {
+    ElMessage.warning(`照片文件大小不能超过 ${RESUME_PHOTO_SIZE_LIMIT_TEXT}`)
+    event.target.value = ''
+    return
+  }
+
+  const headerSlice = await file.slice(0, 12).arrayBuffer()
+  if (!validateImageMagicBytes(headerSlice)) {
+    ElMessage.warning('文件格式校验失败，仅支持 JPG、PNG、WebP 格式')
     event.target.value = ''
     return
   }
@@ -1510,8 +1463,9 @@ function handlePhotoChange(event) {
   const reader = new FileReader()
   reader.onload = () => {
     photoDataUrl.value = typeof reader.result === 'string' ? reader.result : ''
+    photoGeneration.value++
     event.target.value = ''
-    recordHistoryNow()
+    history.recordNow()
   }
   reader.readAsDataURL(file)
 }
@@ -1522,10 +1476,11 @@ function triggerPhotoUpload() {
 
 function clearPhoto() {
   photoDataUrl.value = ''
+  photoGeneration.value++
   if (photoInputRef.value) {
     photoInputRef.value.value = ''
   }
-  recordHistoryNow()
+  history.recordNow()
 }
 
 function getResumePlainText() {
@@ -1612,89 +1567,24 @@ function getResumeName() {
   return readHeaderFieldText(header.value.name)
 }
 
-function sanitizeRichTextClone(rootNode) {
-  rootNode.querySelectorAll('[contenteditable]').forEach((node) => {
-    node.removeAttribute('contenteditable')
-    node.removeAttribute('role')
-    node.removeAttribute('tabindex')
-  })
-
-  rootNode.querySelectorAll('.ProseMirror-focused, .has-focus, .is-active, .is-focused').forEach((node) => {
-    node.classList.remove('ProseMirror-focused', 'has-focus', 'is-active', 'is-focused')
+/** 序列化模板结构化内容，用于持久化保存。 */
+function getResumeDocumentJson() {
+  return JSON.stringify({
+    header: cloneModel(header.value),
+    sections: cloneModel(sections.value),
   })
 }
 
-/**
- * Vue 单文件组件启用 scoped 后，新增的静态导出节点也必须复制作用域属性，
- * 否则导出节点无法命中当前组件样式，最终出现预览和导出不一致。
- */
-function copyScopedAttributes(sourceNode, targetNode) {
-  Array.from(sourceNode.attributes).forEach((attribute) => {
-    if (attribute.name.startsWith('data-v-')) {
-      targetNode.setAttribute(attribute.name, attribute.value)
-    }
-  })
+/** 当前编辑内容是否与初始状态不同。 */
+function isDirty() {
+  return history.getSignature() !== initialSignature.value
 }
 
-function createStaticFieldNode(fieldNode) {
-  const nextNode = fieldNode.ownerDocument.createElement('div')
-  copyScopedAttributes(fieldNode, nextNode)
-  nextNode.className = `${fieldNode.className} export-static-field`.trim()
-  nextNode.classList.remove('resume-inline-input', 'resume-textarea-input')
-  if (fieldNode.getAttribute('style')) {
-    nextNode.setAttribute('style', fieldNode.getAttribute('style'))
-  }
-  nextNode.textContent = fieldNode.value || fieldNode.placeholder || ''
-  return nextNode
+/** 保存成功后将当前编辑状态设为基线，避免离开页面时继续提示未保存。 */
+function markClean() {
+  initialSignature.value = history.getSignature()
 }
 
-function replaceFormFieldWithStaticText(rootNode) {
-  rootNode.querySelectorAll('input, textarea').forEach((fieldNode) => {
-    fieldNode.replaceWith(createStaticFieldNode(fieldNode))
-  })
-}
-
-/**
- * 预览态照片区域用 button 承载上传交互。
- * 导出时需要保留视觉样式，但不能把原生按钮语义带进截图，否则会污染最终结果。
- */
-function replacePhotoFrameButtonWithStaticNode(rootNode) {
-  rootNode.querySelectorAll('.photo-frame--button').forEach((buttonNode) => {
-    const nextNode = buttonNode.ownerDocument.createElement('div')
-    copyScopedAttributes(buttonNode, nextNode)
-    nextNode.className = buttonNode.className
-    buttonNode.childNodes.forEach((childNode) => {
-      nextNode.appendChild(childNode.cloneNode(true))
-    })
-    buttonNode.replaceWith(nextNode)
-  })
-}
-
-/**
- * html2canvas 对部分渐变和重复纹理背景的解析不稳定。
- * 导出前统一降级为近似纯色，优先保证预览和 PDF/图片下载链路稳定。
- */
-function applyExportSafeBackgrounds(rootNode) {
-  rootNode.querySelectorAll('.section-tab').forEach((node) => {
-    node.style.backgroundImage = 'none'
-    node.style.backgroundColor = '#edf4f2'
-  })
-
-  rootNode.querySelectorAll('.section-line').forEach((node) => {
-    node.style.backgroundImage = 'none'
-    node.style.backgroundColor = '#d8ddd8'
-  })
-
-  rootNode.querySelectorAll('.photo-frame, .photo-placeholder').forEach((node) => {
-    node.style.backgroundImage = 'none'
-    node.style.backgroundColor = '#f3f6f5'
-  })
-}
-
-/**
- * 导出时统一基于当前模板克隆出只读节点，
- * 去掉工具栏、拖拽手柄、上传控件、占位提示和焦点态，保证下载内容与用户最终编辑结果一致。
- */
 function buildExportElement() {
   clearActiveState()
 
@@ -1702,28 +1592,15 @@ function buildExportElement() {
     return null
   }
 
-  const clone = resumeRef.value.cloneNode(true)
-  clone.classList.remove('resume-template--preview')
-  clone.classList.add('resume-template--print')
-  clone.querySelector('.editor-toolbar')?.remove()
-  clone
-    .querySelectorAll(
-      '.drag-handle, .editor-ghost-btn, .profile-meta-tools, .photo-input, .photo-actions, .block-drop-indicator, .section-drop-tail, .inline-rich-placeholder',
-    )
-    .forEach((node) => node.remove())
-
-  sanitizeRichTextClone(clone)
-  replaceFormFieldWithStaticText(clone)
-  replacePhotoFrameButtonWithStaticNode(clone)
-  applyExportSafeBackgrounds(clone)
-  clone.querySelector('.photo-tip')?.remove()
-
-  return clone
+  return cleanExportClone(resumeRef.value.cloneNode(true))
 }
 
 defineExpose({
   getResumePlainText,
   getResumeName,
+  getResumeDocumentJson,
+  isDirty,
+  markClean,
   buildExportElement,
 })
 </script>
@@ -2108,6 +1985,7 @@ defineExpose({
   font-size: 12px;
   color: var(--resume-muted);
   line-height: 1.4;
+  text-align: center;
 }
 
 .resume-section-body {
@@ -2194,10 +2072,6 @@ defineExpose({
 .profile-photo:focus-within .photo-actions {
   opacity: 1;
   pointer-events: auto;
-}
-
-.resume-template--preview .photo-tip {
-  display: none;
 }
 
 .entry-row {
