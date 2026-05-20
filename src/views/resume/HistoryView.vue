@@ -1,122 +1,161 @@
 <template>
   <div class="resume-history-view">
-    <!-- 页面标题区 -->
-    <div class="page-header">
-      <h1 class="page-title">诊断历史</h1>
-      <p class="page-desc">查看您所有的简历诊断记录</p>
-    </div>
+    <!-- 页面标题 -->
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">诊断历史</h1>
+        <p class="page-desc">查看您所有的简历 AI 诊断记录</p>
+      </div>
+      <el-button
+        v-if="total > 0 && !loading && !error"
+        class="clear-all-btn"
+        text
+        size="small"
+        @click="handleClearAll"
+      >
+        <el-icon style="margin-right: 4px;"><Delete /></el-icon>
+        清空全部
+      </el-button>
+    </header>
 
-    <!-- 加载状态 - 骨架屏 -->
-    <div v-if="loading" class="loading-section">
-      <div class="skeleton-card">
-        <el-skeleton :rows="5" animated :loading="true">
+    <!-- 加载态 - 骨架卡片 -->
+    <div v-if="loading" class="card-list">
+      <div v-for="i in 3" :key="i" class="skeleton-card">
+        <el-skeleton :rows="0" animated :loading="true">
           <template #default>
-            <div class="skeleton-item" v-for="i in 5" :key="i">
-              <el-skeleton-item variant="rect" style="width: 200px; height: 16px;" />
-              <el-skeleton-item variant="rect" style="width: 80px; height: 24px; margin-left: 16px;" />
+            <div class="skeleton-head">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <el-skeleton-item variant="circle" style="width: 44px; height: 44px;" />
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <el-skeleton-item variant="text" style="width: 200px; height: 18px;" />
+                  <el-skeleton-item variant="rect" style="width: 64px; height: 22px; border-radius: 4px;" />
+                </div>
+              </div>
+              <el-skeleton-item variant="rect" style="width: 68px; height: 24px; border-radius: 4px;" />
+            </div>
+            <div class="skeleton-foot">
+              <el-skeleton-item variant="text" style="width: 140px; height: 14px;" />
+              <div style="display: flex; gap: 8px;">
+                <el-skeleton-item variant="rect" style="width: 80px; height: 32px; border-radius: 6px;" />
+              </div>
             </div>
           </template>
         </el-skeleton>
       </div>
     </div>
 
-    <!-- 错误状态 -->
-    <div v-else-if="error" class="error-section">
+    <!-- 错误态 -->
+    <div v-else-if="error" class="centered-state">
       <div class="error-card">
-        <div class="error-icon">
-          <el-icon :size="48" color="#f56c6c"><CircleClose /></el-icon>
+        <div class="error-icon-ring">
+          <el-icon :size="28" color="var(--color-danger, #f56c6c)"><CircleClose /></el-icon>
         </div>
-        <div class="error-content">
-          <div class="error-title">加载失败</div>
-          <div class="error-desc">{{ error }}</div>
-          <div class="error-actions">
-            <el-button type="primary" @click="fetchHistory">重试</el-button>
+        <div class="error-body">
+          <span class="error-title">加载失败</span>
+          <span class="error-desc">{{ error }}</span>
+        </div>
+        <el-button type="primary" size="small" @click="fetchHistory">重试</el-button>
+      </div>
+    </div>
+
+    <!-- 空态 -->
+    <div v-else-if="total === 0" class="centered-state">
+      <div class="empty-content">
+        <ResumeEmpty :size="140" />
+        <div class="empty-title">暂无诊断记录</div>
+        <p class="empty-desc">上传简历后，AI 会在这里保留每一次诊断结果</p>
+        <el-button type="primary" @click="goToUpload">上传简历</el-button>
+      </div>
+    </div>
+
+    <!-- 卡片列表 -->
+    <div v-else class="card-list">
+      <div
+        v-for="item in historyList"
+        :key="item.taskId"
+        class="diag-card"
+        :class="`diag-card--status-${item.status}`"
+      >
+        <!-- 上部：文件 + 状态 -->
+        <div class="card-head">
+          <div class="file-block">
+            <div class="file-icon" :class="`file-icon--${item.status}`">
+              <el-icon :size="20"><Document /></el-icon>
+            </div>
+            <div class="file-meta">
+              <span class="file-name" :title="getFileName(item)">{{ getFileName(item) }}</span>
+              <div class="file-badges">
+                <el-tag
+                  :type="getStatusType(item.status)"
+                  size="small"
+                  effect="light"
+                >
+                  {{ item.statusDesc || getStatusText(item.status) }}
+                </el-tag>
+                <span v-if="item.parseMode" class="parse-hint">{{ getParseModeLabel(item.parseMode) }}</span>
+              </div>
+            </div>
+          </div>
+          <el-button
+            class="card-delete"
+            text
+            size="small"
+            @click="handleDelete(item)"
+            title="删除记录"
+          >
+            <el-icon :size="15"><Delete /></el-icon>
+          </el-button>
+        </div>
+
+        <!-- 下部：时间 + 操作 -->
+        <div class="card-foot">
+          <div class="time-block">
+            <el-icon :size="13" style="flex-shrink: 0;"><Clock /></el-icon>
+            <span>{{ formatTime(item.createTime) }}</span>
+          </div>
+          <div class="card-actions">
+            <!-- 已完成 -->
+            <el-button
+              v-if="item.status === 2"
+              type="primary"
+              size="small"
+              @click="viewResult(item)"
+            >
+              查看报告
+            </el-button>
+            <!-- 失败 -->
+            <template v-if="item.status === 3">
+              <el-button size="small" @click="goToUpload">
+                <el-icon style="margin-right: 4px;"><RefreshRight /></el-icon>
+                重新诊断
+              </el-button>
+              <el-button link type="primary" size="small" @click="viewResult(item)">
+                查看详情
+              </el-button>
+            </template>
+            <!-- 进行中 -->
+            <template v-if="item.status === 0 || item.status === 1">
+              <span class="pending-hint">正在处理中...</span>
+              <el-button link type="primary" size="small" @click="viewResult(item)">
+                查看进度
+              </el-button>
+            </template>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 空状态 -->
-    <div v-else-if="total === 0" class="empty-section">
-      <div class="empty-content">
-        <ResumeEmpty :size="140" />
-        <div class="empty-title">暂无诊断记录</div>
-        <div class="empty-desc">
-          上传您的第一份简历，开启AI智能诊断，发现简历优化方向
-        </div>
-        <el-button type="primary" @click="goToUpload">上传简历</el-button>
-      </div>
-    </div>
-
-    <!-- 历史记录列表 -->
-    <div v-else class="history-list">
-      <div class="history-card">
-        <el-table
-          :data="historyList"
-          stripe
-          style="width: 100%"
-          :header-cell-style="{
-            background: '#FFF8F3',
-            color: '#2F2F2F',
-            fontWeight: 600,
-          }"
-        >
-          <!-- 文件名 -->
-          <el-table-column label="文件名" min-width="280">
-            <template #default="{ row }">
-              <div class="file-name-cell">
-                <el-icon :size="16" color="#FF8C42"><Document /></el-icon>
-                <span class="file-name" :title="getFileName(row)">{{
-                  getFileName(row)
-                }}</span>
-              </div>
-            </template>
-          </el-table-column>
-
-          <!-- 状态 -->
-          <el-table-column label="状态" width="120">
-            <template #default="{ row }">
-              <el-tag :type="getStatusType(row.status)" size="small">
-                {{ getStatusText(row.status) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-
-          <!-- 创建时间 -->
-          <el-table-column label="创建时间" width="180">
-            <template #default="{ row }">
-              <span class="create-time">{{ formatTime(row.createTime) }}</span>
-            </template>
-          </el-table-column>
-
-          <!-- 操作 -->
-          <el-table-column label="操作" width="120" fixed="right">
-            <template #default="{ row }">
-              <el-button
-                link
-                type="primary"
-                size="small"
-                @click="viewResult(row)"
-              >
-                查看结果
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-
-      <!-- 分页器 -->
-      <div v-if="total > 0" class="pagination-section">
-        <el-pagination
-          :current-page="pageNum"
-          :page-size="pageSize"
-          :page-sizes="[10, 20, 50]"
-          :total="total"
-          :layout="isMobileLayout ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
+    <!-- 分页 -->
+    <div v-if="total > 0" class="pagination-wrap">
+      <el-pagination
+        :current-page="pageNum"
+        :page-size="pageSize"
+        :page-sizes="[5, 10, 20]"
+        :total="total"
+        :layout="isMobileLayout ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+      />
     </div>
   </div>
 </template>
@@ -124,34 +163,38 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { Loading, CircleClose, Document } from "@element-plus/icons-vue";
-import { getResumeHistory, extractFileName } from "@/api/resume";
-import { ElMessage } from "element-plus";
+import {
+  CircleClose,
+  Document,
+  Delete,
+  Clock,
+  RefreshRight,
+} from "@element-plus/icons-vue";
+import { getResumeHistory, extractFileName, clearResumeHistory, deleteResumeHistory } from "@/api/resume";
+import { ElMessage, ElMessageBox } from "element-plus";
 import ResumeEmpty from "@/components/empty/ResumeEmpty.vue";
 
 const router = useRouter();
 
-// 状态
+// 页面状态
 const loading = ref(true);
 const error = ref("");
 const historyList = ref([]);
-
-// 响应式分页布局
 const isMobileLayout = ref(false);
 
 const updateLayout = () => {
   isMobileLayout.value = window.innerWidth < 768;
 };
 
-// 分页状态
+// 分页（默认每页 5 条）
 const pageNum = ref(1);
-const pageSize = ref(10);
+const pageSize = ref(5);
 const total = ref(0);
 const totalPages = ref(0);
 const hasNextPage = ref(false);
 const hasPreviousPage = ref(false);
 
-// 状态映射 - 橙色主题
+// 状态映射
 const statusMap = {
   0: { text: "排队中", type: "warning" },
   1: { text: "解析中", type: "primary" },
@@ -159,16 +202,14 @@ const statusMap = {
   3: { text: "失败", type: "danger" },
 };
 
-const getStatusText = (status) => {
-  return statusMap[status]?.text || "未知";
-};
+const getStatusText = (status) => statusMap[status]?.text || "未知";
+const getStatusType = (status) => statusMap[status]?.type || "info";
+const getFileName = (row) => extractFileName(row.fileUrl);
 
-const getStatusType = (status) => {
-  return statusMap[status]?.type || "info";
-};
-
-const getFileName = (row) => {
-  return extractFileName(row.fileUrl);
+// 解析模式标签
+const getParseModeLabel = (mode) => {
+  const map = { TEXT: "文本解析", MULTIMODAL: "多模态", OCR: "OCR", MIXED: "混合解析" };
+  return map[mode] || mode;
 };
 
 const formatTime = (timeStr) => {
@@ -183,16 +224,15 @@ const formatTime = (timeStr) => {
   });
 };
 
+// 获取历史
 const fetchHistory = async () => {
   loading.value = true;
   error.value = "";
-
   try {
     const res = await getResumeHistory({
       pageNum: pageNum.value,
       pageSize: pageSize.value,
     });
-
     if (res.data) {
       if (Array.isArray(res.data)) {
         historyList.value = res.data;
@@ -201,7 +241,7 @@ const fetchHistory = async () => {
         historyList.value = res.data.list;
         total.value = Number(res.data.total) || 0;
         pageNum.value = Number(res.data.pageNum) || 1;
-        pageSize.value = Number(res.data.pageSize) || 10;
+        pageSize.value = Number(res.data.pageSize) || 5;
         totalPages.value = Number(res.data.totalPages) || 0;
         hasNextPage.value = res.data.hasNextPage || false;
         hasPreviousPage.value = res.data.hasPreviousPage || false;
@@ -240,14 +280,54 @@ const goToUpload = () => {
   router.push("/resume/upload");
 };
 
+// 删除单条
+const handleDelete = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除「${getFileName(item)}」的诊断记录？`,
+      "删除确认",
+      { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" }
+    );
+    await deleteResumeHistory(item.taskId);
+    historyList.value = historyList.value.filter(
+      (r) => r.taskId !== item.taskId
+    );
+    total.value = Math.max(0, total.value - 1);
+    ElMessage.success("已删除");
+    if (historyList.value.length === 0 && pageNum.value > 1) {
+      pageNum.value--;
+      fetchHistory();
+    }
+  } catch {
+    // 用户取消或删除失败
+  }
+};
+
+// 清空全部
+const handleClearAll = async () => {
+  try {
+    await ElMessageBox.confirm(
+      "确定清空所有诊断记录？此操作不可恢复。",
+      "清空确认",
+      { confirmButtonText: "清空", cancelButtonText: "取消", type: "warning" }
+    );
+    await clearResumeHistory();
+    historyList.value = [];
+    total.value = 0;
+    ElMessage.success("已清空全部记录");
+  } catch {
+    // 用户取消
+  }
+};
+
 onMounted(() => {
   updateLayout();
-  window.addEventListener('resize', updateLayout);
+  window.addEventListener("resize", updateLayout);
   fetchHistory();
 });
 
 onUnmounted(() => {
-  window.removeEventListener('resize', updateLayout);
+  window.removeEventListener("resize", updateLayout);
 });
 </script>
 
@@ -256,195 +336,346 @@ onUnmounted(() => {
   min-height: 100%;
 }
 
-/* 页面标题区 */
+/* ── 页头 ── */
 .page-header {
-  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 16px;
 }
-
 .page-title {
-  margin: 0 0 6px 0;
+  margin: 0 0 4px;
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-title, #2f2f2f);
+  color: var(--text-title);
+  letter-spacing: -0.01em;
 }
-
 .page-desc {
   margin: 0;
   font-size: 14px;
-  color: var(--text-muted, #888888);
+  color: var(--text-muted);
+}
+.clear-all-btn {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.clear-all-btn:hover {
+  color: var(--color-danger);
 }
 
-/* 加载状态 - 骨架屏 */
-.loading-section {
-  padding: 20px 0;
-}
-
-.skeleton-card {
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--orange-border, #f3d8c7);
-  border-radius: 12px;
-  padding: 24px;
-}
-
-.skeleton-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--bg-elevated, #f5f5f5);
-}
-
-.skeleton-item:last-child {
-  border-bottom: none;
-}
-
-/* 错误状态 */
-.error-section {
+/* ── 居中状态 ── */
+.centered-state {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 0;
+  padding: 64px 0;
 }
 
+/* ── 错误态 ── */
 .error-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 20px;
-  background-color: var(--bg-card, #ffffff);
-  border: 1px solid var(--orange-border, #f3d8c7);
-  border-radius: 12px;
-  padding: 32px;
-  max-width: 500px;
-  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
+  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: var(--shadow-card);
 }
-
-.error-icon {
-  flex-shrink: 0;
-}
-
-.error-content {
-  flex: 1;
-}
-
-.error-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--color-danger);
-  margin-bottom: 8px;
-}
-
-.error-desc {
-  font-size: 14px;
-  color: var(--text-muted, #888888);
-  margin-bottom: 16px;
-}
-
-.error-actions {
-  display: flex;
-  gap: 12px;
-}
-
-/* 空状态 */
-.empty-section {
+.error-icon-ring {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--tag-bg-danger, rgba(245, 108, 108, 0.08));
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 60px 0;
+  flex-shrink: 0;
+}
+.error-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.error-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-title);
+}
+.error-desc {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
+/* ── 空态 ── */
 .empty-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
-
 .empty-title {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-title, #2f2f2f);
-  margin: 20px 0 8px;
+  color: var(--text-title);
+  margin: 20px 0 6px;
 }
-
 .empty-desc {
+  margin: 0 0 24px;
   font-size: 14px;
-  color: var(--text-muted, #888888);
-  margin-bottom: 24px;
-  max-width: 400px;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
-/* 历史记录列表 */
-.history-list {
-  margin-bottom: 24px;
+/* ── 卡片列表 ── */
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.history-card {
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--orange-border, #f3d8c7);
+/* ── 骨架卡片 ── */
+.skeleton-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: skeletonFadeIn 0.4s ease both;
+}
+.skeleton-card:nth-child(1) { animation-delay: 0s; }
+.skeleton-card:nth-child(2) { animation-delay: 0.08s; }
+.skeleton-card:nth-child(3) { animation-delay: 0.16s; }
+@keyframes skeletonFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.skeleton-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.skeleton-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--orange-light-bg, rgba(255, 140, 66, 0.06));
+}
+
+/* ── 诊断卡片（核心） ── */
+.diag-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  box-shadow: var(--shadow-card);
+}
+.diag-card:hover {
+  border-color: var(--orange-main);
+  box-shadow: 0 6px 24px rgba(255, 140, 66, 0.10);
+  transform: translateY(-2px);
+}
+
+/* 进行中卡片的微弱脉冲 */
+.diag-card--status-0,
+.diag-card--status-1 {
+  animation: cardPulse 3s ease-in-out infinite;
+}
+@keyframes cardPulse {
+  0%, 100% { border-color: var(--border-card); }
+  50% { border-color: var(--orange-border); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diag-card--status-0,
+  .diag-card--status-1 { animation: none; }
+  .diag-card { transition: none; }
+}
+
+/* ── 卡片上部 ── */
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.file-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* 文件图标 - 按状态变色 */
+.file-icon {
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--orange-main);
+  background: var(--orange-light-bg);
+}
+.file-icon--0,
+.file-icon--1 {
+  color: var(--orange-main);
+  background: var(--orange-light-bg);
+}
+.file-icon--2 {
+  color: var(--color-success);
+  background: rgba(103, 194, 58, 0.08);
+}
+.file-icon--3 {
+  color: var(--color-danger);
+  background: rgba(245, 108, 108, 0.08);
 }
 
-.file-name-cell {
+.file-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-title);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-badges {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.file-name {
-  font-size: 14px;
-  color: var(--text-body, #555555);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 280px;
+.parse-hint {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
-.create-time {
+/* 删除按钮 */
+.card-delete {
+  flex-shrink: 0;
+  color: transparent;
+  transition: color 0.15s ease;
+}
+.diag-card:hover .card-delete {
+  color: var(--text-muted);
+}
+.card-delete:hover {
+  color: var(--color-danger) !important;
+}
+
+/* ── 卡片下部 ── */
+.card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--orange-light-bg, rgba(255, 140, 66, 0.06));
+}
+
+.time-block {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 13px;
-  color: var(--text-muted, #888888);
+  color: var(--text-muted);
 }
 
-/* 分页器 */
-.pagination-section {
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pending-hint {
+  font-size: 12px;
+  color: var(--orange-main);
+  animation: textPulse 2s ease-in-out infinite;
+}
+@keyframes textPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── 分页 ── */
+.pagination-wrap {
   display: flex;
   justify-content: center;
-  padding: 16px 0;
+  padding: 28px 0 8px;
 }
 
-/* 移动端适配 */
+/* ── 响应式：平板 ── */
 @media (max-width: 768px) {
-  .page-title {
-    font-size: 20px;
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 20px;
   }
-  .history-card {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .file-name {
-    max-width: 160px;
-  }
-  .create-time {
-    font-size: 12px;
-  }
-  .pagination-section {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 12px 0;
-  }
+  .page-title { font-size: 20px; }
+
+  .card-list { gap: 14px; }
+
+  .diag-card { padding: 20px 22px; }
+
+  /* 移动端始终显示删除 */
+  .card-delete { color: var(--text-muted); opacity: 0.5; }
+  .card-delete:hover { opacity: 1; }
 }
 
+/* ── 响应式：手机 ── */
 @media (max-width: 480px) {
-  .page-title {
-    font-size: 18px;
+  .page-title { font-size: 18px; }
+  .page-desc { font-size: 13px; }
+
+  .card-list { gap: 12px; }
+
+  .diag-card {
+    padding: 16px 18px;
+    gap: 16px;
   }
-  .page-desc {
-    font-size: 13px;
+
+  .file-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
   }
   .file-name {
-    max-width: 120px;
-    font-size: 13px;
+    font-size: 15px;
+  }
+
+  .card-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .card-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 }
 </style>

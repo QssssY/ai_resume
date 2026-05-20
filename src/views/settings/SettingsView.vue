@@ -436,29 +436,9 @@
             </el-form>
 
             <div v-else key="accountDeletion" class="account-delete-zone">
-              <div class="account-delete-context">
-                <div class="account-delete-warning" role="alert">
-                  <el-icon><Warning /></el-icon>
-                  <div>
-                    <strong>注销后不可恢复</strong>
-                    <span>系统会逻辑删除并匿名化账号，清理面试会话、聊天记录、简历诊断、JD 匹配、AI 润色记录、通知、额度和新手引导状态。</span>
-                  </div>
-                </div>
-
-                <div class="account-delete-steps">
-                  <div class="account-delete-step">
-                    <strong>1. 等待冷静期</strong>
-                    <span>进入本页后需要等待 15 秒，避免误触发高风险操作。</span>
-                  </div>
-                  <div class="account-delete-step">
-                    <strong>2. 验证登录密码</strong>
-                    <span>需要输入当前密码，并再次输入相同密码确认。</span>
-                  </div>
-                  <div class="account-delete-step">
-                    <strong>3. 回答安全问题</strong>
-                    <span>只有密码和安全问题答案都通过后才会注销账号。</span>
-                  </div>
-                </div>
+              <div class="account-delete-alert" role="alert">
+                <el-icon><Warning /></el-icon>
+                <span>此操作不可恢复，系统将永久清理你的面试、简历、通知等所有数据。</span>
               </div>
 
               <el-form
@@ -520,15 +500,59 @@
                 </el-form-item>
                 <el-button
                   type="danger"
-                  :loading="accountDeleting"
-                  :disabled="accountDeleteCountdown > 0 || accountDeleteQuestionLoading || Boolean(accountDeleteQuestionError)"
                   @click="handleAccountDeleteSubmit"
                 >
-                  {{ accountDeleteButtonText }}
+                  确认注销
                 </el-button>
               </el-form>
             </div>
           </Transition>
+
+          <!-- 注销确认弹窗 -->
+          <el-dialog
+            v-model="accountDeleteConfirmDialogVisible"
+            title="注销账号"
+            width="440px"
+            :close-on-click-modal="false"
+            class="account-delete-dialog"
+            destroy-on-close
+            @open="onDialogOpen"
+            @closed="onDialogClosed"
+          >
+            <div class="delete-dialog-body">
+              <!-- 第一段红色警告框 -->
+              <div class="delete-warning-box">
+                <div class="delete-warning-icon">
+                  <el-icon :size="20"><Warning /></el-icon>
+                </div>
+                <div class="delete-warning-text">
+                  <strong>此操作不可恢复！</strong>
+                  <p>你的账号及所有关联数据（简历诊断记录、模拟面试历史、通知、成长数据等）将被<strong>永久删除</strong>，无法恢复。</p>
+                </div>
+              </div>
+              <!-- 第二段红色确认框 -->
+              <div class="delete-warning-box">
+                <p class="delete-confirm-hint">为防止意外，确认继续操作请输入以下内容：</p>
+                <code class="delete-dialog-code">{{ accountDeleteExpectedText }}</code>
+                <el-input
+                  v-model="accountDeleteConfirmText"
+                  :placeholder="accountDeleteExpectedText"
+                  class="delete-confirm-input"
+                />
+              </div>
+            </div>
+            <template #footer>
+              <el-button @click="accountDeleteConfirmDialogVisible = false">取消</el-button>
+              <el-button
+                type="danger"
+                :loading="accountDeleting"
+                :disabled="accountDeleteConfirmText !== accountDeleteExpectedText || accountDeleteCountdown > 0"
+                @click="handleDialogConfirm"
+              >
+                {{ dialogConfirmButtonText }}
+              </el-button>
+            </template>
+          </el-dialog>
 
         </section>
 
@@ -1010,6 +1034,8 @@ const accountDeleteQuestionError = ref('')
 const accountDeleteQuestionExpanded = ref(false)
 const accountDeleteCountdown = ref(15)
 let accountDeleteTimer = null
+const accountDeleteConfirmText = ref('')
+const accountDeleteConfirmDialogVisible = ref(false)
 const notificationForm = ref(getSettingsPreferences())
 const interviewPreferenceForm = ref(getSettingsPreferences())
 const previewTextToSpeech = useTextToSpeech()
@@ -1173,12 +1199,6 @@ const shouldShowAccountDeleteQuestionToggle = computed(() => {
     accountDeleteQuestionText.value.length > 36
 })
 
-const accountDeleteButtonText = computed(() => {
-  if (accountDeleting.value) return '正在注销'
-  if (accountDeleteCountdown.value > 0) return `等待 ${accountDeleteCountdown.value} 秒后可注销`
-  return '确认注销账号'
-})
-
 const securityQuestionOptions = [
   '你的第一只宠物叫什么名字？',
   '你的出生城市是哪里？',
@@ -1277,7 +1297,7 @@ const handleSecurityModeChange = (value) => {
   resetPasswordForm()
   resetSecurityForm()
   resetAccountDeleteForm()
-  startAccountDeleteCountdown()
+  // 立即获取安全问题（表单需要展示），但不开始倒计时
   fetchAccountDeleteSecurityQuestion()
 }
 
@@ -1330,8 +1350,30 @@ const handleSecuritySave = async () => {
 const resetAccountDeleteForm = () => {
   accountDeleteForm.value = { oldPassword: '', confirmPassword: '', securityAnswer: '' }
   accountDeleteQuestionExpanded.value = false
+  accountDeleteConfirmText.value = ''
   accountDeleteFormRef.value?.resetFields()
 }
+
+// 需要输入的确认文字：用户名 + 确认注销
+const accountDeleteExpectedText = computed(() => `${userInfo.value?.username || ''}确认注销`)
+
+// 弹窗打开时开始倒计时
+const onDialogOpen = () => {
+  startAccountDeleteCountdown()
+}
+
+// 弹窗关闭时重置倒计时和输入
+const onDialogClosed = () => {
+  accountDeleteConfirmText.value = ''
+  clearAccountDeleteTimer()
+}
+
+// 弹窗确认按钮文案
+const dialogConfirmButtonText = computed(() => {
+  if (accountDeleting.value) return '正在注销'
+  if (accountDeleteCountdown.value > 0) return `等待 ${accountDeleteCountdown.value} 秒`
+  return '确认注销'
+})
 
 const clearAccountDeleteTimer = () => {
   if (accountDeleteTimer) {
@@ -1384,31 +1426,27 @@ const handleAccountDelete = async (payload) => {
 
 const handleAccountDeleteSubmit = async () => {
   if (!accountDeleteFormRef.value) return
-  if (accountDeleteCountdown.value > 0) return
   try {
     await accountDeleteFormRef.value.validate()
   } catch {
     return
   }
+  // 验证通过 → 打开确认弹窗
+  accountDeleteConfirmDialogVisible.value = true
+}
 
+// 弹窗中确认 → 发送注销请求
+const handleDialogConfirm = async () => {
+  if (accountDeleteConfirmText.value !== accountDeleteExpectedText.value) return
+  if (accountDeleteCountdown.value > 0) return
   try {
-    await ElMessageBox.confirm(
-      '确认注销后账号将不可恢复，系统会清理当前账号的面试、简历、通知、额度和本机登录态。请确认你已经备份必要数据。',
-      '最终确认：注销账号',
-      {
-        confirmButtonText: '确认注销',
-        cancelButtonText: '取消',
-        type: 'error',
-        confirmButtonClass: 'el-button--danger'
-      }
-    )
     await handleAccountDelete({
       oldPassword: accountDeleteForm.value.oldPassword,
       confirmPassword: accountDeleteForm.value.confirmPassword,
       securityAnswer: accountDeleteForm.value.securityAnswer
     })
   } catch {
-    // 用户取消或接口失败时不清理登录态；接口失败的错误提示由请求层展示。
+    // 错误已在 handleAccountDelete 或全局拦截器中处理
   }
 }
 
@@ -1619,9 +1657,8 @@ const handleFeedbackSubmit = async () => {
 
 watch(activeSection, (value) => {
   if (value === 'security' && securityMode.value === 'accountDeletion') {
-    // 每次重新进入注销页签都进入冷静期，并清空上次未提交的敏感输入。
+    // 每次重新进入注销页签都重置表单和确认状态，重新获取安全问题。
     resetAccountDeleteForm()
-    startAccountDeleteCountdown()
     fetchAccountDeleteSecurityQuestion()
     return
   }
@@ -1835,83 +1872,30 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+/* ── 注销账号区域 ── */
 .account-delete-zone {
   width: 100%;
-  max-width: none;
-  display: grid;
-  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
-  gap: 18px;
-  align-items: start;
+  max-width: 520px;
 }
 
-.account-delete-context {
-  min-width: 0;
+.account-delete-alert {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.account-delete-warning {
-  display: flex;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid #f56c6c;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-card) 86%, #f56c6c 14%);
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-card) 88%, #f56c6c 12%);
+  border: 1px solid color-mix(in srgb, var(--border-card) 50%, #f56c6c 50%);
   color: #b42318;
-}
-
-.account-delete-warning .el-icon {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  font-size: 22px;
-}
-
-.account-delete-warning strong,
-.account-delete-warning span {
-  display: block;
-}
-
-.account-delete-warning strong {
-  font-size: 15px;
-}
-
-.account-delete-warning span {
-  margin-top: 6px;
-  color: var(--text-body);
   font-size: 13px;
-  line-height: 1.6;
-}
-
-.account-delete-steps {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-
-.account-delete-step {
-  min-width: 0;
-  padding: 13px 14px;
-  border: 1px solid color-mix(in srgb, var(--border-card) 70%, #f56c6c 30%);
-  border-radius: 10px;
-  background: var(--bg-page);
-}
-
-.account-delete-step strong,
-.account-delete-step span {
-  display: block;
-}
-
-.account-delete-step strong {
-  color: var(--text-title);
-  font-size: 14px;
-}
-
-.account-delete-step span {
-  margin-top: 6px;
-  color: var(--text-muted);
-  font-size: 12px;
   line-height: 1.5;
+}
+
+.account-delete-alert .el-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: #f56c6c;
 }
 
 .account-delete-form {
@@ -2435,11 +2419,7 @@ onBeforeUnmount(() => {
   }
 
   .account-delete-zone {
-    grid-template-columns: 1fr;
-  }
-
-  .account-delete-steps {
-    grid-template-columns: 1fr;
+    max-width: none;
   }
 }
 
@@ -2510,6 +2490,177 @@ onBeforeUnmount(() => {
   .voice-preview-button,
   .voice-preview-icon {
     transition-duration: 0.01ms;
+  }
+}
+</style>
+
+<!-- 注销弹窗样式（unscoped，因 el-dialog teleport 到 body） -->
+<style>
+.account-delete-dialog {
+  max-width: calc(100vw - 32px);
+}
+
+.account-delete-dialog .el-dialog__header {
+  padding: 16px 20px;
+  margin-right: 0;
+  border-bottom: 1px solid var(--border-card);
+}
+
+.account-delete-dialog .el-dialog__title {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-title);
+}
+
+.account-delete-dialog .el-dialog__headerbtn .el-dialog__close {
+  color: var(--text-muted);
+}
+
+.account-delete-dialog .el-dialog__body {
+  padding: 20px;
+}
+
+.delete-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.delete-warning-box {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e53935;
+  background: #ffebee;
+}
+
+.delete-warning-box .delete-warning-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(229, 57, 53, 0.12);
+  margin-bottom: 10px;
+  color: #d32f2f;
+}
+
+.delete-warning-text strong {
+  display: block;
+  font-size: 14px;
+  color: #b71c1c;
+  margin-bottom: 6px;
+}
+
+.delete-warning-text p {
+  margin: 0;
+  font-size: 13px;
+  color: #c62828;
+  line-height: 1.6;
+}
+
+.delete-warning-text p strong {
+  display: inline;
+  font-size: 13px;
+  color: #b71c1c;
+}
+
+.delete-confirm-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #c62828;
+  line-height: 1.5;
+}
+
+.delete-dialog-code {
+  display: block;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #ffcdd2;
+  font-family: monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: #b71c1c;
+  user-select: all;
+  word-break: break-all;
+}
+
+.delete-confirm-input {
+  margin-top: 0;
+}
+
+/* 暗色模式 */
+[data-theme="dark"] .delete-warning-box {
+  background: rgba(229, 57, 53, 0.12);
+  border-color: rgba(229, 57, 53, 0.4);
+}
+
+[data-theme="dark"] .delete-warning-box .delete-warning-icon {
+  background: rgba(229, 57, 53, 0.2);
+}
+
+[data-theme="dark"] .delete-warning-text strong,
+[data-theme="dark"] .delete-warning-text p,
+[data-theme="dark"] .delete-confirm-hint {
+  color: #ef9a9a;
+}
+
+[data-theme="dark"] .delete-dialog-code {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(229, 57, 53, 0.3);
+  color: #ef9a9a;
+}
+
+/* 移动端响应式 */
+@media (max-width: 520px) {
+  .account-delete-dialog {
+    width: 92% !important;
+  }
+  .account-delete-dialog .el-dialog__header {
+    padding: 14px 16px;
+  }
+  .account-delete-dialog .el-dialog__body {
+    padding: 14px;
+  }
+  .account-delete-dialog .el-dialog__footer {
+    padding: 10px 14px;
+  }
+  .delete-warning-box {
+    padding: 12px;
+  }
+  .delete-warning-box .delete-warning-icon {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 8px;
+  }
+  .delete-warning-text strong {
+    font-size: 13px;
+  }
+  .delete-warning-text p {
+    font-size: 12px;
+  }
+  .delete-confirm-hint {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .delete-dialog-code {
+    font-size: 13px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .account-delete-dialog {
+    width: 96% !important;
+  }
+  .account-delete-dialog .el-dialog__body {
+    padding: 12px;
+  }
+  .delete-warning-box {
+    padding: 10px;
   }
 }
 </style>

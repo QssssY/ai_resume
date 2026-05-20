@@ -59,6 +59,18 @@ export function clearResumeHistory() {
 }
 
 /**
+ * 删除单条简历诊断记录。
+ * @param {string|number} taskId - 任务 ID
+ * @returns {Promise}
+ */
+export function deleteResumeHistory(taskId) {
+  return request({
+    url: `/api/resume/history/${taskId}`,
+    method: 'delete'
+  })
+}
+
+/**
  * 执行岗位 JD 对比分析
  * @param {{resumeTaskId: string|number, resumeText: string, jdText: string}} data - 分析请求参数
  * @returns {Promise}

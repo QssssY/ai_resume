@@ -588,15 +588,15 @@ const jobRoleMap = {
   marketing: "市场/销售",
 };
 
-// 获取简历诊断历史记录（仅拉取展示用前 10 条）
+// 获取简历诊断历史记录（展示最近 5 条）
 const fetchResumeHistory = async () => {
-  const res = await getResumeHistory({ pageNum: 1, pageSize: 10 });
+  const res = await getResumeHistory({ pageNum: 1, pageSize: 5 });
   allResumeHistoryForDisplay.value = extractPageList(res);
 };
 
-// 获取模拟面试历史记录（仅拉取展示用前 10 条）
+// 获取模拟面试历史记录（展示最近 5 条）
 const fetchInterviewHistory = async () => {
-  const res = await getInterviewHistory({ pageNum: 1, pageSize: 10 });
+  const res = await getInterviewHistory({ pageNum: 1, pageSize: 5 });
   allInterviewHistoryForDisplay.value = extractPageList(res);
 };
 

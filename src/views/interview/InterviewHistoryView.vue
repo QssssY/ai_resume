@@ -1,8 +1,20 @@
 <template>
   <div class="interview-history-view">
     <div class="page-header">
-      <h1 class="page-title">面试历史</h1>
-      <p class="page-desc">查看你的模拟面试记录与岗位定向面试结果</p>
+      <div>
+        <h1 class="page-title">面试历史</h1>
+        <p class="page-desc">查看你的模拟面试记录与岗位定向面试结果</p>
+      </div>
+      <el-button
+        v-if="total > 0 && !loading && !error"
+        class="clear-all-btn"
+        text
+        size="small"
+        @click="handleClearAll"
+      >
+        <el-icon style="margin-right: 4px;"><Delete /></el-icon>
+        清空全部
+      </el-button>
     </div>
 
     <div v-if="loading" class="loading-section">
@@ -59,7 +71,18 @@
       <div v-for="item in historyList" :key="item.sessionId" class="history-card">
         <div class="card-header">
           <div class="title-block">
-            <h3 class="job-title">{{ item.jobRole || "未知岗位" }}</h3>
+            <div class="title-row">
+              <h3 class="job-title">{{ item.jobRole || "未知岗位" }}</h3>
+              <el-button
+                class="card-delete"
+                text
+                size="small"
+                @click="handleDelete(item)"
+                title="删除记录"
+              >
+                <el-icon :size="15"><Delete /></el-icon>
+              </el-button>
+            </div>
             <div class="title-tags">
               <el-tag
                 size="small"
@@ -155,8 +178,9 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { ChatDotSquare, CircleClose, Microphone } from "@element-plus/icons-vue";
-import { getInterviewHistory } from "@/api/interview";
+import { ChatDotSquare, CircleClose, Delete, Microphone } from "@element-plus/icons-vue";
+import { getInterviewHistory, clearInterviewHistory, deleteInterviewSession } from "@/api/interview";
+import { ElMessage, ElMessageBox } from "element-plus";
 import InterviewEmpty from "@/components/empty/InterviewEmpty.vue";
 import {
   DIFFICULTY_TAG_MAP,
@@ -264,6 +288,46 @@ const goToEntry = () => {
   router.push("/interview/entry");
 };
 
+// 删除单条
+const handleDelete = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除「${item.jobRole || "未知岗位"}」的面试记录？`,
+      "删除确认",
+      { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" }
+    );
+    await deleteInterviewSession(item.sessionId);
+    historyList.value = historyList.value.filter(
+      (r) => r.sessionId !== item.sessionId
+    );
+    total.value = Math.max(0, total.value - 1);
+    ElMessage.success("已删除");
+    if (historyList.value.length === 0 && pageNum.value > 1) {
+      pageNum.value--;
+      fetchHistory();
+    }
+  } catch {
+    // 用户取消或删除失败
+  }
+};
+
+// 清空全部
+const handleClearAll = async () => {
+  try {
+    await ElMessageBox.confirm(
+      "确定清空所有面试记录？此操作不可恢复。",
+      "清空确认",
+      { confirmButtonText: "清空", cancelButtonText: "取消", type: "warning" }
+    );
+    await clearInterviewHistory();
+    historyList.value = [];
+    total.value = 0;
+    ElMessage.success("已清空全部记录");
+  } catch {
+    // 用户取消
+  }
+};
+
 onMounted(() => {
   fetchHistory();
 });
@@ -275,7 +339,20 @@ onMounted(() => {
 }
 
 .page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
   margin-bottom: 24px;
+  gap: 16px;
+}
+
+.clear-all-btn {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.clear-all-btn:hover {
+  color: var(--color-danger);
 }
 
 .page-title {
@@ -409,6 +486,26 @@ onMounted(() => {
   gap: 10px;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 删除按钮 */
+.card-delete {
+  flex-shrink: 0;
+  color: transparent;
+  transition: color 0.15s ease;
+}
+.history-card:hover .card-delete {
+  color: var(--text-muted);
+}
+.card-delete:hover {
+  color: var(--color-danger) !important;
+}
+
 .title-tags {
   display: flex;
   flex-wrap: wrap;
@@ -480,6 +577,11 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
   .page-title {
     font-size: 20px;
   }
@@ -494,6 +596,10 @@ onMounted(() => {
     align-items: flex-start;
     gap: 12px;
   }
+
+  /* 移动端始终显示删除 */
+  .card-delete { color: var(--text-muted); opacity: 0.5; }
+  .card-delete:hover { opacity: 1; }
 }
 
 @media (max-width: 480px) {

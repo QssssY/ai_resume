@@ -123,3 +123,15 @@ export function clearInterviewHistory() {
     method: 'delete'
   })
 }
+
+/**
+ * 删除单条面试会话记录。
+ * @param {string} sessionId - 会话 ID
+ * @returns {Promise}
+ */
+export function deleteInterviewSession(sessionId) {
+  return request({
+    url: `/api/interview/history/${sessionId}`,
+    method: 'delete'
+  })
+}
