@@ -21,6 +21,12 @@ const message = {
 }
 
 vi.mock('vue-router', () => ({
+  createRouter: vi.fn(() => ({
+    beforeEach: vi.fn(),
+    afterEach: vi.fn(),
+    push: vi.fn(),
+  })),
+  createWebHistory: vi.fn(),
   useRouter: () => ({
     push,
     replace,
@@ -62,6 +68,14 @@ vi.mock('@/api/resume', () => ({
 
 vi.mock('@/utils/resumePdfPagination', () => ({
   createResumePdfImagePages: vi.fn(),
+}))
+
+vi.mock('html2canvas', () => ({
+  default: vi.fn(() => Promise.resolve({
+    width: 100,
+    height: 100,
+    toBlob: (callback) => callback(new Blob(['png'], { type: 'image/png' })),
+  })),
 }))
 
 const mountView = () => shallowMount(ResumeResultView, {
@@ -116,5 +130,36 @@ describe('ResumeResultView', () => {
     expect(replace).toHaveBeenCalledWith('/resume/result/new-task')
     expect(getResumeTask).toHaveBeenNthCalledWith(2, 'new-task')
     expect(wrapper.vm.task.taskId).toBe('new-task')
+  })
+
+  it('revokes image object URL when download click throws', async () => {
+    getResumeTask.mockResolvedValue({
+      data: {
+        taskId: 'completed-task',
+        status: 2,
+        result: '{"overallEvaluation":{"totalScore":80}}',
+      },
+    })
+    routeState.params.taskId = 'completed-task'
+    globalThis.requestAnimationFrame = vi.fn((callback) => callback())
+    const clickError = new Error('download blocked')
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:image-url')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    vi.spyOn(document, 'createElement').mockImplementation(function (tag) {
+      if (tag === 'a') return { href: '', download: '', click: vi.fn(() => { throw clickError }) }
+      return Document.prototype.createElement.call(document, tag)
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+    wrapper.vm.resumeTemplateRef = {
+      buildExportElement: () => document.createElement('div'),
+      getResumeName: () => 'resume',
+    }
+
+    await wrapper.vm.exportResumeImage()
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:image-url')
+    expect(message.error).toHaveBeenCalled()
   })
 })

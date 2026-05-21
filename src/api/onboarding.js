@@ -26,3 +26,27 @@ export function updateOnboardingStatus(data) {
     data
   })
 }
+
+/**
+ * 获取新手任务列表和完成进度
+ * @returns {Promise}
+ */
+export function getOnboardingTasks() {
+  return request({
+    url: '/api/user/onboarding/tasks',
+    method: 'get'
+  })
+}
+
+/**
+ * 上报新手任务完成（幂等）
+ * @param {string} taskKey - 任务标识
+ * @returns {Promise}
+ */
+export function completeOnboardingTask(taskKey) {
+  return request({
+    url: '/api/user/onboarding/tasks/complete',
+    method: 'post',
+    data: { taskKey }
+  })
+}

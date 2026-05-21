@@ -11,3 +11,15 @@ export function getGrowthOverview() {
     method: 'get'
   })
 }
+
+/**
+ * 获取面试维度雷达数据
+ * 包含最新雷达评分、各维度趋势和盲区提示
+ * @returns {Promise}
+ */
+export function getInterviewRadar() {
+  return request({
+    url: '/api/user/growth/interview-radar',
+    method: 'get'
+  })
+}

@@ -190,6 +190,14 @@
       </div>
     </div>
 
+    <!-- 新手任务卡片 -->
+    <OnboardingTaskCard
+      v-if="onboardingVisible && !onboardingAllCompleted"
+      :tasks="onboardingTasks"
+      :completed-count="onboardingCompletedCount"
+      :total-count="onboardingTotalCount"
+    />
+
     <!-- 成长中心入口 -->
     <div class="growth-entry-card" @click="router.push('/growth')">
       <div class="growth-entry-icon">
@@ -403,6 +411,8 @@ import { useUserStore } from "@/stores/user";
 import { getResumeHistory, extractFileName } from "@/api/resume";
 import { getInterviewHistory } from "@/api/interview";
 import { getMonthlyStats } from "@/api/stats";
+import { getOnboardingTasks } from "@/api/onboarding";
+import OnboardingTaskCard from "@/components/OnboardingTaskCard.vue";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -493,6 +503,13 @@ const interviewCountThisMonth = ref(0);
 // 展示用历史记录
 const allResumeHistoryForDisplay = ref([]);
 const allInterviewHistoryForDisplay = ref([]);
+
+// 新手任务卡片数据
+const onboardingTasks = ref([]);
+const onboardingCompletedCount = ref(0);
+const onboardingTotalCount = ref(4);
+const onboardingVisible = ref(false);
+const onboardingAllCompleted = ref(false);
 
 // 页面加载与错误状态
 const pageLoading = ref(true);
@@ -609,6 +626,18 @@ const fetchMonthlyStats = async () => {
   }
 };
 
+// 获取新手任务列表
+const fetchOnboardingTasks = async () => {
+  const res = await getOnboardingTasks();
+  if (res?.data) {
+    onboardingTasks.value = res.data.tasks ?? [];
+    onboardingCompletedCount.value = res.data.completedCount ?? 0;
+    onboardingTotalCount.value = res.data.totalCount ?? 4;
+    onboardingVisible.value = res.data.visible ?? false;
+    onboardingAllCompleted.value = res.data.allCompleted ?? false;
+  }
+};
+
 // 按时间倒序排列记录
 const sortByTime = (list) => {
   list.sort((a, b) => {
@@ -622,7 +651,7 @@ const sortByTime = (list) => {
 const fetchData = async () => {
   pageLoading.value = true;
   loadError.value = false;
-  const fetches = [fetchResumeHistory(), fetchInterviewHistory(), fetchMonthlyStats()];
+  const fetches = [fetchResumeHistory(), fetchInterviewHistory(), fetchMonthlyStats(), fetchOnboardingTasks()];
   if (!userStore.userInfo) {
     fetches.push(userStore.fetchUserInfo());
   }

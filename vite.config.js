@@ -39,6 +39,9 @@ export default defineConfig({
           if (id.includes('axios')) {
             return 'axios-vendor'
           }
+          if (id.includes('docx')) {
+            return 'docx-vendor'
+          }
           if (
             id.includes('/vue/') ||
             id.includes('/vue-router/') ||

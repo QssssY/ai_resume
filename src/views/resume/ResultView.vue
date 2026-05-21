@@ -142,35 +142,28 @@
         </div>
         <div class="kpi-grid">
           <div class="kpi-cell">
-            <span class="kpi-label">工作经验 <span class="kpi-weight">占评分40%</span></span>
+            <span class="kpi-label">工作/实习 <span class="kpi-weight">占评分30%</span></span>
             <div class="kpi-value-wrap">
               <span class="kpi-value coral">{{ workScore || 0 }}</span>
               <span class="kpi-unit">分</span>
             </div>
           </div>
           <div class="kpi-cell">
-            <span class="kpi-label">项目经验 <span class="kpi-weight">占评分30%</span></span>
+            <span class="kpi-label">项目经验 <span class="kpi-weight">占评分27%</span></span>
             <div class="kpi-value-wrap">
               <span class="kpi-value purple">{{ projectScore || 0 }}</span>
               <span class="kpi-unit">分</span>
             </div>
           </div>
           <div class="kpi-cell">
-            <span class="kpi-label">核心技能 <span class="kpi-weight">占评分15%</span></span>
+            <span class="kpi-label">核心技能 <span class="kpi-weight">占评分23%</span></span>
             <div class="kpi-value-wrap">
               <span class="kpi-value blue">{{ skillScore || 0 }}</span>
               <span class="kpi-unit">分</span>
             </div>
           </div>
           <div class="kpi-cell">
-            <span class="kpi-label">基础信息 <span class="kpi-weight">占评分5%</span></span>
-            <div class="kpi-value-wrap">
-              <span class="kpi-value green">{{ basicInfoEvaluation?.score || 0 }}</span>
-              <span class="kpi-unit">分</span>
-            </div>
-          </div>
-          <div class="kpi-cell">
-            <span class="kpi-label">学历匹配 <span class="kpi-weight">占评分5%</span></span>
+            <span class="kpi-label">教育背景 <span class="kpi-weight">占评分10%</span></span>
             <div class="kpi-value-wrap">
               <span class="kpi-value teal">{{ educationScore || 0 }}</span>
               <span class="kpi-unit">分</span>
@@ -180,6 +173,13 @@
             <span class="kpi-label">个人定位 <span class="kpi-weight">占评分5%</span></span>
             <div class="kpi-value-wrap">
               <span class="kpi-value gray">{{ positioningScore || 0 }}</span>
+              <span class="kpi-unit">分</span>
+            </div>
+          </div>
+          <div class="kpi-cell">
+            <span class="kpi-label">个人信息 <span class="kpi-weight">占评分5%</span></span>
+            <div class="kpi-value-wrap">
+              <span class="kpi-value green">{{ basicInfoEvaluation?.score || 0 }}</span>
               <span class="kpi-unit">分</span>
             </div>
           </div>
@@ -576,11 +576,12 @@
                   <n-button size="small" ghost @click="copyPolishedResume">复制内容</n-button>
                   <n-button size="small" type="primary" :loading="documentSaving" @click="handleSaveDocument">保存编辑</n-button>
                   <n-button size="small" type="primary" :loading="pdfExporting" @click="exportResumePdf">导出 PDF</n-button>
+                  <n-button size="small" ghost :loading="docxExporting" @click="exportResumeDocx">导出 Word</n-button>
                   <n-button size="small" ghost :loading="imageExporting" @click="exportResumeImage">导出图片</n-button>
                 </div>
               </div>
               <div class="polish-edit-hint">
-                支持直接编辑文案、切换标题样式、调整段落顺序；可导出为 PDF 或图片格式。
+                支持直接编辑文案、切换标题样式、调整段落顺序；可导出为 PDF、Word 或图片格式。
               </div>
               <div v-if="polishResult?.polishedResumeText" class="polish-preview-shell">
                 <ResumeTemplate
@@ -634,6 +635,7 @@
 import { ref, computed, nextTick, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { analyzeResumeJobMatch, analyzeResumePolish, getResumeTask, retryResumeTask, savePolishDocument } from '@/api/resume'
+import { completeOnboardingTask } from '@/api/onboarding'
 import { useUserStore } from '@/stores/user'
 import { NButton, NInput, useMessage } from 'naive-ui'
 const message = useMessage()
@@ -646,6 +648,7 @@ import WorkExperienceSection from '@/components/resume/WorkExperienceSection.vue
 import RadarChart from '@/components/resume/RadarChart.vue'
 import RadarScorePanel from '@/components/resume/RadarScorePanel.vue'
 import { createResumePdfImagePages } from '@/utils/resumePdfPagination'
+import { exportResumeToDocx } from '@/utils/resumeDocxExport'
 const ResumeTemplate = defineAsyncComponent(() => import('@/components/resume/ResumeTemplate.vue'))
 
 const router = useRouter()
@@ -667,6 +670,7 @@ const polishLoading = ref(false)
 const polishResult = ref(null)
 const polishSectionRef = ref(null)
 const pdfExporting = ref(false)
+const docxExporting = ref(false)
 const imageExporting = ref(false)
 const resumeTemplateRef = ref(null)
 const documentSaving = ref(false)
@@ -897,23 +901,23 @@ const computeEducationFallback = (result) => {
   const work = result.workExperienceEvaluation?.score || 0
   const project = result.projectExperienceEvaluation?.score || 0
   const positioning = result.positioningEvaluation?.score || 0
-  const weightedSum = basic * 0.05 + skill * 0.15 + work * 0.40 + project * 0.30 + positioning * 0.05
-  const eduScore = Math.round((totalScore - weightedSum) / 0.05)
+  const weightedSum = basic * 0.05 + skill * 0.23 + work * 0.30 + project * 0.27 + positioning * 0.05
+  const eduScore = Math.round((totalScore - weightedSum) / 0.10)
   return Math.max(0, Math.min(100, eduScore))
 }
 
 // 雷达图得分明细：直接使用 AI 返回的 strengths（加分项）和 weaknesses（扣分项）
-const radarKeys = ['basicInfo', 'skill', 'work', 'project', 'education', 'positioning']
+const radarKeys = ['work', 'project', 'skill', 'education', 'positioning', 'basicInfo']
 
-const radarLabels = ['基本信息', '岗位能力', '工作经验', '项目经历', '教育背景', '个人定位']
+const radarLabels = ['工作/实习', '项目经历', '岗位能力', '教育背景', '个人定位', '个人信息']
 
 const radarDimensionConfig = [
-  { key: 'basicInfo', label: '基本信息' },
-  { key: 'skill', label: '岗位能力' },
-  { key: 'work', label: '工作经验' },
+  { key: 'work', label: '工作/实习' },
   { key: 'project', label: '项目经历' },
+  { key: 'skill', label: '岗位能力' },
   { key: 'education', label: '教育背景' },
   { key: 'positioning', label: '个人定位' },
+  { key: 'basicInfo', label: '个人信息' },
 ]
 
 const radarScoreDetails = computed(() => {
@@ -927,12 +931,12 @@ const radarScoreDetails = computed(() => {
   })
 
   return {
-    basicInfo: extract(r.basicInfoEvaluation, 'basicInfo'),
-    skill: extract(r.skillEvaluation, 'skill'),
     work: extract(r.workExperienceEvaluation, 'work'),
     project: extract(r.projectExperienceEvaluation, 'project'),
+    skill: extract(r.skillEvaluation, 'skill'),
     education: extract(r.educationEvaluation, 'education'),
     positioning: extract(r.positioningEvaluation, 'positioning'),
+    basicInfo: extract(r.basicInfoEvaluation, 'basicInfo'),
   }
 })
 
@@ -1018,6 +1022,8 @@ const fetchTaskDetail = async (options = {}) => {
       hasRefreshedUserInfo.value = true
       await userStore.fetchUserInfo()
       message.success('简历诊断已完成')
+      // 静默上报新手任务完成
+      completeOnboardingTask('report_viewed').catch(() => {})
     }
   } catch (err) {
     error.value = err.message || '获取任务详情失败，请稍后重试'
@@ -1170,6 +1176,8 @@ const submitJobMatchAnalysis = async () => {
       task.value.latestJobMatchAnalysis = res.data
     }
     message.success('岗位匹配分析完成')
+    // 静默上报新手任务完成
+    completeOnboardingTask('jd_compared').catch(() => {})
   } catch (err) {
     message.error(err?.message || '岗位匹配分析失败，请稍后重试')
   } finally {
@@ -1390,6 +1398,32 @@ const exportResumePdf = async () => {
   }
 }
 
+// 导出 Word：从结构化 block 模型生成 .docx 文件，文本可复制、标题段落结构完整。
+const exportResumeDocx = async () => {
+  if (!resumeTemplateRef.value?.getResumeDocumentJson) {
+    message.warning('暂无可导出的润色内容')
+    return
+  }
+
+  docxExporting.value = true
+
+  try {
+    const jsonString = resumeTemplateRef.value.getResumeDocumentJson()
+    if (!jsonString || jsonString === '{}') {
+      message.error('缺少结构化简历数据，请先保存编辑内容后重试')
+      return
+    }
+
+    const filename = getExportFilename()
+    await exportResumeToDocx(jsonString, filename)
+    message.success('Word 文件已导出')
+  } catch (err) {
+    message.error(err?.message || 'Word 导出失败，请稍后重试')
+  } finally {
+    docxExporting.value = false
+  }
+}
+
 // 导出简历图片：复用截图 canvas，输出为 PNG 文件下载。
 const exportResumeImage = async () => {
   if (!resumeTemplateRef.value?.buildExportElement) {
@@ -1418,8 +1452,11 @@ const exportResumeImage = async () => {
       const link = document.createElement('a')
       link.href = url
       link.download = filename
-      link.click()
-      URL.revokeObjectURL(url)
+      try {
+        link.click()
+      } finally {
+        URL.revokeObjectURL(url)
+      }
     }, 'image/png')
 
     message.success('简历图片已导出')

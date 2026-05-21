@@ -115,6 +115,7 @@ import { useRouter } from 'vue-router'
 import { CircleClose, Document, Upload, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { uploadResume } from '@/api/resume'
+import { completeOnboardingTask } from '@/api/onboarding'
 import { isLoggedIn } from '@/utils/auth'
 
 const router = useRouter()
@@ -216,6 +217,9 @@ const handleSubmit = async () => {
       duration: 2000,
       showClose: true
     })
+
+    // 静默上报新手任务完成
+    completeOnboardingTask('resume_uploaded').catch(() => {})
 
     if (!taskId) {
       submitError.value = '任务创建成功，但未获取到任务 ID'

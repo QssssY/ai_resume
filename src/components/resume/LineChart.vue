@@ -35,6 +35,11 @@ const props = defineProps({
   datasets: {
     type: Array,
     required: true
+  },
+  /** 是否显示图例（多条折线时需要） */
+  showLegend: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -62,7 +67,7 @@ const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: true,
   plugins: {
-    legend: { display: false },
+    legend: { display: props.showLegend },
     tooltip: {
       callbacks: {
         label: (ctx) => `${ctx.raw}分`

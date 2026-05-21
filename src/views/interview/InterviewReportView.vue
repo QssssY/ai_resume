@@ -548,6 +548,7 @@ import { getInterviewSession } from "@/api/interview";
 import RadarChart from "@/components/resume/RadarChart.vue";
 import RadarScorePanel from "@/components/resume/RadarScorePanel.vue";
 import AiLoadingState from "@/components/common/AiLoadingState.vue";
+import { completeOnboardingTask } from "@/api/onboarding";
 
 const route = useRoute();
 const router = useRouter();
@@ -920,6 +921,15 @@ const goToEntry = () => {
 
 onMounted(() => {
   fetchSessionDetail();
+});
+
+// 报告首次加载成功时，静默上报新手任务完成
+const hasReportedOnboarding = ref(false);
+watch(hasReport, (val) => {
+  if (val && !hasReportedOnboarding.value) {
+    hasReportedOnboarding.value = true;
+    completeOnboardingTask("interview_completed").catch(() => {});
+  }
 });
 
 watch(

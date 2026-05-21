@@ -137,6 +137,79 @@
         </div>
       </section>
 
+      <!-- 面试维度雷达区块 -->
+      <section class="radar-section">
+        <h3 class="card-title">面试维度雷达</h3>
+        <div v-if="radarLoading" class="radar-loading">
+          <div class="loading-spinner"></div>
+          <span>加载维度数据...</span>
+        </div>
+        <template v-else-if="radarData && radarData.sessionCount > 0">
+          <!-- 雷达图 + 维度详情面板 -->
+          <div class="radar-top-row">
+            <div class="radar-chart-col">
+              <RadarChart
+                :scores="radarScores"
+                :labels="radarLabels"
+                :keys="radarKeys"
+              />
+              <div class="radar-session-info">
+                来源面试：{{ radarData.latestRadar?.createTime || '--' }}
+              </div>
+            </div>
+            <div class="radar-panel-col">
+              <RadarScorePanel
+                :details="radarDetails"
+                :dimensionConfig="interviewDimensionConfig"
+              />
+            </div>
+          </div>
+
+          <!-- 维度趋势折线图 -->
+          <div v-if="trendLabels.length > 1" class="radar-trend-card">
+            <h4 class="sub-title">维度趋势</h4>
+            <LineChart
+              :labels="trendLabels"
+              :datasets="trendDatasets"
+              :showLegend="true"
+            />
+          </div>
+
+          <!-- 盲区提示 -->
+          <div v-if="radarData.blindSpotTips?.length" class="blind-spot-list">
+            <h4 class="sub-title">盲区提示</h4>
+            <div
+              v-for="tip in radarData.blindSpotTips"
+              :key="tip.dimensionKey"
+              class="blind-spot-card"
+              :class="'blind-spot-card--' + tip.type"
+            >
+              <div class="blind-spot-header">
+                <span class="blind-spot-dim">{{ tip.dimensionLabel }}</span>
+                <span class="blind-spot-badge" :class="'badge--' + tip.type">
+                  {{ tip.type === 'persistent_low' ? '持续低分' : '下滑趋势' }}
+                </span>
+                <span class="blind-spot-avg">均分 {{ Math.round(tip.averageScore) }}</span>
+              </div>
+              <div class="blind-spot-tip">{{ tip.tip }}</div>
+              <div v-if="tip.suggestions?.length" class="blind-spot-suggestions">
+                <div v-for="(sg, i) in tip.suggestions" :key="i" class="blind-spot-sg-item">
+                  <span class="sg-bullet"></span>
+                  <span>{{ sg }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+        <div v-else class="radar-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+          <span>暂无维度数据，完成面试后将展示雷达分析</span>
+          <el-button link type="primary" @click="$router.push('/interview/entry')">去面试</el-button>
+        </div>
+      </section>
+
       <!-- 4+5+6. 详情卡片区域 -->
       <section class="details-section">
         <!-- 最近JD匹配结果 -->
@@ -268,8 +341,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
-import { getGrowthOverview } from '@/api/growth'
+import { getGrowthOverview, getInterviewRadar } from '@/api/growth'
 import LineChart from '@/components/resume/LineChart.vue'
+import RadarChart from '@/components/resume/RadarChart.vue'
+import RadarScorePanel from '@/components/resume/RadarScorePanel.vue'
 
 /** 加载状态 */
 const loading = ref(true)
@@ -325,6 +400,99 @@ const modeLabel = (mode) => {
   return map[mode] || mode || '普通面试'
 }
 
+// ==================== 面试维度雷达相关 ====================
+
+/** 面试 6 维度配置 */
+const interviewDimensionConfig = [
+  { key: 'technicalDepth', label: '技术深度' },
+  { key: 'projectExpression', label: '项目表达' },
+  { key: 'communication', label: '沟通表达' },
+  { key: 'problemSolving', label: '问题解决' },
+  { key: 'pressureResistance', label: '抗压表现' },
+  { key: 'jobMatch', label: '岗位匹配' },
+]
+
+/** 维度颜色方案 */
+const dimensionColors = {
+  technicalDepth: '#FF8C42',
+  projectExpression: '#3ABAB4',
+  communication: '#5B8DEF',
+  problemSolving: '#E667AF',
+  pressureResistance: '#F5A623',
+  jobMatch: '#7B68EE',
+}
+
+/** 雷达数据 */
+const radarData = ref(null)
+/** 雷达加载状态 */
+const radarLoading = ref(false)
+
+/** 雷达图标签 */
+const radarLabels = interviewDimensionConfig.map(d => d.label)
+/** 雷达图 key */
+const radarKeys = interviewDimensionConfig.map(d => d.key)
+
+/** 雷达图 scores 对象（RadarChart 要求 { key: score } 或 { key: { score } }） */
+const radarScores = computed(() => {
+  const dims = radarData.value?.latestRadar?.dimensions
+  if (!dims) return {}
+  const result = {}
+  for (const cfg of interviewDimensionConfig) {
+    const d = dims[cfg.key]
+    result[cfg.key] = d ? { score: d.score || 0 } : { score: 0 }
+  }
+  return result
+})
+
+/** RadarScorePanel 维度详情（兼容 plus/minus 字段名） */
+const radarDetails = computed(() => {
+  const dims = radarData.value?.latestRadar?.dimensions
+  if (!dims) return {}
+  const result = {}
+  for (const cfg of interviewDimensionConfig) {
+    const d = dims[cfg.key]
+    result[cfg.key] = {
+      score: d?.score || 0,
+      strengths: d?.strengths || [],
+      weaknesses: d?.weaknesses || [],
+    }
+  }
+  return result
+})
+
+/** 维度趋势 X 轴标签（取第一个有数据的维度的日期列表） */
+const trendLabels = computed(() => {
+  const trends = radarData.value?.dimensionTrends
+  if (!trends?.length) return []
+  const firstWithData = trends.find(t => t.points?.length > 0)
+  return firstWithData?.points?.map(p => p.date) || []
+})
+
+/** 维度趋势数据集（6 条折线） */
+const trendDatasets = computed(() => {
+  const trends = radarData.value?.dimensionTrends
+  if (!trends?.length) return []
+  return trends.map(t => ({
+    label: t.dimensionLabel,
+    data: t.points?.map(p => p.score) || [],
+    borderColor: dimensionColors[t.dimensionKey] || '#999',
+    backgroundColor: 'transparent',
+  }))
+})
+
+/** 获取雷达数据 */
+const fetchRadarData = async () => {
+  radarLoading.value = true
+  try {
+    const res = await getInterviewRadar()
+    radarData.value = res.data
+  } catch {
+    radarData.value = null
+  } finally {
+    radarLoading.value = false
+  }
+}
+
 /** 获取成长中心数据 */
 const fetchData = async () => {
   loading.value = true
@@ -332,12 +500,13 @@ const fetchData = async () => {
   try {
     const res = await getGrowthOverview()
     overviewData.value = res.data
-  } catch (err) {
-    console.error('[成长中心] 获取数据失败:', err)
+  } catch {
     loadError.value = true
   } finally {
     loading.value = false
   }
+  // 雷达数据独立加载，不阻塞概览
+  fetchRadarData()
 }
 
 /** 页面加载时获取数据 */
@@ -872,6 +1041,171 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+/* 面试维度雷达区块 */
+.radar-section {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 16px rgba(255, 140, 66, 0.06);
+  border: 1px solid rgba(243, 216, 199, 0.4);
+  margin-bottom: 24px;
+}
+
+.radar-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.radar-top-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.radar-chart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.radar-session-info {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  margin-top: 8px;
+}
+
+.radar-panel-col {
+  min-width: 0;
+}
+
+.radar-trend-card {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sub-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title);
+  align-self: flex-start;
+}
+
+.radar-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  gap: 12px;
+  color: var(--text-placeholder);
+  font-size: 13px;
+}
+
+.radar-empty svg {
+  width: 36px;
+  height: 36px;
+  color: var(--border-card);
+}
+
+/* 盲区提示 */
+.blind-spot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blind-spot-card {
+  border-radius: 12px;
+  padding: 16px 20px;
+  border: 1px solid;
+}
+
+.blind-spot-card--persistent_low {
+  background: rgba(245, 108, 108, 0.04);
+  border-color: rgba(245, 108, 108, 0.2);
+}
+
+.blind-spot-card--declining_trend {
+  background: rgba(245, 166, 35, 0.04);
+  border-color: rgba(245, 166, 35, 0.2);
+}
+
+.blind-spot-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.blind-spot-dim {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.blind-spot-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.badge--persistent_low {
+  background: rgba(245, 108, 108, 0.12);
+  color: var(--color-danger);
+}
+
+.badge--declining_trend {
+  background: rgba(245, 166, 35, 0.12);
+  color: #b67e1a;
+}
+
+.blind-spot-avg {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.blind-spot-tip {
+  font-size: 13px;
+  color: var(--text-body);
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.blind-spot-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.blind-spot-sg-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-body);
+  line-height: 1.5;
+}
+
+.sg-bullet {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--orange-main);
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
 /* 响应式 */
 @media (max-width: 1279px) {
   .summary-section {
@@ -891,6 +1225,9 @@ onMounted(() => {
   }
   .summary-section {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .radar-top-row {
+    grid-template-columns: 1fr;
   }
 }
 
