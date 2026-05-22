@@ -157,15 +157,23 @@ const handleImageUpload = async (e) => {
 
   imageUploading.value = true
   try {
-    for (const file of toUpload) {
+    const validFiles = toUpload.filter(file => {
       if (file.size > 5 * 1024 * 1024) {
         ElMessage.warning('单张图片不能超过5MB')
-        continue
+        return false
       }
-      const res = await uploadPostImage(file)
-      if (res.code === 200 && res.data?.url) {
-        form.value.images.push(res.data.url)
-      }
+      return true
+    })
+
+    if (validFiles.length > 0) {
+      const results = await Promise.allSettled(
+        validFiles.map(file => uploadPostImage(file))
+      )
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value?.code === 200 && result.value.data?.url) {
+          form.value.images.push(result.value.data.url)
+        }
+      })
     }
   } catch (err) {
     ElMessage.error('图片上传失败')

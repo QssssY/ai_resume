@@ -29,16 +29,44 @@
           @blur="onComposerBlur"
           @input="autoResize"
         />
+        <!-- 评论图片预览 -->
+        <div v-if="commentImages.length > 0" class="comment-images-preview">
+          <div v-for="(img, index) in commentImages" :key="index" class="comment-img-thumb">
+            <img :src="img" />
+            <button class="remove-img-btn" @click="removeCommentImage(index)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
         <Transition name="toolbar-slide">
-          <div v-if="composerFocused || commentText.trim()" class="composer-toolbar">
-            <span class="char-count" :class="{ warn: commentText.length > 450 }">
-              {{ commentText.length }}<span class="char-sep">/</span>500
-            </span>
+          <div v-if="composerFocused || commentText.trim() || commentImages.length > 0" class="composer-toolbar">
+            <div class="toolbar-left">
+              <label class="btn-add-image" :class="{ disabled: imageUploading || commentImages.length >= 9 }">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  hidden
+                  @change="handleCommentImageUpload"
+                />
+                <svg v-if="!imageUploading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                <span v-else class="btn-spinner sm"></span>
+              </label>
+              <span class="char-count" :class="{ warn: commentText.length > 450 }">
+                {{ commentText.length }}<span class="char-sep">/</span>500
+              </span>
+            </div>
             <div class="toolbar-actions">
               <button class="btn-cancel" @click="cancelComment">取消</button>
               <button
                 class="btn-submit"
-                :disabled="!commentText.trim() || submitting"
+                :disabled="(!commentText.trim() && commentImages.length === 0) || submitting"
                 @click="handleSubmit"
               >
                 <span v-if="submitting" class="btn-spinner"></span>
@@ -50,8 +78,18 @@
       </div>
     </div>
 
+    <!-- 懒加载占位：未进入视口时显示 -->
+    <div v-if="!shouldLoad" class="lazy-placeholder" ref="observerTarget">
+      <div class="lazy-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="lazy-icon">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span>滚动加载评论...</span>
+      </div>
+    </div>
+
     <!-- 加载状态 -->
-    <div v-if="loading" class="loading-state">
+    <div v-else-if="loading" class="loading-state">
       <div class="loading-dots">
         <span></span><span></span><span></span>
       </div>
@@ -60,7 +98,7 @@
 
     <!-- 评论列表 -->
     <TransitionGroup v-else-if="comments.length > 0" name="comment-list" tag="div" class="comment-list">
-      <div v-for="(comment, index) in comments" :key="comment.id" class="comment-card" :style="{ '--delay': index * 0.04 + 's' }">
+      <div v-for="(comment, index) in comments" :key="comment.id" :id="`comment-${comment.id}`" class="comment-card" :style="{ '--delay': index * 0.04 + 's' }">
         <div class="comment-avatar">
           <img :src="comment.authorAvatar || defaultAvatar" alt="avatar" />
         </div>
@@ -70,7 +108,7 @@
             <span v-if="comment.isPostAuthor" class="author-badge">作者</span>
             <span class="comment-dot">·</span>
             <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
-            <button class="btn-reply" @click="startReply(comment)">回复</button>
+            <button class="btn-reply" @mousedown.prevent @click="startReply(comment)">回复</button>
             <button
               v-if="comment.deletable"
               class="btn-delete-comment"
@@ -84,6 +122,7 @@
             </button>
           </div>
           <p class="comment-content clickable" @click.prevent="startReply(comment)">{{ comment.content }}</p>
+          <ImageGrid v-if="comment.images && comment.images.length > 0" :images="comment.images" />
 
           <!-- 展开/收起回复 -->
           <button
@@ -104,7 +143,9 @@
               <!-- 显示的回复（默认3条或全部） -->
               <div
                 v-for="reply in getVisibleReplies(comment)"
+                v-memo="[reply.id, reply.content, reply.authorName, reply.authorAvatar, reply.deletable, reply.replyToUserName, reply.isPostAuthor, reply.images]"
                 :key="reply.id"
+                :id="`comment-${reply.id}`"
                 class="reply-card"
               >
                 <div class="reply-avatar">
@@ -119,7 +160,7 @@
                     </span>
                     <span class="reply-dot">·</span>
                     <span class="reply-time">{{ formatTime(reply.createTime) }}</span>
-                    <button class="btn-reply btn-reply-nested" @click="startReply(comment, reply)">回复</button>
+                    <button class="btn-reply btn-reply-nested" @mousedown.prevent @click="startReply(comment, reply)">回复</button>
                     <button
                       v-if="reply.deletable"
                       class="btn-delete-comment"
@@ -133,6 +174,7 @@
                     </button>
                   </div>
                   <p class="reply-content">{{ reply.content }}</p>
+                  <ImageGrid v-if="reply.images && reply.images.length > 0" :images="reply.images" />
                 </div>
               </div>
               <!-- 展开剩余回复 -->
@@ -158,7 +200,7 @@
             </div>
             <div class="reply-composer-body">
               <textarea
-                ref="replyInputRef"
+                :ref="setReplyInputRef"
                 v-model="replyText"
                 class="reply-input"
                 :placeholder="`回复 @${replyTarget._replyToName || replyTarget.authorName}...`"
@@ -166,15 +208,42 @@
                 maxlength="500"
                 @input="autoResizeReply"
                 @keydown="handleReplyKeydown"
-                autofocus
               />
+              <!-- 回复图片预览 -->
+              <div v-if="replyImages.length > 0" class="comment-images-preview">
+                <div v-for="(img, index) in replyImages" :key="index" class="comment-img-thumb">
+                  <img :src="img" />
+                  <button class="remove-img-btn" @click="removeReplyImage(index)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
               <div class="reply-composer-actions">
-                <span class="char-count" :class="{ warn: replyText.length > 450 }">
-                  {{ replyText.length }}<span class="char-sep">/</span>500
-                </span>
+                <div class="toolbar-left">
+                  <label class="btn-add-image" :class="{ disabled: replyImageUploading || replyImages.length >= 9 }">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      hidden
+                      @change="handleReplyImageUpload"
+                    />
+                    <svg v-if="!replyImageUploading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    <span v-else class="btn-spinner sm"></span>
+                  </label>
+                  <span class="char-count" :class="{ warn: replyText.length > 450 }">
+                    {{ replyText.length }}<span class="char-sep">/</span>500
+                  </span>
+                </div>
                 <button
                   class="btn-submit"
-                  :disabled="!replyText.trim() || submittingReply"
+                  :disabled="(!replyText.trim() && replyImages.length === 0) || submittingReply"
                   @click="submitReply"
                 >
                   <span v-if="submittingReply" class="btn-spinner"></span>
@@ -211,11 +280,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getComments, createComment, deleteComment, getReplies } from '@/api/community'
+import { getComments, createComment, deleteComment, getReplies, uploadPostImage } from '@/api/community'
 import { useUserStore } from '@/stores/user'
 import defaultAvatar from '@/assets/user.png'
+import ImageGrid from '@/components/community/ImageGrid.vue'
+import { formatTime } from '@/utils/community'
+import { useScrollToComment } from '@/composables/useScrollToComment'
 
 const props = defineProps({
   postId: {
@@ -225,23 +297,36 @@ const props = defineProps({
   postUserId: {
     type: [String, Number],
     default: null
+  },
+  scrollToId: {
+    type: [String, Number],
+    default: null
+  },
+  scrollToParentId: {
+    type: [String, Number],
+    default: null
   }
 })
 
-const emit = defineEmits(['commentDeleted'])
+const emit = defineEmits(['commentDeleted', 'commentAdded'])
 
 const currentUserId = computed(() => userStore.userInfo?.id)
 
 const userStore = useUserStore()
 const userAvatar = computed(() => userStore.userInfo?.avatar || defaultAvatar)
 
+const shouldLoad = ref(false)
+const observerTarget = ref(null)
 const comments = ref([])
 const total = ref(0)
 const loading = ref(false)
 const loadingMore = ref(false)
 const submitting = ref(false)
 const commentText = ref('')
+const commentImages = ref([])
 const composerFocused = ref(false)
+const imageUploading = ref(false)
+const commentImageInput = ref(null)
 const pageNum = ref(1)
 const pageSize = 20
 const commentSectionRef = ref(null)
@@ -251,11 +336,20 @@ const textareaRef = ref(null)
 // 回复相关状态
 const replyTarget = ref(null)
 const replyText = ref('')
+const replyImages = ref([])
 const replyInputRef = ref(null)
+const setReplyInputRef = (el) => {
+  replyInputRef.value = el
+  if (el && document.activeElement !== el) {
+    el.focus()
+  }
+}
 const submittingReply = ref(false)
+const replyImageUploading = ref(false)
 const repliesMap = reactive({})
 const expandedReplies = reactive(new Set())
 const showAllReplies = reactive(new Set())
+const REPLY_PAGE_SIZE = 20
 const DEFAULT_VISIBLE_REPLIES = 3
 
 const getVisibleReplies = (comment) => {
@@ -265,9 +359,9 @@ const getVisibleReplies = (comment) => {
   return replies.slice(0, DEFAULT_VISIBLE_REPLIES)
 }
 
-const fetchComments = async (page = 1) => {
-  if (page === 1) loading.value = true
-  else loadingMore.value = true
+const fetchComments = async (page = 1, silent = false) => {
+  if (page === 1 && !silent) loading.value = true
+  else if (page > 1) loadingMore.value = true
 
   try {
     const res = await getComments(props.postId, { pageNum: page, pageSize })
@@ -309,6 +403,7 @@ const onComposerBlur = () => {
 
 const cancelComment = () => {
   commentText.value = ''
+  commentImages.value = []
   composerFocused.value = false
   if (textareaRef.value) {
     textareaRef.value.style.height = 'auto'
@@ -316,18 +411,81 @@ const cancelComment = () => {
   }
 }
 
+const handleCommentImageUpload = async (e) => {
+  const files = Array.from(e.target.files)
+  if (!files.length) return
+
+  const remaining = 9 - commentImages.value.length
+  const toUpload = files.slice(0, remaining)
+
+  imageUploading.value = true
+  try {
+    const validFiles = toUpload.filter(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        ElMessage.warning('单张图片不能超过5MB')
+        return false
+      }
+      return true
+    })
+
+    if (validFiles.length > 0) {
+      const results = await Promise.allSettled(
+        validFiles.map(file => uploadPostImage(file))
+      )
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value?.code === 200 && result.value.data?.url) {
+          commentImages.value.push(result.value.data.url)
+        }
+      })
+    }
+  } catch (err) {
+    ElMessage.error('图片上传失败')
+  } finally {
+    imageUploading.value = false
+    e.target.value = ''
+  }
+}
+
+const removeCommentImage = (index) => {
+  commentImages.value.splice(index, 1)
+}
+
 const handleSubmit = async () => {
   const content = commentText.value.trim()
-  if (!content) return
+  if (!content && commentImages.value.length === 0) return
 
   submitting.value = true
   try {
-    await createComment(props.postId, { content })
+    const data = { content }
+    if (commentImages.value.length > 0) {
+      data.images = [...commentImages.value]
+    }
+    const res = await createComment(props.postId, data)
     ElMessage.success('评论发布成功')
+    // 本地立即插入新评论
+    const newComment = {
+      id: res.data,
+      postId: props.postId,
+      userId: currentUserId.value,
+      authorName: userStore.userInfo?.nickname || userStore.userInfo?.userName || '匿名用户',
+      authorAvatar: userStore.userInfo?.avatar || '',
+      content,
+      images: commentImages.value.length > 0 ? [...commentImages.value] : null,
+      createTime: new Date().toISOString(),
+      isPostAuthor: currentUserId.value === props.postUserId,
+      deletable: true,
+      parentCommentId: null,
+      replyCount: 0
+    }
+    comments.value.unshift(newComment)
+    total.value++
+    emit('commentAdded')
     commentText.value = ''
+    commentImages.value = []
     composerFocused.value = false
     if (textareaRef.value) textareaRef.value.style.height = 'auto'
-    fetchComments(1)
+    // 后台静默刷新同步服务器数据
+    fetchComments(1, true)
   } catch (err) {
     console.error('评论失败:', err)
   } finally {
@@ -345,13 +503,15 @@ const handleDeleteComment = async (comment) => {
     await deleteComment(props.postId, comment.id)
     ElMessage.success('评论已删除')
     emit('commentDeleted')
-    fetchComments(1)
+    fetchComments(1, true)
   } catch (err) {
     if (err !== 'cancel') {
       console.error('删除评论失败:', err)
     }
   }
 }
+
+// 聚焦由 setReplyInputRef callback ref 自动处理，无需 watch
 
 const startReply = (comment, replyTo) => {
   // 切换行为：点击同一评论的回复按钮则关闭，点击其他评论则切换
@@ -369,45 +529,84 @@ const startReply = (comment, replyTo) => {
     _ancestorId: comment.id
   }
   replyText.value = ''
+  replyImages.value = []
+  nextTick(() => {
+    replyInputRef.value?.focus()
+  })
 }
 
 const cancelReply = () => {
   replyTarget.value = null
   replyText.value = ''
+  replyImages.value = []
 }
 
-// 监听 replyTarget 变化，自动聚焦回复输入框
-watch(replyTarget, (newVal) => {
-  if (newVal) {
-    nextTick(() => {
-      setTimeout(() => {
-        if (replyInputRef.value) {
-          replyInputRef.value.focus()
-          const len = replyInputRef.value.value.length
-          replyInputRef.value.setSelectionRange(len, len)
-        }
-      }, 50)
+const handleReplyImageUpload = async (e) => {
+  const files = Array.from(e.target.files)
+  if (!files.length) return
+
+  const remaining = 9 - replyImages.value.length
+  const toUpload = files.slice(0, remaining)
+
+  replyImageUploading.value = true
+  try {
+    const validFiles = toUpload.filter(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        ElMessage.warning('单张图片不能超过5MB')
+        return false
+      }
+      return true
     })
+
+    if (validFiles.length > 0) {
+      const results = await Promise.allSettled(
+        validFiles.map(file => uploadPostImage(file))
+      )
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value?.code === 200 && result.value.data?.url) {
+          replyImages.value.push(result.value.data.url)
+        }
+      })
+    }
+  } catch (err) {
+    ElMessage.error('图片上传失败')
+  } finally {
+    replyImageUploading.value = false
+    e.target.value = ''
   }
-})
+}
+
+const removeReplyImage = (index) => {
+  replyImages.value.splice(index, 1)
+}
 
 const submitReply = async () => {
   const content = replyText.value.trim()
-  if (!content || !replyTarget.value) return
+  if ((!content && replyImages.value.length === 0) || !replyTarget.value) return
 
   submittingReply.value = true
   try {
     const parentId = replyTarget.value._ancestorId || replyTarget.value.id
     const replyToUserId = replyTarget.value._replyToUserId
-    await createComment(props.postId, { content, parentCommentId: parentId, replyToUserId })
+    const data = { content, parentCommentId: parentId, replyToUserId }
+    if (replyImages.value.length > 0) {
+      data.images = [...replyImages.value]
+    }
+    await createComment(props.postId, data)
     ElMessage.success('回复成功')
+    // 本地更新父评论的回复数
+    const parentComment = comments.value.find(c => c.id === parentId)
+    if (parentComment) parentComment.replyCount = (parentComment.replyCount || 0) + 1
+    total.value++
+    emit('commentAdded')
     replyText.value = ''
+    replyImages.value = []
     replyTarget.value = null
     // 自动展开并刷新该评论的回复
     expandedReplies.add(parentId)
     fetchReplies(parentId)
-    // 刷新顶级评论列表（更新回复数）
-    fetchComments(1)
+    // 后台静默刷新同步服务器数据
+    fetchComments(1, true)
   } catch (err) {
     console.error('回复失败:', err)
   } finally {
@@ -436,7 +635,7 @@ const toggleReplies = (comment) => {
 
 const fetchReplies = async (commentId) => {
   try {
-    const res = await getReplies(props.postId, commentId, { pageNum: 1, pageSize: 50 })
+    const res = await getReplies(props.postId, commentId, { pageNum: 1, pageSize: REPLY_PAGE_SIZE })
     if (res.code === 200) {
       repliesMap[commentId] = res.data?.list || []
     }
@@ -471,22 +670,6 @@ const autoResizeReply = () => {
   el.style.height = Math.min(el.scrollHeight, 100) + 'px'
 }
 
-const formatTime = (time) => {
-  if (!time) return ''
-  const date = new Date(time)
-  const now = new Date()
-  const diff = now - date
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}天前`
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${month}-${day}`
-}
 
 // 点击空白区域收起回复框
 const handleClickOutside = (e) => {
@@ -497,13 +680,67 @@ const handleClickOutside = (e) => {
   }
 }
 
-onMounted(() => {
-  fetchComments()
+let lazyObserver = null
+
+const { scrollToTarget } = useScrollToComment({
+  commentSectionRef,
+  comments,
+  repliesMap,
+  expandedReplies,
+  showAllReplies,
+  fetchReplies,
+  scrollToParentId: props.scrollToParentId,
+  postId: props.postId
+})
+
+const initComments = async () => {
+  if (shouldLoad.value) return
+  shouldLoad.value = true
+  if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null }
+  await nextTick()
+  await fetchComments()
   document.addEventListener('mousedown', handleClickOutside)
+  if (props.scrollToId) {
+    // 重置滚动位置，确保 scrollIntoView 从干净状态开始
+    const scrollContainer = document.querySelector('.layout-content')
+    if (scrollContainer) scrollContainer.scrollTop = 0
+    await nextTick()
+    await scrollToTarget(props.scrollToId)
+  }
+}
+
+onMounted(() => {
+  // 有 scrollToId 时跳过懒加载，直接加载评论
+  if (props.scrollToId) {
+    initComments()
+    return
+  }
+  // IntersectionObserver 懒加载：评论区进入视口时才请求评论
+  lazyObserver = new IntersectionObserver((entries) => {
+    if (entries.some(e => e.isIntersecting)) {
+      lazyObserver.disconnect()
+      lazyObserver = null
+      initComments()
+    }
+  }, { rootMargin: '200px' })
+  watch(() => observerTarget.value, (el) => {
+    if (el && lazyObserver) lazyObserver.observe(el)
+  }, { immediate: true })
+  // 如果 observerTarget 已经存在（模板已渲染），直接观察
+  if (observerTarget.value && lazyObserver) {
+    lazyObserver.observe(observerTarget.value)
+  }
+})
+
+watch(() => props.scrollToId, async (newId) => {
+  if (newId) {
+    await scrollToTarget(newId)
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('mousedown', handleClickOutside)
+  if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null }
 })
 </script>
 
@@ -1234,6 +1471,7 @@ onUnmounted(() => {
   max-height: 100px;
   font-family: inherit;
   line-height: 1.5;
+  cursor: text;
   transition: border-color 0.3s, box-shadow 0.3s;
 }
 
@@ -1275,6 +1513,93 @@ onUnmounted(() => {
   }
 }
 
+/* —— 评论图片上传预览 —— */
+.comment-images-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.comment-img-thumb {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-divider);
+}
+
+.comment-img-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.remove-img-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.remove-img-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.remove-img-btn svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* —— 图片上传按钮 —— */
+.btn-add-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-add-image:hover {
+  color: var(--orange-main);
+  background: var(--orange-light-bg);
+}
+
+.btn-add-image.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-add-image svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* —— 工具栏左侧区域 —— */
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* —— 响应式 —— */
 @media (max-width: 480px) {
   .comment-card {
@@ -1289,5 +1614,37 @@ onUnmounted(() => {
     width: 34px;
     height: 34px;
   }
+}
+
+/* —— 懒加载占位 —— */
+.lazy-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.lazy-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-placeholder);
+  font-size: 13px;
+}
+
+.lazy-icon {
+  width: 18px;
+  height: 18px;
+  opacity: 0.5;
+}
+
+/* —— 评论高亮动画 —— */
+.highlight-flash {
+  animation: flashHighlight 2s ease;
+}
+
+@keyframes flashHighlight {
+  0% { background-color: rgba(255, 140, 66, 0.2); }
+  100% { background-color: transparent; }
 }
 </style>

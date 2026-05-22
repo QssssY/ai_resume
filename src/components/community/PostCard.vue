@@ -77,6 +77,7 @@
 <script setup>
 import ImageGrid from './ImageGrid.vue'
 import defaultAvatar from '@/assets/user.png'
+import { formatTime, categoryLabel } from '@/utils/community'
 
 defineProps({
   post: {
@@ -86,28 +87,6 @@ defineProps({
 })
 
 defineEmits(['click', 'like', 'favorite', 'share'])
-
-const categoryLabel = (cat) => {
-  const map = { interview_exp: '面试经验', referral: '内推信息' }
-  return map[cat] || cat
-}
-
-const formatTime = (time) => {
-  if (!time) return ''
-  const date = new Date(time)
-  const now = new Date()
-  const diff = now - date
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}天前`
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${month}-${day}`
-}
 </script>
 
 <style scoped>

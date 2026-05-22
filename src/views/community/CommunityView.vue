@@ -105,6 +105,7 @@
       <template v-else-if="posts.length > 0">
         <PostCard
           v-for="post in posts"
+          v-memo="[post.id, post.liked, post.favorited, post.likeCount, post.commentCount]"
           :key="post.id"
           :post="post"
           @click="goToDetail(post.id)"
@@ -125,13 +126,15 @@
         <p class="empty-desc">成为第一个分享的人吧</p>
       </div>
 
-      <!-- 加载更多 -->
-      <div v-if="hasMore && posts.length > 0" class="load-more-area">
-        <div v-if="loadingMore" class="loading-more">
+      <!-- 无限滚动哨兵元素 -->
+      <div ref="sentinelRef" class="scroll-sentinel"></div>
+
+      <!-- 加载更多指示器 -->
+      <div v-if="loadingMore" class="load-more-area">
+        <div class="loading-more">
           <div class="loading-spinner"></div>
           <span>加载中...</span>
         </div>
-        <el-button v-else link type="primary" @click="loadMore">加载更多</el-button>
       </div>
 
       <!-- 【没有更多】装饰性分隔符 -->
@@ -197,7 +200,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPostList, togglePostLike, togglePostFavorite, getInteractionUnreadCount } from '@/api/community'
@@ -212,7 +215,7 @@ const posts = ref([])
 const loading = ref(false)
 const loadingMore = ref(false)
 const pageNum = ref(1)
-const pageSize = 15
+const pageSize = 8
 const hasMore = ref(false)
 const showEditor = ref(false)
 const showShareDialog = ref(false)
@@ -220,6 +223,10 @@ const shareLink = ref('')
 const unreadCount = ref(0)
 const isRefreshing = ref(false)
 const LAST_SEEN_KEY = 'community_last_interaction_seen'
+
+// 无限滚动相关
+const sentinelRef = ref(null)
+let observer = null
 
 const fetchPosts = async (page = 1, append = false) => {
   if (page === 1) loading.value = true
@@ -251,6 +258,8 @@ const fetchPosts = async (page = 1, append = false) => {
   } finally {
     loading.value = false
     loadingMore.value = false
+    // 数据加载完成后重新设置 observer
+    nextTick(setupObserver)
   }
 }
 
@@ -258,6 +267,8 @@ const switchTab = (tab) => {
   if (activeTab.value === tab) return
   activeTab.value = tab
   posts.value = []
+  hasMore.value = false
+  pageNum.value = 1
   fetchPosts(1)
 }
 
@@ -265,11 +276,37 @@ const switchSort = (sort) => {
   if (sortBy.value === sort) return
   sortBy.value = sort
   posts.value = []
+  hasMore.value = false
+  pageNum.value = 1
   fetchPosts(1)
 }
 
 const loadMore = () => {
+  if (loadingMore.value || !hasMore.value) return
   fetchPosts(pageNum.value + 1, true)
+}
+
+// 设置 Intersection Observer 实现无限滚动
+const setupObserver = () => {
+  if (observer) observer.disconnect()
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (entry.isIntersecting && hasMore.value && !loadingMore.value && !loading.value) {
+        loadMore()
+      }
+    },
+    {
+      root: null,
+      rootMargin: '200px',
+      threshold: 0
+    }
+  )
+
+  if (sentinelRef.value) {
+    observer.observe(sentinelRef.value)
+  }
 }
 
 const goToDetail = (postId) => {
@@ -285,6 +322,7 @@ const handleLike = async (post) => {
       : Math.max(0, (post.likeCount || 0) - 1)
   } catch (err) {
     console.error('点赞失败:', err)
+    ElMessage.error('操作失败，请重试')
   }
 }
 
@@ -294,6 +332,7 @@ const handleFavorite = async (post) => {
     post.favorited = !post.favorited
   } catch (err) {
     console.error('收藏失败:', err)
+    ElMessage.error('操作失败，请重试')
   }
 }
 
@@ -308,15 +347,8 @@ const copyLink = async () => {
     ElMessage.success('链接已复制到剪贴板')
     showShareDialog.value = false
   } catch {
-    // fallback
-    const input = document.createElement('input')
-    input.value = shareLink.value
-    document.body.appendChild(input)
-    input.select()
-    document.execCommand('copy')
-    document.body.removeChild(input)
-    ElMessage.success('链接已复制到剪贴板')
-    showShareDialog.value = false
+    // Clipboard API 不可用时，提示用户手动复制
+    ElMessage.info('请手动复制链接')
   }
 }
 
@@ -329,6 +361,8 @@ const handleRefresh = async () => {
   if (isRefreshing.value) return
   isRefreshing.value = true
   posts.value = []
+  hasMore.value = false
+  pageNum.value = 1
   await fetchPosts(1)
   isRefreshing.value = false
 }
@@ -339,20 +373,24 @@ const resetEditor = () => {
 
 const refreshUnreadCount = () => {
   const lastSeen = localStorage.getItem(LAST_SEEN_KEY)
-  if (lastSeen) {
-    getInteractionUnreadCount(lastSeen).then(res => {
-      if (res.code === 200) {
-        unreadCount.value = res.data || 0
-      }
-    })
-  } else {
-    unreadCount.value = 0
-  }
+  if (!lastSeen) return
+  getInteractionUnreadCount(lastSeen).then(res => {
+    if (res.code === 200) {
+      unreadCount.value = res.data || 0
+    }
+  }).catch(() => {})
 }
 
 onMounted(() => {
   fetchPosts(1)
   refreshUnreadCount()
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
 })
 </script>
 
@@ -362,7 +400,7 @@ onMounted(() => {
 /* 【社区页面容器】注意：不能在此元素上使用带 transform 的动画，
    否则会创建新的包含块，导致内部 position: fixed 的悬浮按钮定位失效 */
 .community-page {
-  min-height: 100%;
+  min-height: 0;
   padding: 0 0 40px;
   position: relative;
 }
@@ -687,6 +725,12 @@ onMounted(() => {
   margin: 0;
   font-size: 14px;
   color: var(--text-muted);
+}
+
+/* 【无限滚动哨兵】 */
+.scroll-sentinel {
+  height: 1px;
+  width: 100%;
 }
 
 /* 【加载更多】居中布局 */

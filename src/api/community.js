@@ -111,6 +111,13 @@ export function createComment(postId, data) {
   })
 }
 
+export function getCommentDetail(postId, commentId) {
+  return request({
+    url: `/api/community/posts/${postId}/comments/${commentId}/detail`,
+    method: 'get'
+  })
+}
+
 /**
  * 获取评论的回复列表
  * @param {number|string} postId

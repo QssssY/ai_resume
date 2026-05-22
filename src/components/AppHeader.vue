@@ -1,7 +1,7 @@
 <template>
   <header class="app-header">
     <div class="header-left">
-      <img src="@/assets/logo.jpg" class="logo-img" />
+      <img src="@/assets/logo.jpg" class="logo-img" alt="Logo" />
       <span class="logo-text">智能模拟面试与简历诊断系统</span>
     </div>
 
@@ -59,6 +59,16 @@
         :class="{ active: isGrowthActive }"
       >
         成长中心
+      </router-link>
+
+      <!-- 已登录才显示 Offer 辅助 -->
+      <router-link
+        v-if="isLoggedIn"
+        to="/offer"
+        class="nav-link"
+        :class="{ active: isOfferActive }"
+      >
+        Offer 辅助
       </router-link>
 
       <!-- 已登录才显示历史记录下拉菜单 -->
@@ -162,6 +172,8 @@
       <template v-if="isLoggedIn">
         <!-- 消息通知铃铛 -->
         <el-popover
+          v-if="notificationRealtimeEnabled"
+          v-model:visible="notificationPopoverVisible"
           placement="bottom-end"
           :width="360"
           trigger="click"
@@ -217,29 +229,16 @@
                 :class="{ unread: item.readStatus === 0 }"
                 @click="handleNotificationRead(item)"
               >
-                <div class="panel-item-icon" :class="`type-${item.type}`">
-                  <svg v-if="item.type === 'resume'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                  <svg v-else-if="item.type === 'polish'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                  <svg v-else-if="item.type === 'interview'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                  </svg>
-                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                </div>
+                <NotificationTypeIcon class="panel-item-icon" :type="item.type" size="sm" />
                 <div class="panel-item-content">
-                  <div class="panel-item-title">{{ item.title }}</div>
+                  <div class="panel-item-title-row">
+                    <div class="panel-item-title">{{ item.title }}</div>
+                    <el-tag :type="getNotificationTypeMeta(item.type).tagType" size="small" effect="plain">
+                      {{ getNotificationTypeMeta(item.type).label }}
+                    </el-tag>
+                  </div>
                   <div class="panel-item-text">{{ item.content }}</div>
-                  <div class="panel-item-time">{{ formatNotifTime(item.createTime) }}</div>
+                  <div class="panel-item-time">{{ formatNotificationTime(item.createTime, { compact: true }) }}</div>
                 </div>
                 <div v-if="item.readStatus === 0" class="panel-item-dot"></div>
               </div>
@@ -251,10 +250,35 @@
           </div>
         </el-popover>
 
+      <el-dialog
+          v-model="announcementDialogVisible"
+          class="announcement-dialog"
+          :show-close="true"
+          :append-to-body="true"
+        >
+          <template #header>
+            <div class="announcement-dialog-header" v-if="selectedAnnouncement">
+              <NotificationTypeIcon :type="selectedAnnouncement.type" size="sm" />
+              <div class="announcement-dialog-title-block">
+                <div class="announcement-dialog-title">{{ selectedAnnouncement.title }}</div>
+                <div class="announcement-dialog-meta">
+                  <el-tag :type="getNotificationTypeMeta(selectedAnnouncement.type).tagType" size="small" effect="plain">
+                    {{ getNotificationTypeMeta(selectedAnnouncement.type).label }}
+                  </el-tag>
+                  <span>{{ formatNotificationTime(selectedAnnouncement.createTime) }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+          <div class="announcement-dialog-content" v-if="selectedAnnouncement">
+            {{ selectedAnnouncement.content }}
+          </div>
+        </el-dialog>
+
         <el-dropdown trigger="click" @command="handleCommand">
           <div class="avatar-wrapper avatar-sm">
             <div class="avatar-ring avatar-sm">
-              <img src="@/assets/user.png" class="avatar-img avatar-sm" />
+              <img src="@/assets/user.png" class="avatar-img avatar-sm" alt="用户头像" />
             </div>
           </div>
           <template #dropdown>
@@ -262,7 +286,7 @@
               <!-- 用户信息区 -->
               <div class="user-info-header">
                 <div class="user-info-avatar-wrapper">
-                  <img src="@/assets/user.png" />
+                  <img src="@/assets/user.png" alt="用户头像" />
                 </div>
                 <div class="user-info-content">
                   <div class="user-info-name">
@@ -275,6 +299,19 @@
               </div>
 
               <!-- 个人中心入口 -->
+              <el-dropdown-item command="nickname">
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+                修改昵称
+              </el-dropdown-item>
               <el-dropdown-item command="profile">
                 <svg
                   class="dropdown-icon"
@@ -287,43 +324,6 @@
                   <circle cx="12" cy="7" r="4" />
                 </svg>
                 个人中心
-              </el-dropdown-item>
-              <el-dropdown-item command="nickname">
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M17 3a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2-2V7a2 2 0 0 1 2-2 2 2 0 0 1-2-2V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2-2V7a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2" transform="scale(0.7) translate(4, 4)"/>
-                </svg>
-                修改昵称
-              </el-dropdown-item>
-              <el-dropdown-item command="password">
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                修改密码
-              </el-dropdown-item>
-              <el-dropdown-item command="securityQuestion">
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                修改安全问题
               </el-dropdown-item>
               <!-- 退出登录 -->
               <!-- 会员中心入口：
@@ -354,6 +354,19 @@
                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                 </svg>
                 个人动态中心
+              </el-dropdown-item>
+              <el-dropdown-item command="settings">
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6l-.09.09a2 2 0 0 1-2.83-2.83l.09-.09A1.65 1.65 0 0 0 10.6 15a1.65 1.65 0 0 0-1.82-.33l-.11.05a2 2 0 0 1-2.6-2.6l.05-.11A1.65 1.65 0 0 0 4.6 10a1.65 1.65 0 0 0-.6-1l-.09-.09a2 2 0 0 1 2.83-2.83l.09.09A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6l.09-.09a2 2 0 0 1 2.83 2.83l-.09.09A1.65 1.65 0 0 0 13.4 9a1.65 1.65 0 0 0 1.82.33l.11-.05a2 2 0 0 1 2.6 2.6l-.05.11A1.65 1.65 0 0 0 19.4 15z" />
+                </svg>
+                设置中心
               </el-dropdown-item>
               <el-dropdown-item command="logout" class="logout-item">
                 <svg
@@ -431,6 +444,13 @@
         >
         <router-link
           v-if="isLoggedIn"
+          to="/offer"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >Offer 辅助</router-link
+        >
+        <router-link
+          v-if="isLoggedIn"
           to="/resume/history"
           class="mobile-nav-link"
           @click="drawerVisible = false"
@@ -451,7 +471,7 @@
           >个人中心</router-link
         >
         <router-link
-          v-if="isLoggedIn"
+          v-if="isLoggedIn && notificationRealtimeEnabled"
           to="/notifications"
           class="mobile-nav-link"
           @click="drawerVisible = false"
@@ -459,6 +479,13 @@
           消息通知
           <span v-if="unreadCount > 0" class="mobile-unread-badge">{{ unreadCount }}</span>
         </router-link
+        >
+        <router-link
+          v-if="isLoggedIn"
+          to="/settings"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >设置中心</router-link
         >
         <!-- 移动端主题切换 -->
         <button class="mobile-nav-link theme-toggle-mobile" @click="themeStore.toggleTheme(); drawerVisible = false">
@@ -483,186 +510,49 @@
 
     <el-dialog
       v-model="nicknameDialogVisible"
-      title="修改昵称"
-      width="440px"
-      :close-on-click-modal="false"
       class="nickname-dialog"
-      :show-close="true"
+      title="修改昵称"
+      width="min(440px, calc(100vw - 24px))"
+      :close-on-click-modal="false"
       :append-to-body="true"
+      @closed="resetNicknameForm"
     >
-      <div class="nickname-modal-content">
-        <div class="nickname-icon-wrapper">
-          <svg class="nickname-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        </div>
-        <div class="nickname-header">
-          <h3 class="nickname-title">设置你的专属昵称</h3>
-          <p class="nickname-desc">昵称将用于个人中心、会员中心等展示</p>
-        </div>
+      <el-form
+        ref="nicknameFormRef"
+        :model="nicknameForm"
+        :rules="nicknameRules"
+        label-position="top"
+        class="nickname-form"
+      >
         <div class="nickname-current">
-          <span class="current-label">当前昵称</span>
-          <span class="current-value">{{ userStore.userInfo?.nickname || userStore.userInfo?.username || '未设置' }}</span>
+          <div class="nickname-current-avatar">
+            <img src="@/assets/user.png" alt="用户头像" />
+          </div>
+          <div class="nickname-current-text">
+            <span>当前昵称</span>
+            <strong>{{ username }}</strong>
+          </div>
         </div>
-        <div class="nickname-input-wrapper">
+        <el-form-item label="新昵称" prop="nickname">
           <el-input
             v-model="nicknameForm.nickname"
-            placeholder="请输入新昵称"
             maxlength="12"
             show-word-limit
             clearable
-            size="large"
-            class="nickname-input"
-          >
-            <template #prefix>
-              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M17 3a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2-2V7a2 2 0 0 1 2-2 2 2 0 0 1-2-2V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1-2-2V7a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2"/>
-              </svg>
-            </template>
-          </el-input>
-          <div class="input-tips">2-12个字符，可使用中文、字母、数字</div>
-        </div>
-      </div>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button size="large" @click="nicknameDialogVisible = false">取消</el-button>
-          <el-button
-            size="large"
-            type="primary"
-            @click="saveNickname"
-            :disabled="!nicknameForm.nickname || nicknameForm.nickname.trim().length < 2"
-            class="save-btn"
-          >
-            保存修改
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
-
-    <!-- 修改密码弹窗 -->
-    <el-dialog
-      v-model="passwordDialogVisible"
-      title="修改密码"
-      width="440px"
-      :close-on-click-modal="false"
-      :show-close="true"
-      :append-to-body="true"
-      @closed="resetPasswordForm"
-    >
-      <el-form
-        ref="passwordFormRef"
-        :model="passwordForm"
-        :rules="passwordRules"
-        label-position="top"
-        size="large"
-      >
-        <el-form-item label="原密码" prop="oldPassword">
-          <el-input
-            v-model="passwordForm.oldPassword"
-            type="password"
-            show-password
-            placeholder="请输入原密码"
-          />
-        </el-form-item>
-        <el-form-item label="新密码" prop="newPassword">
-          <el-input
-            v-model="passwordForm.newPassword"
-            type="password"
-            show-password
-            placeholder="请输入新密码（6-100位）"
-          />
-        </el-form-item>
-        <el-form-item label="确认新密码" prop="confirmPassword">
-          <el-input
-            v-model="passwordForm.confirmPassword"
-            type="password"
-            show-password
-            placeholder="请再次输入新密码"
+            autocomplete="nickname"
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button size="large" @click="passwordDialogVisible = false">取消</el-button>
-          <el-button
-            size="large"
-            type="primary"
-            @click="handlePasswordSave"
-            :loading="passwordSaving"
-            class="save-btn"
-          >
-            确认修改
+          <el-button @click="nicknameDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="nicknameSaving" @click="handleNicknameSave">
+            保存昵称
           </el-button>
         </div>
       </template>
     </el-dialog>
 
-    <!-- 修改安全问题弹窗 -->
-    <el-dialog
-      v-model="securityDialogVisible"
-      title="修改安全问题"
-      width="440px"
-      :close-on-click-modal="false"
-      :show-close="true"
-      :append-to-body="true"
-      @closed="resetSecurityForm"
-    >
-      <el-form
-        ref="securityFormRef"
-        :model="securityForm"
-        :rules="securityRules"
-        label-position="top"
-        size="large"
-      >
-        <el-form-item label="原密码" prop="oldPassword">
-          <el-input
-            v-model="securityForm.oldPassword"
-            type="password"
-            show-password
-            placeholder="请输入原密码验证身份"
-          />
-        </el-form-item>
-        <el-form-item label="安全问题" prop="securityQuestion">
-          <el-select
-            v-model="securityForm.securityQuestion"
-            placeholder="请选择或输入安全问题"
-            filterable
-            allow-create
-            style="width: 100%"
-          >
-            <el-option
-              v-for="q in securityQuestionOptions"
-              :key="q"
-              :label="q"
-              :value="q"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="安全答案" prop="securityAnswer">
-          <el-input
-            v-model="securityForm.securityAnswer"
-            placeholder="请输入安全问题答案"
-            maxlength="100"
-            show-word-limit
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button size="large" @click="securityDialogVisible = false">取消</el-button>
-          <el-button
-            size="large"
-            type="primary"
-            @click="handleSecuritySave"
-            :loading="securitySaving"
-            class="save-btn"
-          >
-            确认修改
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
   </header>
 </template>
 
@@ -673,79 +563,25 @@ import { useUserStore } from "@/stores/user";
 import { useThemeStore } from "@/stores/theme";
 import { ElMessage } from "element-plus";
 import { removeToken } from "@/utils/auth";
-import { updateNickname, updatePassword, updateSecurityQuestion } from "@/api/auth";
+import { updateNickname } from "@/api/auth";
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, connectNotificationStream } from "@/api/notification";
+import NotificationTypeIcon from "@/components/notification/NotificationTypeIcon.vue";
+import { formatNotificationTime, getNotificationTypeMeta, isAdminAnnouncementType } from "@/utils/notificationMeta";
+import { getSettingsPreferences, SETTINGS_PREFERENCES_UPDATED_EVENT } from "@/utils/settingsPreferences";
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 const themeStore = useThemeStore();
+const settingsPreferences = ref(getSettingsPreferences());
 
 const drawerVisible = ref(false);
-/**
- * 修改昵称弹窗显示状态
- */
 const nicknameDialogVisible = ref(false);
-/**
- * 昵称表单数据
- */
+const nicknameFormRef = ref(null);
+const nicknameSaving = ref(false);
 const nicknameForm = ref({ nickname: "" });
 const isLoggedIn = computed(() => userStore.isLoggedIn());
-
-// ===== 修改密码相关状态 =====
-const passwordDialogVisible = ref(false);
-const passwordFormRef = ref(null);
-const passwordSaving = ref(false);
-const passwordForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' });
-
-// ===== 修改安全问题相关状态 =====
-const securityDialogVisible = ref(false);
-const securityFormRef = ref(null);
-const securitySaving = ref(false);
-const securityForm = ref({ oldPassword: '', securityQuestion: '', securityAnswer: '' });
-
-/** 预设安全问题列表（与注册页一致） */
-const securityQuestionOptions = [
-  "你的第一只宠物叫什么名字？",
-  "你的出生城市是哪里？",
-  "你小学班主任叫什么名字？",
-  "你最喜欢的电影是什么？",
-  "你母亲的名字是什么？",
-  "你的第一辆车是什么品牌？",
-  "你高中学校的名称是什么？",
-  "你最好的朋友叫什么名字？",
-];
-
-/** 确认密码校验器 */
-const validateConfirmPassword = (rule, value, callback) => {
-  if (value !== passwordForm.value.newPassword) {
-    callback(new Error('两次输入的密码不一致'));
-  } else {
-    callback();
-  }
-};
-
-const passwordRules = {
-  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
-  newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, max: 100, message: '密码长度应为6-100个字符', trigger: 'blur' }
-  ],
-  confirmPassword: [
-    { required: true, message: '请再次输入新密码', trigger: 'blur' },
-    { validator: validateConfirmPassword, trigger: 'blur' }
-  ]
-};
-
-/** 安全问题表单校验规则 */
-const securityRules = {
-  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
-  securityQuestion: [{ required: true, message: '请选择或输入安全问题', trigger: 'change' }],
-  securityAnswer: [
-    { required: true, message: '请输入安全答案', trigger: 'blur' },
-    { max: 100, message: '安全答案长度不能超过100个字符', trigger: 'blur' }
-  ]
-};
+const notificationRealtimeEnabled = computed(() => settingsPreferences.value.notificationRealtimeEnabled !== false);
 
 // ===== 消息通知相关状态 =====
 /** 未读通知数量 */
@@ -758,10 +594,39 @@ const notificationPopoverVisible = ref(false);
 const notificationLoading = ref(false);
 /** 全部已读加载状态 */
 const markAllReadLoading = ref(false);
+/** 公告详情弹窗状态 */
+const announcementDialogVisible = ref(false);
+const selectedAnnouncement = ref(null);
 /** 轮询定时器（SSE 断线降级方案） */
 let notificationTimer = null;
 /** SSE 连接控制器 */
 let sseController = null;
+
+/**
+ * 同步读取本机设置偏好。
+ * 设置中心保存后会派发自定义事件，这里需要即时刷新顶部通知行为。
+ */
+const syncSettingsPreferences = (nextPreferences) => {
+  settingsPreferences.value = nextPreferences || getSettingsPreferences();
+};
+
+const handleSettingsPreferencesUpdated = (event) => {
+  syncSettingsPreferences(event.detail);
+};
+
+const stopNotificationRealtime = () => {
+  if (sseController) {
+    sseController.abort();
+    sseController = null;
+  }
+  if (notificationTimer) {
+    clearInterval(notificationTimer);
+    notificationTimer = null;
+  }
+  notificationPopoverVisible.value = false;
+  unreadCount.value = 0;
+  notificationList.value = [];
+};
 
 /**
  * 获取未读通知数量
@@ -783,7 +648,7 @@ const fetchUnreadCount = async () => {
 const fetchNotificationList = async () => {
   notificationLoading.value = true;
   try {
-    const res = await getNotifications({ page: 1, size: 10 });
+    const res = await getNotifications({ pageNum: 1, size: 10 });
     if (res.code === 200) {
       notificationList.value = res.data.records || [];
       unreadCount.value = Number(res.data.unreadCount) || 0;
@@ -793,6 +658,26 @@ const fetchNotificationList = async () => {
   } finally {
     notificationLoading.value = false;
   }
+};
+
+const updatePanelNotificationReadState = (id, readStatus, readTime) => {
+  notificationList.value = notificationList.value.map((item) =>
+    item.id === id ? { ...item, readStatus, readTime } : item
+  );
+};
+
+const markPanelNotificationReadOptimistically = (item) => {
+  if (item.readStatus !== 0) return;
+
+  const readTime = new Date().toISOString();
+  updatePanelNotificationReadState(item.id, 1, readTime);
+  unreadCount.value = Math.max(0, unreadCount.value - 1);
+
+  markAsRead(item.id).catch((e) => {
+    console.error("标记已读失败，回滚状态", e);
+    updatePanelNotificationReadState(item.id, 0, item.readTime || null);
+    unreadCount.value += 1;
+  });
 };
 
 /**
@@ -807,21 +692,15 @@ const handleNotificationOpen = () => {
  * 单条通知标记已读
  */
 const handleNotificationRead = async (item) => {
-  if (item.readStatus === 0) {
-    // 乐观更新 UI
-    item.readStatus = 1;
-    item.readTime = new Date().toISOString();
-    unreadCount.value = Math.max(0, unreadCount.value - 1);
-    // 发送已读请求（不阻塞导航，失败时回滚 UI）
-    markAsRead(item.id).catch((e) => {
-      console.error("标记已读失败，回滚状态", e);
-      item.readStatus = 0;
-      item.readTime = null;
-      unreadCount.value += 1;
-    });
-  }
-  // 关闭面板并跳转
+  markPanelNotificationReadOptimistically(item);
   notificationPopoverVisible.value = false;
+
+  if (isAdminAnnouncementType(item.type) && item.broadcastId) {
+    selectedAnnouncement.value = item;
+    announcementDialogVisible.value = true;
+    return;
+  }
+
   if (item.bizType === "resume_diagnosis" && item.bizId) {
     router.push(`/resume/result/${item.bizId}`);
   } else if (item.bizType === "resume_polish" && item.bizId) {
@@ -839,10 +718,10 @@ const handleMarkAllRead = async () => {
   try {
     await markAllAsRead();
     unreadCount.value = 0;
-    notificationList.value.forEach((item) => {
-      item.readStatus = 1;
-      item.readTime = new Date().toISOString();
-    });
+    const readTime = new Date().toISOString();
+    notificationList.value = notificationList.value.map((item) => (
+      item.readStatus === 0 ? { ...item, readStatus: 1, readTime } : item
+    ));
     ElMessage.success("已全部标记为已读");
   } catch {
     // 拦截器已弹出错误提示
@@ -859,24 +738,14 @@ const goToNotificationPage = () => {
   router.push("/notifications");
 };
 
-/**
- * 格式化通知时间
- */
-const formatNotifTime = (time) => {
-  if (!time) return "";
-  const date = new Date(time);
-  const now = new Date();
-  const diff = now - date;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  if (minutes < 1) return "刚刚";
-  if (minutes < 60) return `${minutes}分钟前`;
-  if (hours < 24) return `${hours}小时前`;
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${month}-${day}`;
-};
 const username = computed(() => userStore.userInfo?.nickname || userStore.userInfo?.username || "用户");
+
+const nicknameRules = {
+  nickname: [
+    { required: true, message: "请输入昵称", trigger: "blur" },
+    { min: 2, max: 12, message: "昵称长度应为 2-12 个字符", trigger: "blur" }
+  ]
+};
 
 // 用户角色判定
 const isAdmin = computed(() => userStore.userInfo?.role === 9);
@@ -924,6 +793,9 @@ const isCommunityActive = computed(() => route.path.startsWith("/community"));
 // 成长中心激活状态
 const isGrowthActive = computed(() => route.path === "/growth");
 
+// Offer 辅助激活状态
+const isOfferActive = computed(() => route.path.startsWith("/offer"));
+
 // 历史记录父级激活状态
 const isHistoryActive = computed(() => {
   const path = route.path;
@@ -949,23 +821,55 @@ const handleHistoryCommand = (command) => {
   }
 };
 
+const openNicknameDialog = () => {
+  nicknameForm.value.nickname = userStore.userInfo?.nickname || "";
+  nicknameDialogVisible.value = true;
+};
+
+const resetNicknameForm = () => {
+  nicknameForm.value.nickname = userStore.userInfo?.nickname || "";
+  nicknameFormRef.value?.resetFields();
+};
+
+const handleNicknameSave = async () => {
+  if (!nicknameFormRef.value) return;
+  try {
+    await nicknameFormRef.value.validate();
+  } catch {
+    return;
+  }
+
+  nicknameSaving.value = true;
+  try {
+    await updateNickname({ nickname: nicknameForm.value.nickname.trim() });
+    // 昵称保存后刷新用户信息，头像菜单与页面标题可立即同步新昵称。
+    if (typeof userStore.fetchUserInfo === "function") {
+      await userStore.fetchUserInfo();
+    }
+    nicknameDialogVisible.value = false;
+    ElMessage.success("昵称已保存");
+  } finally {
+    nicknameSaving.value = false;
+  }
+};
+
 // 处理头像下拉菜单命令
 const handleCommand = (command) => {
-  if (command === "profile") {
+  if (command === "nickname") {
+    openNicknameDialog();
+  } else if (command === "profile") {
     router.push("/dashboard");
   } else if (command === "membership") {
     router.push("/membership");
   } else if (command === "activity") {
     router.push("/community/my");
-  } else if (command === "nickname") {
-    // 打开弹窗时填充当前昵称
-    nicknameForm.value.nickname = userStore.userInfo?.nickname || "";
-    nicknameDialogVisible.value = true;
+  } else if (command === "settings") {
+    router.push("/settings");
   } else if (command === "password") {
     passwordDialogVisible.value = true;
   } else if (command === "securityQuestion") {
     securityDialogVisible.value = true;
-} else if (command === "logout") {
+  } else if (command === "logout") {
     // 断开 SSE 连接
     if (sseController) {
       sseController.abort();
@@ -979,109 +883,9 @@ const handleCommand = (command) => {
   }
 };
 
-/**
- * 保存修改后的昵称
- * 1. 校验昵称长度（2-12字符）
- * 2. 调用后端接口更新昵称
- * 3. 成功后刷新用户信息
- */
-const saveNickname = async () => {
-  const trimmed = nicknameForm.value.nickname?.trim() || "";
-  if (trimmed.length < 2 || trimmed.length > 12) {
-    ElMessage.warning("昵称长度需为2-12个字符");
-    return;
-  }
-  try {
-    await updateNickname({ nickname: trimmed });
-    ElMessage.success("昵称修改成功");
-    nicknameDialogVisible.value = false;
-    userStore.fetchUserInfo();
-  } catch {
-    // 拦截器已弹出错误提示
-  }
-};
-
-/**
- * 重置密码表单
- */
-const resetPasswordForm = () => {
-  passwordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
-  passwordFormRef.value?.resetFields();
-};
-
-/**
- * 保存密码修改
- * 1. 表单校验
- * 2. 调用后端接口修改密码
- * 3. 成功后清除登录态，跳转登录页
- */
-const handlePasswordSave = async () => {
-  if (!passwordFormRef.value) return;
-  try {
-    await passwordFormRef.value.validate();
-  } catch {
-    return;
-  }
-  passwordSaving.value = true;
-  try {
-    await updatePassword({
-      oldPassword: passwordForm.value.oldPassword,
-      newPassword: passwordForm.value.newPassword
-    });
-    ElMessage.success("密码修改成功，请重新登录");
-    passwordDialogVisible.value = false;
-    // 清除登录态，跳转登录页
-    localStorage.removeItem("token");
-    removeToken();
-    userStore.clearUserInfo();
-    router.push("/login");
-  } catch {
-    // 拦截器已弹出错误提示，此处不再重复
-  } finally {
-    passwordSaving.value = false;
-  }
-};
-
-/**
- * 重置安全问题表单
- */
-const resetSecurityForm = () => {
-  securityForm.value = { oldPassword: '', securityQuestion: '', securityAnswer: '' };
-  securityFormRef.value?.resetFields();
-};
-
-/**
- * 保存安全问题修改
- * 1. 表单校验
- * 2. 调用后端接口修改安全问题
- * 3. 成功后关闭弹窗
- */
-const handleSecuritySave = async () => {
-  if (!securityFormRef.value) return;
-  try {
-    await securityFormRef.value.validate();
-  } catch {
-    return;
-  }
-  securitySaving.value = true;
-  try {
-    await updateSecurityQuestion({
-      oldPassword: securityForm.value.oldPassword,
-      securityQuestion: securityForm.value.securityQuestion,
-      securityAnswer: securityForm.value.securityAnswer
-    });
-    ElMessage.success("安全问题修改成功");
-    securityDialogVisible.value = false;
-  } catch {
-    // 拦截器已弹出错误提示
-  } finally {
-    securitySaving.value = false;
-  }
-};
-
 // 监听登录状态变化，启动或停止通知推送
-watch(isLoggedIn, (loggedIn) => {
-  if (loggedIn) {
+watch([isLoggedIn, notificationRealtimeEnabled], ([loggedIn, realtimeEnabled]) => {
+  if (loggedIn && realtimeEnabled) {
     fetchUnreadCount();
     // 建立 SSE 实时推送连接
     sseController = connectNotificationStream({
@@ -1092,11 +896,7 @@ watch(isLoggedIn, (loggedIn) => {
         }
         if (data.notification) {
           // 始终将新通知插入列表头部，确保打开面板时能看到
-          notificationList.value.unshift(data.notification);
-          // 保持列表不超过 10 条
-          if (notificationList.value.length > 10) {
-            notificationList.value.pop();
-          }
+          notificationList.value = [data.notification, ...notificationList.value].slice(0, 10);
         }
       },
       onUnreadCount(data) {
@@ -1106,35 +906,27 @@ watch(isLoggedIn, (loggedIn) => {
       },
       onError() {
         // SSE 断线时降级为轮询（由外层统一管理定时器，此处仅记录日志）
-        console.warn("[SSE] 连接断开，降级为轮询模式");
       }
     });
     // 降级轮询：每 5 分钟同步一次（防止 SSE 丢失事件）
     notificationTimer = setInterval(fetchUnreadCount, 300000);
   } else {
-    // 断开 SSE 连接
-    if (sseController) {
-      sseController.abort();
-      sseController = null;
-    }
-    if (notificationTimer) {
-      clearInterval(notificationTimer);
-      notificationTimer = null;
-    }
-    unreadCount.value = 0;
-    notificationList.value = [];
+    // 退出登录或关闭实时通知时，统一清理连接和本地展示状态。
+    stopNotificationRealtime();
   }
 }, { immediate: true });
 
+onMounted(() => {
+  if (typeof window !== "undefined") {
+    window.addEventListener(SETTINGS_PREFERENCES_UPDATED_EVENT, handleSettingsPreferencesUpdated);
+  }
+});
+
 onUnmounted(() => {
-  if (sseController) {
-    sseController.abort();
-    sseController = null;
+  if (typeof window !== "undefined") {
+    window.removeEventListener(SETTINGS_PREFERENCES_UPDATED_EVENT, handleSettingsPreferencesUpdated);
   }
-  if (notificationTimer) {
-    clearInterval(notificationTimer);
-    notificationTimer = null;
-  }
+  stopNotificationRealtime();
 });
 </script>
 
@@ -1325,263 +1117,6 @@ onUnmounted(() => {
   }
 }
 
-/* 修改昵称弹窗样式 - 全新美学设计 */
-.nickname-dialog :deep(.el-dialog) {
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.nickname-dialog :deep(.el-dialog__header) {
-  padding: 0;
-  border-bottom: none;
-}
-
-.nickname-dialog :deep(.el-dialog__headerbtn) {
-  top: 16px;
-  right: 16px;
-  z-index: 10;
-}
-
-.nickname-dialog :deep(.el-dialog__headerbtn .el-dialog__close) {
-  color: var(--text-muted);
-  transition: all 0.2s;
-}
-
-.nickname-dialog :deep(.el-dialog__headerbtn .el-dialog__close:hover) {
-  color: var(--text-title);
-  transform: rotate(90deg);
-}
-
-.nickname-dialog :deep(.el-dialog__body) {
-  padding: 0;
-}
-
-.nickname-dialog :deep(.el-dialog__footer) {
-  padding: 0 24px 24px;
-  border-top: none;
-}
-
-/* 弹窗主体内容 */
-.nickname-modal-content {
-  padding: 32px 24px 16px;
-  text-align: center;
-}
-
-/* 图标包装 */
-.nickname-icon-wrapper {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 20px;
-  background: linear-gradient(135deg, var(--bg-page) 0%, var(--orange-light-bg) 100%);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: icon-pulse 2s ease-in-out infinite;
-}
-
-@keyframes icon-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
-
-.nickname-icon {
-  width: 32px;
-  height: 32px;
-  color: var(--orange-main);
-}
-
-/* 标题区域 */
-.nickname-header {
-  margin-bottom: 24px;
-}
-
-.nickname-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-title);
-  margin: 0 0 8px;
-  letter-spacing: -0.02em;
-}
-
-.nickname-desc {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-/* 当前昵称展示 */
-.nickname-current {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-card-hover) 100%);
-  border-radius: 12px;
-  margin-bottom: 20px;
-}
-
-.current-label {
-  font-size: 13px;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.current-value {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--orange-main);
-}
-
-/* 输入框包装 */
-.nickname-input-wrapper {
-  text-align: left;
-}
-
-.nickname-input :deep(.el-input__wrapper) {
-  border-radius: 12px;
-  padding: 4px 16px;
-  box-shadow: none;
-  border: 2px solid var(--border-input);
-  transition: all 0.25s ease;
-}
-
-.nickname-input :deep(.el-input__wrapper):hover {
-  border-color: var(--border-divider);
-}
-
-.nickname-input :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--orange-main);
-  box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.15);
-}
-
-.nickname-input :deep(.el-input__inner) {
-  font-size: 15px;
-  color: var(--text-title);
-}
-
-.nickname-input :deep(.el-input__inner::placeholder) {
-  color: var(--text-placeholder);
-}
-
-.nickname-input :deep(.el-input__prefix) {
-  left: 12px;
-}
-
-.input-icon {
-  width: 18px;
-  height: 18px;
-  color: var(--text-placeholder);
-}
-
-.input-tips {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 8px;
-  text-align: center;
-}
-
-/* 底部按钮 */
-.dialog-footer {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-}
-
-.dialog-footer .el-button {
-  padding: 12px 32px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.dialog-footer .el-button:not(.el-button--primary) {
-  background: var(--bg-elevated);
-  border: none;
-  color: var(--text-body);
-}
-
-.dialog-footer .el-button:not(.el-button--primary):hover {
-  background: var(--border-divider);
-  color: var(--text-title);
-}
-
-.dialog-footer .el-button--primary {
-  background: linear-gradient(135deg, #ff8c42 0%, #ff6b2b 100%);
-  border: none;
-  box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
-}
-
-.dialog-footer .el-button--primary:hover {
-  background: linear-gradient(135deg, #ff7a2e 0%, #e55a1f 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(255, 140, 66, 0.4);
-}
-
-.dialog-footer .el-button--primary:active {
-  transform: translateY(0);
-}
-
-.dialog-footer .el-button--primary:disabled {
-  background: #ccc;
-  box-shadow: none;
-  cursor: not-allowed;
-}
-
-/* 响应式 */
-@media (max-width: 480px) {
-  .nickname-dialog :deep(.el-dialog) {
-    width: 90% !important;
-    max-width: 360px;
-  }
-
-  .nickname-modal-content {
-    padding: 24px 16px 12px;
-  }
-
-  .nickname-icon-wrapper {
-    width: 56px;
-    height: 56px;
-  }
-
-  .nickname-title {
-    font-size: 18px;
-  }
-
-  .dialog-footer .el-button {
-    padding: 10px 24px;
-    flex: 1;
-  }
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.dialog-footer .el-button {
-  padding: 10px 24px;
-  border-radius: 8px;
-}
-
-.dialog-footer .el-button--primary {
-  background: #ff8c42;
-  border-color: #ff8c42;
-}
-
-.dialog-footer .el-button--primary:hover {
-  background: #ff7a2e;
-  border-color: #ff7a2e;
-}
-
-.dialog-footer .el-button--primary:disabled {
-  background: var(--text-placeholder);
-  border-color: var(--text-placeholder);
-}
-
 /* ===== 消息通知铃铛 ===== */
 .notification-bell {
   position: relative;
@@ -1667,9 +1202,6 @@ onUnmounted(() => {
   animation: spin 0.6s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 
 .panel-empty {
   display: flex;
@@ -1759,22 +1291,33 @@ onUnmounted(() => {
   min-width: 0;
 }
 
+.panel-item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 3px;
+}
+
 .panel-item-title {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-title);
-  margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .panel-item-text {
   font-size: 12px;
   color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
   margin-bottom: 2px;
 }
 
@@ -1833,14 +1376,19 @@ onUnmounted(() => {
   cursor: pointer;
   background: none;
   border: none;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, transform 0.15s;
   margin-right: 4px;
   color: var(--text-body);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .theme-toggle:hover {
   background-color: var(--bg-page);
   color: var(--orange-main);
+}
+
+.theme-toggle:active {
+  transform: scale(0.88);
 }
 
 .theme-toggle svg {
@@ -1859,11 +1407,267 @@ onUnmounted(() => {
   cursor: pointer;
   width: 100%;
   text-align: left;
+  transition: transform 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.theme-toggle-mobile:active {
+  transform: scale(0.96);
 }
 
 .theme-toggle-mobile .theme-icon {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
+}
+
+</style>
+
+<style>
+/* 公告弹窗 — 全局样式，因 append-to-body 需处理 teleport 的元素 */
+.announcement-dialog {
+  --el-dialog-width: 560px;
+}
+
+.announcement-dialog .el-dialog {
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.announcement-dialog .el-dialog__header {
+  padding: 22px 24px 14px;
+  margin-right: 38px;
+}
+
+.announcement-dialog .el-dialog__body {
+  padding: 0 24px 24px;
+}
+
+.announcement-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.announcement-dialog-title-block {
+  min-width: 0;
+}
+
+.announcement-dialog-title {
+  color: var(--text-title);
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.announcement-dialog-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.announcement-dialog-content {
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  background: var(--bg-page);
+  color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .announcement-dialog {
+    --el-dialog-width: calc(100vw - 32px);
+  }
+
+  .announcement-dialog-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .announcement-dialog .el-dialog__header {
+    padding: 16px 16px 10px;
+    margin-right: 32px;
+  }
+
+  .announcement-dialog .el-dialog__body {
+    padding: 0 16px 16px;
+  }
+
+  .announcement-dialog-title {
+    font-size: 16px;
+  }
+
+  .announcement-dialog-content {
+    padding: 12px;
+    font-size: 13px;
+    max-height: 45vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .announcement-dialog {
+    --el-dialog-width: 100vw;
+  }
+
+  .announcement-dialog .el-dialog {
+    border-radius: 0;
+  }
+
+  .announcement-dialog .el-dialog__header {
+    padding: 14px 14px 10px;
+    margin-right: 24px;
+  }
+
+  .announcement-dialog-title {
+    font-size: 15px;
+  }
+
+  .announcement-dialog-content {
+    padding: 10px;
+    font-size: 12px;
+    max-height: 40vh;
+  }
+}
+</style>
+
+<style>
+/* 昵称弹窗使用 append-to-body，需要全局样式覆盖 Element Plus teleport 后的结构。 */
+.nickname-dialog {
+  max-width: calc(100vw - 24px);
+}
+
+.nickname-dialog .el-dialog {
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.nickname-dialog .el-dialog__header {
+  padding: 22px 24px 12px;
+  margin-right: 40px;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.nickname-dialog .el-dialog__title {
+  color: var(--text-title);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.nickname-dialog .el-dialog__body {
+  padding: 20px 24px 6px;
+}
+
+.nickname-dialog .el-dialog__footer {
+  padding: 12px 24px 22px;
+}
+
+.nickname-form .el-form-item {
+  margin-bottom: 0;
+}
+
+.nickname-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 18px;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  background: var(--bg-page);
+}
+
+.nickname-current-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+}
+
+.nickname-current-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.nickname-current-text {
+  min-width: 0;
+}
+
+.nickname-current-text span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.nickname-current-text strong {
+  display: block;
+  margin-top: 4px;
+  min-width: 0;
+  color: var(--text-title);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .nickname-dialog.el-dialog {
+    margin-top: 12vh;
+    margin-bottom: 0;
+  }
+
+  .nickname-dialog .el-dialog__header {
+    padding: 16px 16px 10px;
+    margin-right: 28px;
+  }
+
+  .nickname-dialog .el-dialog__body {
+    padding: 14px 16px 4px;
+  }
+
+  .nickname-dialog .el-dialog__footer {
+    padding: 10px 16px 16px;
+  }
+
+  .nickname-current {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .nickname-current-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .dialog-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .dialog-footer .el-button {
+    width: 100%;
+    margin-left: 0;
+  }
 }
 </style>

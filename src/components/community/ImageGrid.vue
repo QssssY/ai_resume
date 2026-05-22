@@ -6,7 +6,7 @@
       class="grid-item"
       @click.stop="openPreview(index)"
     >
-      <img :src="img" :alt="`图片${index + 1}`" loading="lazy" />
+      <img :src="img" :alt="`图片${index + 1}`" loading="lazy" @error="onImgError" />
       <div class="hover-overlay">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="zoom-icon">
           <circle cx="11" cy="11" r="8" />
@@ -23,33 +23,33 @@
 
   <!-- 自定义图片预览（不使用 el-image-viewer，避免 focus-trap 副作用） -->
   <Teleport to="body">
-    <Transition name="viewer-fade">
-      <div v-if="viewerVisible" class="custom-viewer" @click.self="closePreview">
+    <Transition name="community-viewer-fade">
+      <div v-if="viewerVisible" class="community-viewer" @click.self="closePreview">
         <!-- 关闭按钮 -->
-        <button class="viewer-close" @click="closePreview">
+        <button class="community-viewer-close" @click="closePreview">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </button>
         <!-- 左箭头 -->
-        <button v-if="images.length > 1" class="viewer-arrow viewer-prev" @click.stop="prevImage">
+        <button v-if="images.length > 1" class="community-viewer-arrow community-viewer-prev" @click.stop="prevImage">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
         <!-- 图片 -->
-        <div class="viewer-canvas" @click.self="closePreview">
-          <img :src="images[viewerIndex]" class="viewer-img" draggable="false" />
+        <div class="community-viewer-canvas" @click.self="closePreview">
+          <img :src="images[viewerIndex]" class="community-viewer-img" draggable="false" />
         </div>
         <!-- 右箭头 -->
-        <button v-if="images.length > 1" class="viewer-arrow viewer-next" @click.stop="nextImage">
+        <button v-if="images.length > 1" class="community-viewer-arrow community-viewer-next" @click.stop="nextImage">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </button>
         <!-- 计数器 -->
-        <div v-if="images.length > 1" class="viewer-counter">
+        <div v-if="images.length > 1" class="community-viewer-counter">
           {{ viewerIndex + 1 }} / {{ images.length }}
         </div>
       </div>
@@ -95,6 +95,10 @@ const onKeydown = (e) => {
   if (e.key === 'Escape') closePreview()
   else if (e.key === 'ArrowLeft') prevImage()
   else if (e.key === 'ArrowRight') nextImage()
+}
+
+const onImgError = (e) => {
+  e.target.style.display = 'none'
 }
 
 onBeforeUnmount(() => {
@@ -216,7 +220,7 @@ onBeforeUnmount(() => {
 
 <style>
 /* 自定义图片预览样式（非 scoped，因为 Teleport 到 body） */
-.custom-viewer {
+.community-viewer {
   position: fixed;
   inset: 0;
   z-index: 3000;
@@ -227,7 +231,7 @@ onBeforeUnmount(() => {
   user-select: none;
 }
 
-.viewer-close {
+.community-viewer-close {
   position: absolute;
   top: 16px;
   right: 16px;
@@ -245,16 +249,16 @@ onBeforeUnmount(() => {
   z-index: 10;
 }
 
-.viewer-close:hover {
+.community-viewer-close:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.viewer-close svg {
+.community-viewer-close svg {
   width: 22px;
   height: 22px;
 }
 
-.viewer-canvas {
+.community-viewer-canvas {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,14 +267,14 @@ onBeforeUnmount(() => {
   padding: 60px;
 }
 
-.viewer-img {
+.community-viewer-img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
   border-radius: 4px;
 }
 
-.viewer-arrow {
+.community-viewer-arrow {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -288,24 +292,24 @@ onBeforeUnmount(() => {
   z-index: 10;
 }
 
-.viewer-arrow:hover {
+.community-viewer-arrow:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.viewer-arrow svg {
+.community-viewer-arrow svg {
   width: 22px;
   height: 22px;
 }
 
-.viewer-prev {
+.community-viewer-prev {
   left: 16px;
 }
 
-.viewer-next {
+.community-viewer-next {
   right: 16px;
 }
 
-.viewer-counter {
+.community-viewer-counter {
   position: absolute;
   bottom: 20px;
   left: 50%;
@@ -317,13 +321,13 @@ onBeforeUnmount(() => {
   border-radius: 12px;
 }
 
-.viewer-fade-enter-active,
-.viewer-fade-leave-active {
+.community-viewer-fade-enter-active,
+.community-viewer-fade-leave-active {
   transition: opacity 0.25s ease;
 }
 
-.viewer-fade-enter-from,
-.viewer-fade-leave-to {
+.community-viewer-fade-enter-from,
+.community-viewer-fade-leave-to {
   opacity: 0;
 }
 </style>

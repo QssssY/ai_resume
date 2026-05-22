@@ -27,7 +27,10 @@
       </div>
       <h3 class="error-title">加载失败</h3>
       <p class="error-desc">帖子可能已被删除或不存在</p>
-      <el-button type="primary" @click="goBack">返回社区</el-button>
+      <div class="error-actions">
+        <el-button type="primary" @click="loadPost">重新加载</el-button>
+        <el-button @click="goBack">返回社区</el-button>
+      </div>
     </div>
 
     <!-- 主内容 -->
@@ -95,7 +98,7 @@
       <!-- 下半部分：评论区 -->
       <section ref="commentSectionRef" class="comment-area">
         <div class="comment-inner">
-          <CommentSection :post-id="postId" :post-user-id="post?.userId" @comment-deleted="post.commentCount = Math.max(0, (post.commentCount || 0) - 1)" />
+          <CommentSection :key="postId" :post-id="postId" :post-user-id="post?.userId" :scroll-to-id="scrollToId" :scroll-to-parent-id="scrollToParentId" @comment-deleted="post.commentCount = Math.max(0, (post.commentCount || 0) - 1)" @comment-added="post.commentCount = (post.commentCount || 0) + 1" />
         </div>
       </section>
     </template>
@@ -119,17 +122,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPostDetail, togglePostLike, togglePostFavorite } from '@/api/community'
 import ImageGrid from '@/components/community/ImageGrid.vue'
 import CommentSection from '@/components/community/CommentSection.vue'
 import defaultAvatar from '@/assets/user.png'
+import { formatTime, categoryLabel } from '@/utils/community'
 
 const router = useRouter()
 const route = useRoute()
-const postId = route.params.postId
+const postId = computed(() => route.params.postId)
+const scrollToId = computed(() => route.query.commentId || null)
+const scrollToParentId = computed(() => route.query.parentCommentId || null)
 
 const post = ref(null)
 const loading = ref(true)
@@ -138,27 +144,13 @@ const commentSectionRef = ref(null)
 const showShareDialog = ref(false)
 const shareLink = ref('')
 
-const categoryLabel = (cat) => {
-  const map = { interview_exp: '面试经验', referral: '内推信息' }
-  return map[cat] || cat
-}
-
-const formatTime = (time) => {
-  if (!time) return ''
-  const date = new Date(time)
-  const now = new Date()
-  const diff = now - date
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}天前`
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${month}-${day}`
-}
+// 路由参数变化时重新加载（Vue Router 会复用组件，onMounted 不会重新触发）
+watch(() => route.params.postId, (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    post.value = null
+    loadPost()
+  }
+})
 
 const goBack = () => {
   if (window.history.length > 1) {
@@ -177,6 +169,7 @@ const handleLike = async () => {
       : Math.max(0, (post.value.likeCount || 0) - 1)
   } catch (err) {
     console.error('点赞失败:', err)
+    ElMessage.error('操作失败，请重试')
   }
 }
 
@@ -186,6 +179,7 @@ const handleFavorite = async () => {
     post.value.favorited = !post.value.favorited
   } catch (err) {
     console.error('收藏失败:', err)
+    ElMessage.error('操作失败，请重试')
   }
 }
 
@@ -200,14 +194,7 @@ const copyLink = async () => {
     ElMessage.success('链接已复制到剪贴板')
     showShareDialog.value = false
   } catch {
-    const input = document.createElement('input')
-    input.value = shareLink.value
-    document.body.appendChild(input)
-    input.select()
-    document.execCommand('copy')
-    document.body.removeChild(input)
-    ElMessage.success('链接已复制到剪贴板')
-    showShareDialog.value = false
+    ElMessage.info('请手动复制链接')
   }
 }
 
@@ -215,9 +202,14 @@ const scrollToComments = () => {
   commentSectionRef.value?.scrollIntoView({ behavior: 'smooth' })
 }
 
-onMounted(async () => {
+const loadPost = async () => {
+  loading.value = true
+  loadError.value = false
+  // 重置滚动位置到顶部
+  const scrollContainer = document.querySelector('.layout-content')
+  if (scrollContainer) scrollContainer.scrollTop = 0
   try {
-    const res = await getPostDetail(postId)
+    const res = await getPostDetail(postId.value)
     if (res.code === 200) {
       post.value = res.data
     } else {
@@ -229,13 +221,15 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+loadPost()
 </script>
 
 <style scoped>
 /* ===== 整体页面 ===== */
 .post-detail-page {
-  min-height: 100%;
+  min-height: 0;
   animation: pageIn 0.35s ease both;
 }
 
@@ -328,6 +322,7 @@ onMounted(async () => {
 .error-icon-wrapper svg { width: 40px; height: 40px; color: var(--color-danger); }
 .error-title { margin: 0 0 8px; font-size: 18px; font-weight: 600; color: var(--text-title); }
 .error-desc { margin: 0 0 24px; font-size: 14px; color: var(--text-muted); }
+.error-actions { display: flex; gap: 12px; }
 
 /* ===== 上半部分：帖子区 ===== */
 .post-area {

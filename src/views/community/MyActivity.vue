@@ -12,18 +12,20 @@
     </div>
 
     <!-- 标签栏 -->
-    <div class="tab-bar">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        class="tab-btn"
-        :class="{ active: activeTab === tab.key }"
-        @click="switchTab(tab.key)"
-      >
-        {{ tab.label }}
-        <span v-if="tab.key === 'interactions' && unreadCount > 0" class="unread-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-      </button>
-      <div class="tab-indicator" :style="indicatorStyle"></div>
+    <div class="tab-bar-wrapper">
+      <div class="tab-bar">
+        <button
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="tab-btn"
+          :class="{ active: activeTab === tab.key }"
+          @click="switchTab(tab.key)"
+        >
+          <span class="tab-label">{{ tab.label }}</span>
+          <span v-if="tab.hasUnread && unreadCount > 0" class="unread-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+        </button>
+        <div class="tab-indicator" :style="indicatorStyle"></div>
+      </div>
     </div>
 
     <!-- 加载状态 -->
@@ -35,7 +37,7 @@
     <!-- 评论列表（评论过的帖子标签） -->
     <div v-else-if="activeTab === 'commented' && commentedState.comments.value.length > 0" class="post-list">
       <TransitionGroup name="post-card" tag="div" class="post-list-inner">
-        <div v-for="item in commentedState.comments.value" :key="item.commentId" class="my-comment-card" :class="{ 'post-deleted': item.postDeleted }" @click="!item.postDeleted && goToDetail(item.postId)">
+        <div v-for="item in commentedState.comments.value" :key="item.commentId" class="my-comment-card" :class="{ 'post-deleted': item.postDeleted }" @click="!item.postDeleted && goToDetail(item.postId, item.commentId, item.parentCommentId)">
           <!-- 我的评论（主要） -->
           <div class="comment-primary">
             <div class="comment-primary-header">
@@ -74,7 +76,7 @@
       </TransitionGroup>
 
       <!-- 加载更多 -->
-      <div v-if="commentedState.hasMore.value && commentedState.comments.value.length >= pageSize" class="load-more">
+      <div v-if="commentedState.hasMore.value" class="load-more">
         <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
           <span v-if="loadingMore" class="btn-spinner"></span>
           <span v-else>加载更多</span>
@@ -88,8 +90,8 @@
       </div>
     </div>
 
-    <!-- 帖子列表（我的帖子 / 点赞过的帖子标签） -->
-    <div v-else-if="activeTab !== 'commented' && activeTab !== 'interactions' && currentTabState.posts.value.length > 0" class="post-list">
+    <!-- 帖子列表（我的帖子 / 点赞过的帖子 / 收藏的帖子） -->
+    <div v-else-if="['mine', 'liked', 'favorited'].includes(activeTab) && currentTabState.posts.value.length > 0" class="post-list">
       <TransitionGroup name="post-card" tag="div" class="post-list-inner">
         <div v-for="post in currentTabState.posts.value" :key="post.id" class="my-post-card">
           <div class="card-main" @click="goToDetail(post.id)">
@@ -132,7 +134,7 @@
       </TransitionGroup>
 
       <!-- 加载更多 -->
-      <div v-if="currentTabState.hasMore.value && currentTabState.posts.value.length >= pageSize" class="load-more">
+      <div v-if="currentTabState.hasMore.value" class="load-more">
         <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
           <span v-if="loadingMore" class="btn-spinner"></span>
           <span v-else>加载更多</span>
@@ -146,116 +148,134 @@
       </div>
     </div>
 
-    <!-- 互动信息列表 -->
-    <div v-else-if="activeTab === 'interactions' && hasInteractions" class="interactions-page">
-      <!-- 点赞分组 -->
-      <div v-if="interactionsState.likes.value.length > 0" class="interaction-section">
-        <div class="interaction-section-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          <span>点赞 ({{ interactionsState.totalLikes.value }})</span>
-        </div>
-        <div class="interaction-list">
-          <div v-for="item in interactionsState.likes.value" :key="`like-${item.userId}-${item.postId}`" class="interaction-card" @click="goToDetail(item.postId)">
-            <div class="interaction-card-main">
-              <span class="actor-name">{{ item.userName }}</span>
-              <span class="action-text">赞了你的帖子</span>
-              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
-            </div>
-            <div class="interaction-post-ref">
-              <span class="category-dot" :class="item.postCategory"></span>
-              <span class="post-snippet">{{ item.postContent }}</span>
-            </div>
+    <!-- 收到的点赞列表 -->
+    <div v-else-if="activeTab === 'receivedLikes' && receivedLikesState.items.value.length > 0" class="post-list">
+      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
+        <div v-for="item in receivedLikesState.items.value" :key="`like-${item.userId}-${item.postId}`" class="interaction-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId)">
+          <div class="interaction-card-main">
+            <span class="actor-name">{{ item.userName }}</span>
+            <span v-if="isNewInteraction(item.createTime)" class="new-badge">新</span>
+            <span class="action-text">赞了你的帖子</span>
+            <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
+          </div>
+          <div class="interaction-post-ref">
+            <span class="category-dot" :class="item.postCategory"></span>
+            <span class="post-snippet">{{ item.postContent }}</span>
           </div>
         </div>
-      </div>
-
-      <!-- 评论分组 -->
-      <div v-if="interactionsState.comments.value.length > 0" class="interaction-section">
-        <div class="interaction-section-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <span>评论 ({{ interactionsState.totalComments.value }})</span>
-        </div>
-        <div class="interaction-list">
-          <div v-for="item in interactionsState.comments.value" :key="`comment-${item.userId}-${item.createTime}`" class="interaction-card" @click="goToDetail(item.postId)">
-            <div class="interaction-card-main">
-              <span class="actor-name">{{ item.userName }}</span>
-              <span class="action-text">评论了你的帖子</span>
-              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
-            </div>
-            <p class="comment-content">{{ item.commentContent }}</p>
-            <div class="interaction-post-ref">
-              <span class="category-dot" :class="item.postCategory"></span>
-              <span class="post-snippet">{{ item.postContent }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 回复分组 -->
-      <div v-if="interactionsState.replies.value.length > 0" class="interaction-section">
-        <div class="interaction-section-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 17 4 12 9 7" />
-            <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-          </svg>
-          <span>回复 ({{ interactionsState.totalReplies.value }})</span>
-        </div>
-        <div class="interaction-list">
-          <div v-for="item in interactionsState.replies.value" :key="`reply-${item.userId}-${item.createTime}`" class="interaction-card" @click="goToDetail(item.postId)">
-            <div class="interaction-card-main">
-              <span class="actor-name">{{ item.userName }}</span>
-              <span class="action-text">回复了你的评论</span>
-              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
-            </div>
-            <p class="comment-content">{{ item.replyContent }}</p>
-            <div v-if="item.parentCommentContent" class="reply-parent">
-              <span class="reply-parent-label">原评论：</span>
-              <span class="reply-parent-text">{{ item.parentCommentContent }}</span>
-            </div>
-            <div class="interaction-post-ref">
-              <span class="category-dot" :class="item.postCategory"></span>
-              <span class="post-snippet">{{ item.postContent }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 收藏分组 -->
-      <div v-if="interactionsState.favorites.value.length > 0" class="interaction-section">
-        <div class="interaction-section-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-          </svg>
-          <span>收藏 ({{ interactionsState.totalFavorites.value }})</span>
-        </div>
-        <div class="interaction-list">
-          <div v-for="item in interactionsState.favorites.value" :key="`fav-${item.userId}-${item.postId}`" class="interaction-card" @click="goToDetail(item.postId)">
-            <div class="interaction-card-main">
-              <span class="actor-name">{{ item.userName }}</span>
-              <span class="action-text">收藏了你的帖子</span>
-              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
-            </div>
-            <div class="interaction-post-ref">
-              <span class="category-dot" :class="item.postCategory"></span>
-              <span class="post-snippet">{{ item.postContent }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      </TransitionGroup>
 
       <!-- 加载更多 -->
-      <div v-if="interactionsState.hasMore.value && (interactionsState.likes.value.length + interactionsState.comments.value.length + interactionsState.replies.value.length + interactionsState.favorites.value.length) >= pageSize" class="load-more">
+      <div v-if="receivedLikesState.hasMore.value" class="load-more">
         <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
           <span v-if="loadingMore" class="btn-spinner"></span>
           <span v-else>加载更多</span>
         </button>
       </div>
 
-      <div v-if="!interactionsState.hasMore.value && hasInteractions" class="no-more">
+      <div v-if="!receivedLikesState.hasMore.value && receivedLikesState.items.value.length > 0" class="no-more">
+        <span class="no-more-line"></span>
+        <span class="no-more-text">没有更多了</span>
+        <span class="no-more-line"></span>
+      </div>
+    </div>
+
+    <!-- 收到的评论列表 -->
+    <div v-else-if="activeTab === 'receivedComments' && receivedCommentsState.items.value.length > 0" class="post-list">
+      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
+        <div v-for="item in receivedCommentsState.items.value" :key="`comment-${item.commentId}`" class="interaction-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId, item.commentId)">
+          <div class="interaction-card-main">
+            <span class="actor-name">{{ item.userName }}</span>
+            <span v-if="isNewInteraction(item.createTime)" class="new-badge">新</span>
+            <span class="action-text">评论了你的帖子</span>
+            <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
+          </div>
+          <p class="comment-content">{{ item.commentContent }}</p>
+          <div class="interaction-post-ref">
+            <span class="category-dot" :class="item.postCategory"></span>
+            <span class="post-snippet">{{ item.postContent }}</span>
+          </div>
+        </div>
+      </TransitionGroup>
+
+      <!-- 加载更多 -->
+      <div v-if="receivedCommentsState.hasMore.value" class="load-more">
+        <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+          <span v-if="loadingMore" class="btn-spinner"></span>
+          <span v-else>加载更多</span>
+        </button>
+      </div>
+
+      <div v-if="!receivedCommentsState.hasMore.value && receivedCommentsState.items.value.length > 0" class="no-more">
+        <span class="no-more-line"></span>
+        <span class="no-more-text">没有更多了</span>
+        <span class="no-more-line"></span>
+      </div>
+    </div>
+
+    <!-- 收到的回复列表 -->
+    <div v-else-if="activeTab === 'receivedReplies' && receivedRepliesState.items.value.length > 0" class="post-list">
+      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
+        <div v-for="item in receivedRepliesState.items.value" :key="`reply-${item.replyId}`" class="interaction-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId, item.replyId, item.parentCommentId)">
+          <div class="interaction-card-main">
+            <span class="actor-name">{{ item.userName }}</span>
+            <span v-if="isNewInteraction(item.createTime)" class="new-badge">新</span>
+            <span class="action-text">回复了你的评论</span>
+            <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
+          </div>
+          <p class="comment-content">{{ item.replyContent }}</p>
+          <div v-if="item.parentCommentContent" class="reply-parent">
+            <span class="reply-parent-label">原评论：</span>
+            <span class="reply-parent-text">{{ item.parentCommentContent }}</span>
+          </div>
+          <div class="interaction-post-ref">
+            <span class="category-dot" :class="item.postCategory"></span>
+            <span class="post-snippet">{{ item.postContent }}</span>
+          </div>
+        </div>
+      </TransitionGroup>
+
+      <!-- 加载更多 -->
+      <div v-if="receivedRepliesState.hasMore.value" class="load-more">
+        <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+          <span v-if="loadingMore" class="btn-spinner"></span>
+          <span v-else>加载更多</span>
+        </button>
+      </div>
+
+      <div v-if="!receivedRepliesState.hasMore.value && receivedRepliesState.items.value.length > 0" class="no-more">
+        <span class="no-more-line"></span>
+        <span class="no-more-text">没有更多了</span>
+        <span class="no-more-line"></span>
+      </div>
+    </div>
+
+    <!-- 收到的收藏列表 -->
+    <div v-else-if="activeTab === 'receivedFavorites' && receivedFavoritesState.items.value.length > 0" class="post-list">
+      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
+        <div v-for="item in receivedFavoritesState.items.value" :key="`fav-${item.userId}-${item.postId}`" class="interaction-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId)">
+          <div class="interaction-card-main">
+            <span class="actor-name">{{ item.userName }}</span>
+            <span v-if="isNewInteraction(item.createTime)" class="new-badge">新</span>
+            <span class="action-text">收藏了你的帖子</span>
+            <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
+          </div>
+          <div class="interaction-post-ref">
+            <span class="category-dot" :class="item.postCategory"></span>
+            <span class="post-snippet">{{ item.postContent }}</span>
+          </div>
+        </div>
+      </TransitionGroup>
+
+      <!-- 加载更多 -->
+      <div v-if="receivedFavoritesState.hasMore.value" class="load-more">
+        <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+          <span v-if="loadingMore" class="btn-spinner"></span>
+          <span v-else>加载更多</span>
+        </button>
+      </div>
+
+      <div v-if="!receivedFavoritesState.hasMore.value && receivedFavoritesState.items.value.length > 0" class="no-more">
         <span class="no-more-line"></span>
         <span class="no-more-text">没有更多了</span>
         <span class="no-more-line"></span>
@@ -301,6 +321,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getMyPosts, getLikedPosts, getFavoritedPosts, getMyComments, deletePost, getMyInteractions, getInteractionUnreadCount } from '@/api/community'
+import { formatTime, categoryLabel } from '@/utils/community'
 
 const router = useRouter()
 
@@ -310,40 +331,13 @@ const tabs = [
   { key: 'liked', label: '点赞过的帖子' },
   { key: 'favorited', label: '收藏的帖子' },
   { key: 'commented', label: '评论过的帖子' },
-  { key: 'interactions', label: '互动信息' }
+  { key: 'receivedLikes', label: '收到的点赞', hasUnread: true },
+  { key: 'receivedComments', label: '收到的评论', hasUnread: true },
+  { key: 'receivedReplies', label: '收到的回复', hasUnread: true },
+  { key: 'receivedFavorites', label: '收到的收藏', hasUnread: true }
 ]
 
 const activeTab = ref('mine')
-
-// 每个标签独立的状态
-const mineState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
-const likedState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
-const favoritedState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
-const commentedState = { comments: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
-const interactionsState = {
-  likes: ref([]),
-  comments: ref([]),
-  replies: ref([]),
-  favorites: ref([]),
-  totalLikes: ref(0),
-  totalComments: ref(0),
-  totalReplies: ref(0),
-  totalFavorites: ref(0),
-  pageNum: ref(1),
-  hasMore: ref(false),
-  loading: ref(false)
-}
-
-// 未读互动数量
-const unreadCount = ref(0)
-const LAST_SEEN_KEY = 'community_last_interaction_seen'
-let interactionsViewed = false
-
-const postStateMap = { mine: mineState, liked: likedState, favorited: favoritedState }
-const currentTabState = computed(() => activeTab.value === 'commented' ? commentedState : postStateMap[activeTab.value])
-
-const pageSize = 5
-const loadingMore = ref(false)
 
 // 标签下划线指示器位置
 const indicatorStyle = computed(() => {
@@ -351,15 +345,51 @@ const indicatorStyle = computed(() => {
   return { transform: `translateX(${idx * 100}%)` }
 })
 
+// 每个标签独立的状态
+const mineState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const likedState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const favoritedState = { posts: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const commentedState = { comments: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+
+// 收到的互动状态（每个类型独立）
+const receivedLikesState = { items: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const receivedCommentsState = { items: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const receivedRepliesState = { items: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+const receivedFavoritesState = { items: ref([]), pageNum: ref(1), hasMore: ref(false), loading: ref(false) }
+
+// 未读互动数量
+const unreadCount = ref(0)
+const LAST_SEEN_KEY = 'community_last_interaction_seen'
+let interactionsViewed = false
+const lastSeenTime = ref(localStorage.getItem(LAST_SEEN_KEY) || '')
+const isNewInteraction = (time) => {
+  if (!lastSeenTime.value || !time) return false
+  return new Date(time) > new Date(lastSeenTime.value)
+}
+
+const postStateMap = { mine: mineState, liked: likedState, favorited: favoritedState }
+const interactionStateMap = {
+  receivedLikes: receivedLikesState,
+  receivedComments: receivedCommentsState,
+  receivedReplies: receivedRepliesState,
+  receivedFavorites: receivedFavoritesState
+}
+
+const currentTabState = computed(() => {
+  if (activeTab.value === 'commented') return commentedState
+  if (interactionStateMap[activeTab.value]) return interactionStateMap[activeTab.value]
+  return postStateMap[activeTab.value]
+})
+
+const pageSize = 2
+const loadingMore = ref(false)
+
 // 加载状态判断
 const isLoading = computed(() => {
   if (activeTab.value === 'commented') return commentedState.loading.value && commentedState.comments.value.length === 0
-  if (activeTab.value === 'interactions') return interactionsState.loading.value && interactionsState.likes.value.length === 0 && interactionsState.comments.value.length === 0 && interactionsState.replies.value.length === 0 && interactionsState.favorites.value.length === 0
+  if (interactionStateMap[activeTab.value]) return interactionStateMap[activeTab.value].loading.value && interactionStateMap[activeTab.value].items.value.length === 0
   return currentTabState.value.loading.value && currentTabState.value.posts.value.length === 0
 })
-
-// 互动信息是否有数据
-const hasInteractions = computed(() => interactionsState.likes.value.length > 0 || interactionsState.comments.value.length > 0 || interactionsState.replies.value.length > 0 || interactionsState.favorites.value.length > 0)
 
 // 空状态文案
 const emptyInfo = computed(() => {
@@ -368,7 +398,10 @@ const emptyInfo = computed(() => {
     liked: { title: '还没有点赞过帖子', desc: '去社区浏览并点赞感兴趣的帖子吧' },
     favorited: { title: '还没有收藏过帖子', desc: '去社区收藏感兴趣的帖子吧' },
     commented: { title: '还没有评论过帖子', desc: '去社区参与讨论吧' },
-    interactions: { title: '还没有收到互动', desc: '发布帖子后，其他用户的点赞和评论会显示在这里' }
+    receivedLikes: { title: '还没有收到点赞', desc: '发布帖子后，其他用户的点赞会显示在这里' },
+    receivedComments: { title: '还没有收到评论', desc: '发布帖子后，其他用户的评论会显示在这里' },
+    receivedReplies: { title: '还没有收到回复', desc: '评论帖子后，其他用户的回复会显示在这里' },
+    receivedFavorites: { title: '还没有收到收藏', desc: '发布帖子后，其他用户的收藏会显示在这里' }
   }
   return map[activeTab.value]
 })
@@ -379,28 +412,6 @@ const getImageCount = (imagesJson) => {
     const arr = JSON.parse(imagesJson)
     return Array.isArray(arr) ? arr.length : 0
   } catch { return 0 }
-}
-
-const categoryLabel = (cat) => {
-  const map = { interview_exp: '面试经验', referral: '内推信息' }
-  return map[cat] || cat
-}
-
-const formatTime = (time) => {
-  if (!time) return ''
-  const date = new Date(time)
-  const now = new Date()
-  const diff = now - date
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}天前`
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${month}-${day}`
 }
 
 // 获取指定标签的数据
@@ -414,12 +425,13 @@ const fetchTabData = async (tab, page = 1, append = false) => {
       const res = await getMyComments({ pageNum: page, pageSize })
       if (res.code === 200) {
         const records = res.data?.list || []
+        const total = res.data?.total || 0
         if (append) {
           state.comments.value.push(...records)
         } else {
           state.comments.value = records
         }
-        state.hasMore.value = records.length === pageSize
+        state.hasMore.value = state.comments.value.length < total
         state.pageNum.value = page
       }
     } catch (err) {
@@ -428,58 +440,36 @@ const fetchTabData = async (tab, page = 1, append = false) => {
       state.loading.value = false
       loadingMore.value = false
     }
-  } else if (tab === 'interactions') {
-    // 互动信息标签：获取收到的点赞、评论和回复
-    const state = interactionsState
+  } else if (tab === 'receivedLikes' || tab === 'receivedComments' || tab === 'receivedReplies' || tab === 'receivedFavorites') {
+    // 收到的互动标签：获取互动信息
+    const state = interactionStateMap[tab]
     if (page === 1) state.loading.value = true
     else loadingMore.value = true
     try {
       const res = await getMyInteractions({ pageNum: page, pageSize })
       if (res.code === 200) {
         const data = res.data || {}
-        const newLikes = data.likes || []
-        const newComments = data.comments || []
-        const newReplies = data.replies || []
-        const newFavorites = data.favorites || []
+        let newItems = []
+        let total = 0
+        if (tab === 'receivedLikes') { newItems = data.likes || []; total = data.totalLikes || 0 }
+        else if (tab === 'receivedComments') { newItems = data.comments || []; total = data.totalComments || 0 }
+        else if (tab === 'receivedReplies') { newItems = data.replies || []; total = data.totalReplies || 0 }
+        else if (tab === 'receivedFavorites') { newItems = data.favorites || []; total = data.totalFavorites || 0 }
+
         if (append) {
-          // 每种类型独立判断：本页有新数据才追加
-          const likeKey = (i) => `${i.userId}-${i.postId}`
-          const commentKey = (i) => `${i.userId}-${i.commentContent}-${i.createTime}`
-          const replyKey = (i) => `${i.userId}-${i.replyContent}-${i.createTime}`
-          const favKey = (i) => `${i.userId}-${i.postId}`
-          if (newLikes.length > 0) {
-            const existing = new Set(state.likes.value.map(likeKey))
-            state.likes.value.push(...newLikes.filter(i => !existing.has(likeKey(i))))
-          }
-          if (newComments.length > 0) {
-            const existing = new Set(state.comments.value.map(commentKey))
-            state.comments.value.push(...newComments.filter(i => !existing.has(commentKey(i))))
-          }
-          if (newReplies.length > 0) {
-            const existing = new Set(state.replies.value.map(replyKey))
-            state.replies.value.push(...newReplies.filter(i => !existing.has(replyKey(i))))
-          }
-          if (newFavorites.length > 0) {
-            const existing = new Set(state.favorites.value.map(favKey))
-            state.favorites.value.push(...newFavorites.filter(i => !existing.has(favKey(i))))
-          }
+          const keyFn = tab === 'receivedLikes' || tab === 'receivedFavorites'
+            ? (i) => `${i.userId}-${i.postId}`
+            : (i) => `${i.userId}-${i.commentId || i.replyId}-${i.createTime}`
+          const existing = new Set(state.items.value.map(keyFn))
+          state.items.value.push(...newItems.filter(i => !existing.has(keyFn(i))))
         } else {
-          state.likes.value = newLikes
-          state.comments.value = newComments
-          state.replies.value = newReplies
-          state.favorites.value = newFavorites
+          state.items.value = newItems
         }
-        state.totalLikes.value = data.totalLikes || 0
-        state.totalComments.value = data.totalComments || 0
-        state.totalReplies.value = data.totalReplies || 0
-        state.totalFavorites.value = data.totalFavorites || 0
-        const loadedTotal = state.likes.value.length + state.comments.value.length + state.replies.value.length + state.favorites.value.length
-        const actualTotal = state.totalLikes.value + state.totalComments.value + state.totalReplies.value + state.totalFavorites.value
-        state.hasMore.value = loadedTotal < actualTotal && (newLikes.length + newComments.length + newReplies.length + newFavorites.length) > 0
+        state.hasMore.value = state.items.value.length < total
         state.pageNum.value = page
       }
     } catch (err) {
-      console.error('[个人动态] 获取互动信息失败:', err)
+      console.error(`[个人动态] 获取${tab}失败:`, err)
     } finally {
       state.loading.value = false
       loadingMore.value = false
@@ -494,12 +484,13 @@ const fetchTabData = async (tab, page = 1, append = false) => {
       const res = await apiMap[tab]({ pageNum: page, pageSize })
       if (res.code === 200) {
         const records = res.data?.list || []
+        const total = res.data?.total || 0
         if (append) {
           state.posts.value.push(...records)
         } else {
           state.posts.value = records
         }
-        state.hasMore.value = records.length === pageSize
+        state.hasMore.value = state.posts.value.length < total
         state.pageNum.value = page
       }
     } catch (err) {
@@ -518,15 +509,18 @@ const switchTab = (tab) => {
     if (commentedState.comments.value.length === 0 && !commentedState.loading.value) {
       fetchTabData(tab, 1)
     }
-  } else if (tab === 'interactions') {
-    // 清除未读标记
+  } else if (tab === 'receivedLikes' || tab === 'receivedComments' || tab === 'receivedReplies' || tab === 'receivedFavorites') {
+    // 先保留当前 lastSeen 用于标记新互动，再更新为当前时间
     const d = new Date()
     const pad = (n) => String(n).padStart(2, '0')
     const now = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
     localStorage.setItem(LAST_SEEN_KEY, now)
+    // 延迟更新 lastSeenTime，让用户先看到哪些是新的
+    setTimeout(() => { lastSeenTime.value = now }, 5000)
     unreadCount.value = 0
     interactionsViewed = true
-    if (interactionsState.likes.value.length === 0 && interactionsState.comments.value.length === 0 && interactionsState.replies.value.length === 0 && interactionsState.favorites.value.length === 0 && !interactionsState.loading.value) {
+    const state = interactionStateMap[tab]
+    if (state.items.value.length === 0 && !state.loading.value) {
       fetchTabData(tab, 1)
     }
   } else {
@@ -538,16 +532,14 @@ const switchTab = (tab) => {
 }
 
 const loadMore = () => {
-  if (activeTab.value === 'interactions') {
-    fetchTabData('interactions', interactionsState.pageNum.value + 1, true)
-  } else {
-    const state = currentTabState.value
-    fetchTabData(activeTab.value, state.pageNum.value + 1, true)
-  }
+  const state = currentTabState.value
+  fetchTabData(activeTab.value, state.pageNum.value + 1, true)
 }
 
-const goToDetail = (postId) => {
-  router.push(`/community/post/${postId}`)
+const goToDetail = (postId, commentId, parentCommentId) => {
+  const query = commentId ? { commentId } : {}
+  if (parentCommentId) query.parentCommentId = parentCommentId
+  router.push({ path: `/community/post/${postId}`, query })
 }
 
 const goBack = () => {
@@ -604,7 +596,7 @@ onMounted(() => {
 
 <style scoped>
 .my-activity-page {
-  min-height: 100%;
+  min-height: 0;
   padding: 0 0 40px;
   animation: pageIn 0.35s ease both;
 }
@@ -664,13 +656,16 @@ onMounted(() => {
 }
 
 /* ===== 标签栏 ===== */
+.tab-bar-wrapper {
+  margin-bottom: 24px;
+}
+
 .tab-bar {
   display: flex;
   position: relative;
   background: var(--bg-card);
   border-radius: 12px;
   padding: 4px;
-  margin-bottom: 24px;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border-card);
 }
@@ -683,12 +678,14 @@ onMounted(() => {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   border-radius: 9px;
   transition: color 0.25s;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tab-btn.active {
@@ -696,24 +693,24 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.tab-btn {
+.tab-label {
   position: relative;
 }
 
 .unread-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  top: -4px;
+  right: -12px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
   background: #f53f3f;
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  line-height: 18px;
+  line-height: 16px;
   text-align: center;
-  border-radius: 10px;
+  border-radius: 8px;
   z-index: 2;
   pointer-events: none;
   box-shadow: 0 1px 3px rgba(245, 63, 63, 0.4);
@@ -723,7 +720,7 @@ onMounted(() => {
   position: absolute;
   top: 4px;
   left: 4px;
-  width: calc((100% - 8px) / 5);
+  width: calc((100% - 8px) / 8);
   height: calc(100% - 8px);
   background: linear-gradient(135deg, var(--orange-main), var(--orange-deep));
   border-radius: 9px;
@@ -1008,42 +1005,7 @@ onMounted(() => {
   height: 14px;
 }
 
-/* ===== 互动信息页面 ===== */
-.interactions-page {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.interaction-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.interaction-section-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-title);
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--orange-border);
-}
-
-.interaction-section-header svg {
-  width: 18px;
-  height: 18px;
-  color: var(--orange-main);
-}
-
-.interaction-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
+/* ===== 互动信息卡片 ===== */
 .interaction-card {
   background: var(--bg-card);
   border-radius: 12px;
@@ -1058,6 +1020,12 @@ onMounted(() => {
   border-color: var(--orange-border);
 }
 
+.interaction-card.is-new {
+  background: linear-gradient(135deg, #fff8f5 0%, #fff 100%);
+  border-color: var(--orange-border);
+  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.1);
+}
+
 .interaction-card-main {
   display: flex;
   align-items: center;
@@ -1069,6 +1037,25 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--orange-main);
+}
+
+.new-badge {
+  display: inline-block;
+  padding: 0 6px;
+  height: 18px;
+  line-height: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #ff4d6a, #f53f3f);
+  border-radius: 9px;
+  margin-left: 4px;
+  animation: newPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes newPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .action-text {
@@ -1355,7 +1342,7 @@ onMounted(() => {
 
   .tab-btn {
     font-size: 13px;
-    padding: 9px 0;
+    padding: 9px 12px;
   }
 
   .card-main {
