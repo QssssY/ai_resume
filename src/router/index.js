@@ -210,6 +210,24 @@ const routes = [
     meta: { requiresAuth: true, useLayout: false }
   },
   {
+    path: '/community',
+    name: 'Community',
+    component: () => import('@/views/community/CommunityView.vue'),
+    meta: { requiresAuth: true, useLayout: true }
+  },
+  {
+    path: '/community/post/:postId',
+    name: 'PostDetail',
+    component: () => import('@/views/community/PostDetailView.vue'),
+    meta: { requiresAuth: true, useLayout: true }
+  },
+  {
+    path: '/community/my',
+    name: 'MyActivity',
+    component: () => import('@/views/community/MyActivity.vue'),
+    meta: { requiresAuth: true, useLayout: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }

@@ -1,7 +1,8 @@
 <template>
   <header class="app-header">
     <div class="header-left">
-      <img src="@/assets/header-logo.png" class="logo-img" alt="Logo" />
+      <img src="@/assets/logo.png" class="logo-img" alt="Logo" />
+      <span class="logo-text">智能模拟面试与简历诊断系统</span>
     </div>
 
     <nav class="header-nav desktop-nav">
@@ -38,6 +39,16 @@
         :class="{ active: isTemplateActive }"
       >
         模板库
+      </router-link>
+
+      <!-- 已登录才显示社区 -->
+      <router-link
+        v-if="isLoggedIn"
+        to="/community"
+        class="nav-link"
+        :class="{ active: isCommunityActive }"
+      >
+        社区
       </router-link>
 
       <!-- 已登录才显示成长中心 -->
@@ -138,50 +149,48 @@
 
     <div class="header-right">
       <!-- 主题切换按钮 -->
-      <el-tooltip :content="themeStore.resolvedTheme === 'dark' ? '切换亮色模式' : '切换暗色模式'" placement="bottom" :show-after="300">
-        <button class="theme-toggle" @click="themeStore.toggleTheme()" :aria-label="themeStore.resolvedTheme === 'dark' ? '切换为亮色模式' : '切换为暗色模式'">
-          <!-- 亮色模式显示月亮图标 -->
-          <svg v-if="themeStore.resolvedTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-          <!-- 暗色模式显示太阳图标 -->
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5" />
-            <line x1="12" y1="1" x2="12" y2="3" />
-            <line x1="12" y1="21" x2="12" y2="23" />
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-            <line x1="1" y1="12" x2="3" y2="12" />
-            <line x1="21" y1="12" x2="23" y2="12" />
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-          </svg>
-        </button>
-      </el-tooltip>
+      <button class="theme-toggle" @click="themeStore.toggleTheme()" :aria-label="themeStore.resolvedTheme === 'dark' ? '切换为亮色模式' : '切换为暗色模式'">
+        <!-- 亮色模式显示月亮图标 -->
+        <svg v-if="themeStore.resolvedTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+        <!-- 暗色模式显示太阳图标 -->
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      </button>
 
       <!-- 已登录状态：显示通知铃铛和头像下拉菜单 -->
       <template v-if="isLoggedIn">
         <!-- 消息通知铃铛 -->
-        <template v-if="notificationRealtimeEnabled">
-          <el-popover
-            v-model:visible="notificationPopoverVisible"
-            placement="bottom-end"
-            :width="360"
-            trigger="click"
-            :show-arrow="false"
-            :offset="8"
-            popper-class="notification-popover"
-            @before-enter="handleNotificationOpen"
-          >
-            <template #reference>
-              <div ref="bellRef" class="notification-bell">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                <span v-if="unreadCount > 0" class="bell-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-              </div>
-            </template>
+        <el-popover
+          v-if="notificationRealtimeEnabled"
+          v-model:visible="notificationPopoverVisible"
+          placement="bottom-end"
+          :width="360"
+          trigger="click"
+          :show-arrow="false"
+          :offset="8"
+          popper-class="notification-popover"
+          @before-enter="handleNotificationOpen"
+        >
+          <template #reference>
+            <div class="notification-bell">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span v-if="unreadCount > 0" class="bell-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+            </div>
+          </template>
 
           <!-- 通知下拉面板 -->
           <div class="notification-panel">
@@ -240,9 +249,6 @@
             </div>
           </div>
         </el-popover>
-        <!-- 虚拟触发 tooltip，popover 打开时禁用 -->
-        <el-tooltip content="消息通知" placement="bottom" :show-after="300" :disabled="notificationPopoverVisible" virtual-triggering :virtual-ref="bellRef" />
-        </template>
 
       <el-dialog
           v-model="announcementDialogVisible"
@@ -268,16 +274,6 @@
             {{ selectedAnnouncement.content }}
           </div>
         </el-dialog>
-
-        <!-- 设置中心齿轮按钮 -->
-        <el-tooltip content="设置中心" placement="bottom" :show-after="300">
-          <router-link to="/settings" class="header-icon-btn" :class="{ active: isSettingsActive }" aria-label="设置中心">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </router-link>
-        </el-tooltip>
 
         <el-dropdown trigger="click" @command="handleCommand">
           <div class="avatar-wrapper avatar-sm">
@@ -347,6 +343,31 @@
                 </svg>
                 会员中心
               </el-dropdown-item>
+              <el-dropdown-item command="activity">
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                个人动态中心
+              </el-dropdown-item>
+              <el-dropdown-item command="settings">
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6l-.09.09a2 2 0 0 1-2.83-2.83l.09-.09A1.65 1.65 0 0 0 10.6 15a1.65 1.65 0 0 0-1.82-.33l-.11.05a2 2 0 0 1-2.6-2.6l.05-.11A1.65 1.65 0 0 0 4.6 10a1.65 1.65 0 0 0-.6-1l-.09-.09a2 2 0 0 1 2.83-2.83l.09.09A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6l.09-.09a2 2 0 0 1 2.83 2.83l-.09.09A1.65 1.65 0 0 0 13.4 9a1.65 1.65 0 0 0 1.82.33l.11-.05a2 2 0 0 1 2.6 2.6l-.05.11A1.65 1.65 0 0 0 19.4 15z" />
+                </svg>
+                设置中心
+              </el-dropdown-item>
               <el-dropdown-item command="logout" class="logout-item">
                 <svg
                   class="dropdown-icon"
@@ -406,6 +427,13 @@
           class="mobile-nav-link"
           @click="drawerVisible = false"
           >模板库</router-link
+        >
+        <router-link
+          v-if="isLoggedIn"
+          to="/community"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >社区</router-link
         >
         <router-link
           v-if="isLoggedIn"
@@ -562,8 +590,6 @@ const unreadCount = ref(0);
 const notificationList = ref([]);
 /** 通知面板是否展开 */
 const notificationPopoverVisible = ref(false);
-/** 铃铛 DOM 引用，供虚拟触发 tooltip 使用 */
-const bellRef = ref(null);
 /** 通知加载状态 */
 const notificationLoading = ref(false);
 /** 全部已读加载状态 */
@@ -761,14 +787,14 @@ const isInterviewActive = computed(() => {
 // 模板库激活状态
 const isTemplateActive = computed(() => route.path.startsWith("/templates"));
 
+// 社区激活状态
+const isCommunityActive = computed(() => route.path.startsWith("/community"));
+
 // 成长中心激活状态
 const isGrowthActive = computed(() => route.path === "/growth");
 
 // Offer 辅助激活状态
 const isOfferActive = computed(() => route.path.startsWith("/offer"));
-
-// 设置中心激活状态
-const isSettingsActive = computed(() => route.path === "/settings");
 
 // 历史记录父级激活状态
 const isHistoryActive = computed(() => {
@@ -835,6 +861,10 @@ const handleCommand = (command) => {
     router.push("/dashboard");
   } else if (command === "membership") {
     router.push("/membership");
+  } else if (command === "activity") {
+    router.push("/community/my");
+  } else if (command === "settings") {
+    router.push("/settings");
   } else if (command === "logout") {
     // 断开 SSE 连接
     if (sseController) {
@@ -919,8 +949,15 @@ onUnmounted(() => {
 }
 
 .logo-img {
-  height: 48px;
-  width: auto;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.logo-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-title);
 }
 
 .header-nav {
@@ -1038,8 +1075,8 @@ onUnmounted(() => {
 /* 响应式断点 */
 /* 中屏：1024px - 1279px */
 @media (max-width: 1279px) {
-  .logo-img {
-    height: 42px;
+  .logo-text {
+    font-size: 14px;
   }
   .nav-link {
     padding: 8px 10px;
@@ -1068,8 +1105,11 @@ onUnmounted(() => {
     flex-shrink: 1;
     min-width: 0;
   }
-  .logo-img {
-    height: 38px;
+  .logo-text {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
@@ -1084,7 +1124,7 @@ onUnmounted(() => {
   border-radius: 50%;
   cursor: pointer;
   transition: background-color 0.2s;
-  margin-right: 4px;
+  margin-right: 8px;
 }
 
 .notification-bell:hover {
@@ -1353,43 +1393,6 @@ onUnmounted(() => {
   transition: color 0.2s;
 }
 
-/* 设置中心图标按钮 */
-.header-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  cursor: pointer;
-  background: none;
-  border: none;
-  text-decoration: none;
-  transition: background-color 0.2s, color 0.2s, transform 0.15s;
-  color: var(--text-body);
-  margin-right: 12px;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.header-icon-btn:hover {
-  background-color: var(--bg-page);
-  color: var(--orange-main);
-}
-
-.header-icon-btn.active svg {
-  color: var(--text-title);
-}
-
-.header-icon-btn:active {
-  transform: scale(0.88);
-}
-
-.header-icon-btn svg {
-  width: 20px;
-  height: 20px;
-  transition: color 0.2s;
-}
-
 /* 移动端主题切换 */
 .theme-toggle-mobile {
   display: flex;
@@ -1479,10 +1482,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 767px) {
-  .logo-img {
-    height: 34px;
-  }
-
   .announcement-dialog {
     --el-dialog-width: calc(100vw - 32px);
   }
@@ -1513,10 +1512,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 480px) {
-  .logo-img {
-    height: 30px;
-  }
-
   .announcement-dialog {
     --el-dialog-width: 100vw;
   }
