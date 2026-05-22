@@ -41,6 +41,16 @@
         模板库
       </router-link>
 
+      <!-- 已登录才显示社区 -->
+      <router-link
+        v-if="isLoggedIn"
+        to="/community"
+        class="nav-link"
+        :class="{ active: isCommunityActive }"
+      >
+        社区
+      </router-link>
+
       <!-- 已登录才显示成长中心 -->
       <router-link
         v-if="isLoggedIn"
@@ -333,6 +343,18 @@
                 </svg>
                 会员中心
               </el-dropdown-item>
+              <el-dropdown-item command="activity">
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                个人动态中心
+              </el-dropdown-item>
               <el-dropdown-item command="settings">
                 <svg
                   class="dropdown-icon"
@@ -405,6 +427,13 @@
           class="mobile-nav-link"
           @click="drawerVisible = false"
           >模板库</router-link
+        >
+        <router-link
+          v-if="isLoggedIn"
+          to="/community"
+          class="mobile-nav-link"
+          @click="drawerVisible = false"
+          >社区</router-link
         >
         <router-link
           v-if="isLoggedIn"
@@ -758,6 +787,9 @@ const isInterviewActive = computed(() => {
 // 模板库激活状态
 const isTemplateActive = computed(() => route.path.startsWith("/templates"));
 
+// 社区激活状态
+const isCommunityActive = computed(() => route.path.startsWith("/community"));
+
 // 成长中心激活状态
 const isGrowthActive = computed(() => route.path === "/growth");
 
@@ -829,8 +861,14 @@ const handleCommand = (command) => {
     router.push("/dashboard");
   } else if (command === "membership") {
     router.push("/membership");
+  } else if (command === "activity") {
+    router.push("/community/my");
   } else if (command === "settings") {
     router.push("/settings");
+  } else if (command === "password") {
+    passwordDialogVisible.value = true;
+  } else if (command === "securityQuestion") {
+    securityDialogVisible.value = true;
   } else if (command === "logout") {
     // 断开 SSE 连接
     if (sseController) {

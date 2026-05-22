@@ -45,7 +45,8 @@ onMounted(async () => {
 
 <style scoped>
 .main-layout {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background-color: var(--bg-page, #fff8f3);
   display: flex;
   flex-direction: column;
@@ -63,8 +64,6 @@ onMounted(async () => {
   flex: 1;
   min-height: 0;
   padding: 24px;
-  display: flex;
-  flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
 }
