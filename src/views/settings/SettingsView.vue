@@ -436,9 +436,9 @@
             </el-form>
 
             <div v-else key="accountDeletion" class="account-delete-zone">
-              <div class="account-delete-alert" role="alert">
+              <div class="account-delete-context account-delete-alert" role="alert">
                 <el-icon><Warning /></el-icon>
-                <span>此操作不可恢复，系统将永久清理你的面试、简历、通知等所有数据。</span>
+                <span>注销后不可恢复，系统将永久清理你的面试、简历、通知等所有数据。</span>
               </div>
 
               <el-form
@@ -500,9 +500,10 @@
                 </el-form-item>
                 <el-button
                   type="danger"
+                  :disabled="accountDeleteCountdown > 0 || accountDeleteQuestionLoading || Boolean(accountDeleteQuestionError)"
                   @click="handleAccountDeleteSubmit"
                 >
-                  确认注销
+                  {{ accountDeleteCountdown > 0 ? `等待 ${accountDeleteCountdown} 秒` : '确认注销' }}
                 </el-button>
               </el-form>
             </div>
@@ -1431,7 +1432,9 @@ const handleAccountDeleteSubmit = async () => {
   } catch {
     return
   }
-  // 验证通过 → 打开确认弹窗
+  if (accountDeleteCountdown.value > 0) return
+  // 验证通过后仍进入强确认弹窗，要求用户输入指定文本，避免一次误点直接注销账号。
+  accountDeleteConfirmText.value = ''
   accountDeleteConfirmDialogVisible.value = true
 }
 

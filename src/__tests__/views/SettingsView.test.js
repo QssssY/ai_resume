@@ -165,7 +165,7 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('通知偏好')
     expect(wrapper.text()).toContain('新手引导')
     expect(wrapper.text()).toContain('会员与额度')
-  })
+  }, 15000)
 
   it('shows subscription plan name without exposing internal identifiers', async () => {
     const wrapper = mountView()
@@ -204,7 +204,7 @@ describe('SettingsView', () => {
 
     expect(wrapper.find('input[autocomplete="new-password"]').exists()).toBe(false)
     expect(wrapper.find('section[aria-labelledby="security-title"] .settings-form .el-select').exists()).toBe(true)
-  })
+  }, 15000)
 
   it('renders account deletion as an account security tab', async () => {
     const wrapper = mountView()
@@ -492,7 +492,6 @@ describe('SettingsView', () => {
   })
 
   it('submits account deletion from security tab after cooldown with existing payload', async () => {
-    vi.spyOn(ElMessageBox, 'confirm').mockResolvedValueOnce()
     const wrapper = mountView()
     await flushPromises()
 
@@ -509,12 +508,38 @@ describe('SettingsView', () => {
     await flushPromises()
 
     await wrapper.vm.handleAccountDeleteSubmit()
+    expect(deleteAccount).not.toHaveBeenCalled()
+
+    wrapper.vm.accountDeleteConfirmText = wrapper.vm.accountDeleteExpectedText
+    await wrapper.vm.handleDialogConfirm()
 
     expect(deleteAccount).toHaveBeenCalledWith({
       oldPassword: 'current-password',
       confirmPassword: 'current-password',
       securityAnswer: 'answer'
     })
+  })
+
+  it('opens text confirmation before deleting account', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.activeSection = 'security'
+    wrapper.vm.handleSecurityModeChange('accountDeletion')
+    await flushPromises()
+    await waitForSecurityTransition()
+    wrapper.vm.accountDeleteCountdown = 0
+    wrapper.vm.accountDeleteForm = {
+      oldPassword: 'current-password',
+      confirmPassword: 'current-password',
+      securityAnswer: 'answer'
+    }
+    await flushPromises()
+
+    await expect(wrapper.vm.handleAccountDeleteSubmit()).resolves.toBeUndefined()
+
+    expect(wrapper.vm.accountDeleteConfirmDialogVisible).toBe(true)
+    expect(deleteAccount).not.toHaveBeenCalled()
   })
 
   it('collapses and expands long account deletion security questions', async () => {

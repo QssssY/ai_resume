@@ -104,6 +104,39 @@
         </div>
       </section>
 
+      <!-- 管理端配置驱动的成长激励与里程碑 -->
+      <section v-if="hasGrowthConfig" class="growth-config-section">
+        <div v-if="encouragementMessages.length" class="growth-config-block">
+          <h3 class="card-title">成长激励</h3>
+          <div class="encouragement-list">
+            <div
+              v-for="(message, index) in encouragementMessages"
+              :key="index"
+              class="encouragement-item"
+            >
+              <span class="encouragement-dot"></span>
+              <span>{{ message }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-if="milestones.length" class="growth-config-block">
+          <h3 class="card-title">成长里程碑</h3>
+          <div class="milestone-list">
+            <div
+              v-for="milestone in milestones"
+              :key="milestone.configKey"
+              class="milestone-item"
+            >
+              <div class="milestone-marker"></div>
+              <div class="milestone-content">
+                <div class="milestone-title">{{ milestone.title }}</div>
+                <div v-if="milestone.description" class="milestone-desc">{{ milestone.description }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- 2+3. 双折线图区域 -->
       <section class="charts-section">
         <div class="chart-card">
@@ -377,6 +410,12 @@ const latestPolish = computed(() => overviewData.value?.latestPolish)
 const latestInterviewFeedback = computed(() => overviewData.value?.latestInterviewFeedback)
 /** 短板与建议 */
 const weaknessSummary = computed(() => overviewData.value?.weaknessSummary || {})
+/** 管理端维护的成长中心运营配置 */
+const growthConfig = computed(() => overviewData.value?.growthConfig || {})
+/** 激励文案 */
+const encouragementMessages = computed(() => growthConfig.value?.encouragementMessages || [])
+/** 成长里程碑 */
+const milestones = computed(() => growthConfig.value?.milestones || [])
 
 /** 是否全量无数据 */
 const isEmpty = computed(() => {
@@ -393,6 +432,9 @@ const hasWeakness = computed(() => {
          (w?.interviewWeaknesses?.length > 0) ||
          (w?.suggestions?.length > 0)
 })
+
+/** 是否有管理端配置内容 */
+const hasGrowthConfig = computed(() => encouragementMessages.value.length > 0 || milestones.value.length > 0)
 
 /** 面试模式中文标签 */
 const modeLabel = (mode) => {
@@ -742,6 +784,82 @@ onMounted(() => {
 .summary-label {
   font-size: 13px;
   color: var(--text-muted);
+}
+
+/* 管理端配置驱动内容 */
+.growth-config-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.growth-config-block {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 16px rgba(255, 140, 66, 0.06);
+  border: 1px solid rgba(243, 216, 199, 0.4);
+}
+
+.encouragement-list,
+.milestone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.encouragement-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-body);
+}
+
+.encouragement-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--orange-main);
+  box-shadow: 0 0 0 4px rgba(255, 140, 66, 0.1);
+  flex-shrink: 0;
+}
+
+.milestone-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.milestone-marker {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--orange-main);
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+
+.milestone-content {
+  min-width: 0;
+}
+
+.milestone-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title);
+  line-height: 1.5;
+}
+
+.milestone-desc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
 }
 
 /* 折线图区域 */
@@ -1215,6 +1333,9 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
   .weakness-grid {
+    grid-template-columns: 1fr;
+  }
+  .growth-config-section {
     grid-template-columns: 1fr;
   }
 }

@@ -11,7 +11,7 @@
         <img :src="logoUrl" alt="logo" class="login-logo" />
         <div>
           <div class="login-title">管理端</div>
-          <div class="login-subtitle">AI 面试与简历系统</div>
+          <div class="login-subtitle">offerCat 管理系统</div>
         </div>
       </div>
 

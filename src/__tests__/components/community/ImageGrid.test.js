@@ -19,13 +19,14 @@ describe('ImageGrid', () => {
     'http://example.com/photo2.jpg',
     'http://example.com/photo3.jpg'
   ]
+  const mountedWrappers = []
 
   /**
    * Helper: mount ImageGrid with attachTo document body
    * so that Teleport content is rendered in the DOM.
    */
   const mountGrid = (images = [], props = {}) => {
-    return mount(ImageGrid, {
+    const wrapper = mount(ImageGrid, {
       props: { images, ...props },
       attachTo: document.body,
       global: {
@@ -35,10 +36,15 @@ describe('ImageGrid', () => {
         }
       }
     })
+    mountedWrappers.push(wrapper)
+    return wrapper
   }
 
   afterEach(() => {
-    // Clean up any Teleport remnants
+    // 先卸载仍挂载的组件，再清理可能残留的预览层，避免 Vue 后续 patch 已被手工删除的节点。
+    mountedWrappers.splice(0).forEach((wrapper) => {
+      if (wrapper.exists()) wrapper.unmount()
+    })
     document.body.querySelectorAll('.custom-viewer, [class*="community-viewer"]').forEach(el => el.remove())
   })
 
@@ -190,6 +196,18 @@ describe('ImageGrid', () => {
   // ==========================================================
 
   describe('ImageGrid core behavior', () => {
+
+    it('applies parent class to the image grid root element', () => {
+      const wrapper = mount(ImageGrid, {
+        props: { images: singleImage },
+        attrs: { class: 'card-images' },
+        attachTo: document.body
+      })
+      mountedWrappers.push(wrapper)
+
+      const grid = wrapper.find('.image-grid')
+      expect(grid.classes()).toContain('card-images')
+    })
 
     it('renders correct number of grid items (max 9)', () => {
       const images = Array.from({ length: 12 }, (_, i) => `http://example.com/img${i}.jpg`)

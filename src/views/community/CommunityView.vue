@@ -105,9 +105,10 @@
       <template v-else-if="posts.length > 0">
         <PostCard
           v-for="post in posts"
-          v-memo="[post.id, post.liked, post.favorited, post.likeCount, post.commentCount]"
           :key="post.id"
+          v-memo="[post.id, post.liked, post.favorited, post.likeCount, post.commentCount]"
           :post="post"
+          class="post-feed-card"
           @click="goToDetail(post.id)"
           @like="handleLike(post)"
           @favorite="handleFavorite(post)"
@@ -286,6 +287,8 @@ const loadMore = () => {
   fetchPosts(pageNum.value + 1, true)
 }
 
+const getScrollRoot = () => document.querySelector('.layout-content')
+
 // 设置 Intersection Observer 实现无限滚动
 const setupObserver = () => {
   if (observer) observer.disconnect()
@@ -298,7 +301,8 @@ const setupObserver = () => {
       }
     },
     {
-      root: null,
+      // 社区首页滚动发生在 layout-content 内，observer 需要绑定真实滚动容器。
+      root: getScrollRoot(),
       rootMargin: '200px',
       threshold: 0
     }
@@ -629,6 +633,10 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.post-feed-card {
+  display: block;
 }
 
 /* 【骨架屏】闪光扫光动画（shimmer），视觉更高级 */

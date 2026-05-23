@@ -126,7 +126,7 @@ const icons = {
 // 引导步骤定义
 const steps = [
   {
-    title: '欢迎使用智能简历诊断系统',
+    title: '欢迎使用 offerCat',
     description: '接下来我们将带您快速了解系统的核心功能，帮助您高效准备求职。',
     iconSvg: icons.sparkles
   },

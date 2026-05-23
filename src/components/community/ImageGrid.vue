@@ -1,5 +1,5 @@
 <template>
-  <div class="image-grid" :class="`grid-count-${Math.min(images.length, 9)}`">
+  <div class="image-grid" :class="[attrs.class, `grid-count-${Math.min(images.length, 9)}`]">
     <div
       v-for="(img, index) in displayImages"
       :key="index"
@@ -21,10 +21,8 @@
     </div>
   </div>
 
-  <!-- 自定义图片预览（不使用 el-image-viewer，避免 focus-trap 副作用） -->
-  <Teleport to="body">
-    <Transition name="community-viewer-fade">
-      <div v-if="viewerVisible" class="community-viewer" @click.self="closePreview">
+  <!-- 自定义图片预览（不使用 el-image-viewer，避免 focus-trap 与 Teleport 清理副作用） -->
+  <div v-if="viewerVisible" class="community-viewer" @click.self="closePreview">
         <!-- 关闭按钮 -->
         <button class="community-viewer-close" @click="closePreview">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -33,7 +31,7 @@
           </svg>
         </button>
         <!-- 左箭头 -->
-        <button v-if="images.length > 1" class="community-viewer-arrow community-viewer-prev" @click.stop="prevImage">
+        <button v-if="images.length > 1" class="viewer-arrow community-viewer-arrow community-viewer-prev" @click.stop="prevImage">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6" />
           </svg>
@@ -43,7 +41,7 @@
           <img :src="images[viewerIndex]" class="community-viewer-img" draggable="false" />
         </div>
         <!-- 右箭头 -->
-        <button v-if="images.length > 1" class="community-viewer-arrow community-viewer-next" @click.stop="nextImage">
+        <button v-if="images.length > 1" class="viewer-arrow community-viewer-arrow community-viewer-next" @click.stop="nextImage">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="9 18 15 12 9 6" />
           </svg>
@@ -52,13 +50,17 @@
         <div v-if="images.length > 1" class="community-viewer-counter">
           {{ viewerIndex + 1 }} / {{ images.length }}
         </div>
-      </div>
-    </Transition>
-  </Teleport>
+  </div>
 </template>
 
 <script setup>
-import { computed, ref, onBeforeUnmount } from 'vue'
+import { computed, ref, onBeforeUnmount, useAttrs } from 'vue'
+
+defineOptions({
+  inheritAttrs: false
+})
+
+const attrs = useAttrs()
 
 const props = defineProps({
   images: {

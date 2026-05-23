@@ -1,8 +1,24 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CommunityView from '@/views/community/CommunityView.vue'
 import { getPostList, togglePostLike, togglePostFavorite, getInteractionUnreadCount } from '@/api/community'
 import { ElMessage } from 'element-plus'
+
+const observeMock = vi.fn()
+const disconnectMock = vi.fn()
+const unobserveMock = vi.fn()
+const intersectionObserverMock = vi.fn()
+
+class MockIntersectionObserver {
+  constructor(callback, options) {
+    this.callback = callback
+    this.options = options
+    this.observe = observeMock
+    this.disconnect = disconnectMock
+    this.unobserve = unobserveMock
+    intersectionObserverMock(callback, options)
+  }
+}
 
 // ── Mocks ──────────────────────────────────────────────────────────────
 
@@ -45,13 +61,15 @@ vi.mock('element-plus', async () => {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-const mountView = () =>
-  mount(CommunityView, {
+const mountedWrappers = []
+
+const mountView = () => {
+  const wrapper = mount(CommunityView, {
     global: {
       stubs: {
         PostCard: {
           props: ['post'],
-          template: '<div class="post-card-stub" @like="$emit("like")" @favorite="$emit("favorite")" />'
+          template: '<div class="post-card-stub" @like="$emit(\'like\')" @favorite="$emit(\'favorite\')" />'
         },
         PostEditor: {
           template: '<div class="post-editor-stub" />'
@@ -74,6 +92,9 @@ const mountView = () =>
       }
     }
   })
+  mountedWrappers.push(wrapper)
+  return wrapper
+}
 
 // ── Tests ──────────────────────────────────────────────────────────────
 
@@ -81,10 +102,73 @@ describe('CommunityView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    observeMock.mockClear()
+    disconnectMock.mockClear()
+    unobserveMock.mockClear()
+    intersectionObserverMock.mockClear()
+    global.IntersectionObserver = MockIntersectionObserver
     // Default: fetchPosts succeeds with empty list
     getPostList.mockResolvedValue({
       code: 200,
       data: { list: [], total: 0 }
+    })
+  })
+
+  afterEach(() => {
+    mountedWrappers.splice(0).forEach((wrapper) => {
+      if (wrapper.exists()) wrapper.unmount()
+    })
+  })
+
+  describe('首页帖子列表回归', () => {
+    const makePost = (id, overrides = {}) => ({
+      id,
+      liked: false,
+      likeCount: 0,
+      favorited: false,
+      commentCount: 0,
+      content: `post-${id}`,
+      ...overrides
+    })
+
+    it('加载更多后保留已加载的上一页帖子', async () => {
+      getPostList
+        .mockResolvedValueOnce({
+          code: 200,
+          data: { list: [makePost(1), makePost(2)], total: 4 }
+        })
+        .mockResolvedValueOnce({
+          code: 200,
+          data: { list: [makePost(3), makePost(4)], total: 4 }
+        })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.vm.posts.map(post => post.id)).toEqual([1, 2])
+
+      await wrapper.vm.loadMore()
+      await flushPromises()
+
+      expect(wrapper.vm.posts.map(post => post.id)).toEqual([1, 2, 3, 4])
+      expect(wrapper.findAll('.post-card-stub')).toHaveLength(4)
+    })
+
+    it('observer 绑定到 layout-content 滚动容器', async () => {
+      const scrollRoot = document.createElement('section')
+      scrollRoot.className = 'layout-content'
+      document.body.appendChild(scrollRoot)
+
+      try {
+        mountView()
+        await flushPromises()
+
+        expect(intersectionObserverMock).toHaveBeenCalled()
+        const [, options] = intersectionObserverMock.mock.calls.at(-1)
+        expect(options.root).toBe(scrollRoot)
+      } finally {
+        scrollRoot.remove()
+      }
     })
   })
 

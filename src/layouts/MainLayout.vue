@@ -45,15 +45,14 @@ onMounted(async () => {
 
 <style scoped>
 .main-layout {
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
   background-color: var(--bg-page, #fff8f3);
   display: flex;
   flex-direction: column;
 }
 
 .layout-main {
-  padding-top: 60px;
+  padding-top: 82px;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -64,18 +63,26 @@ onMounted(async () => {
   flex: 1;
   min-height: 0;
   padding: 24px;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
 /* 移动端适配 */
 @media (max-width: 768px) {
+  .layout-main {
+    padding-top: 64px;
+  }
   .layout-content {
     padding: 16px;
   }
 }
 
 @media (max-width: 480px) {
+  .layout-main {
+    padding-top: 60px;
+  }
   .layout-content {
     padding: 12px;
   }

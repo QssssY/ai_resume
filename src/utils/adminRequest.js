@@ -49,6 +49,15 @@ const adminRequest = axios.create({
   transformResponse: [(data) => parseJsonPreserveLongInteger(data)]
 })
 
+const createAdminRequestError = (message, cause) => {
+  const error = new Error(message || ADMIN_FEEDBACK_TEXT.requestFailed)
+  error.isAdminRequestError = true
+  if (cause) {
+    error.cause = cause
+  }
+  return error
+}
+
 // 统一 401 处理锁：避免并发请求同时过期时重复弹错并重复跳转。
 let isHandlingUnauthorized = false
 
@@ -85,11 +94,10 @@ adminRequest.interceptors.response.use(
           isHandlingUnauthorized = false
         })
       }
-      return Promise.reject(new Error(ADMIN_FEEDBACK_TEXT.sessionExpired))
+      return Promise.reject(createAdminRequestError(ADMIN_FEEDBACK_TEXT.sessionExpired))
     }
 
-    showAdminError(body?.message || ADMIN_FEEDBACK_TEXT.requestFailed)
-    return Promise.reject(new Error(body?.message || ADMIN_FEEDBACK_TEXT.requestFailed))
+    return Promise.reject(createAdminRequestError(body?.message || ADMIN_FEEDBACK_TEXT.requestFailed))
   },
   (error) => {
     if (error.response) {
@@ -109,15 +117,14 @@ adminRequest.interceptors.response.use(
             isHandlingUnauthorized = false
           })
         }
+        return Promise.reject(createAdminRequestError(ADMIN_FEEDBACK_TEXT.sessionExpired, error))
       } else {
-        showAdminError(resolveAdminStatusErrorMessage(status, message))
+        return Promise.reject(createAdminRequestError(resolveAdminStatusErrorMessage(status, message), error))
       }
     } else if (error.request) {
-      showAdminError(ADMIN_FEEDBACK_TEXT.networkError)
-    } else {
-      showAdminError(error.message || ADMIN_FEEDBACK_TEXT.requestFailed)
+      return Promise.reject(createAdminRequestError(ADMIN_FEEDBACK_TEXT.networkError, error))
     }
-    return Promise.reject(error)
+    return Promise.reject(createAdminRequestError(error.message || ADMIN_FEEDBACK_TEXT.requestFailed, error))
   }
 )
 

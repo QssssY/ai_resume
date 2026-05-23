@@ -17,14 +17,14 @@
         <router-link to="/" class="brand-logo-link">
           <img :src="brandLogo" alt="Logo" class="brand-logo" />
           <div class="brand-text">
-            <div class="brand-title">AI 面试 与 简历</div>
-            <div class="brand-subtitle">智能求职辅助平台</div>
+            <div class="brand-title">offerCat</div>
+            <div class="brand-subtitle">AI 求职辅助平台</div>
           </div>
         </router-link>
 
         <div class="brand-slogan">
           <h1 class="slogan-title">智能求职<br />从这里开始</h1>
-          <p class="slogan-desc">AI 驱动的简历诊断与模拟面试平台<br />助你找到理想工作</p>
+          <p class="slogan-desc">offerCat — AI 驱动的简历诊断与模拟面试平台<br />助你找到理想工作</p>
         </div>
 
         <div class="brand-features">

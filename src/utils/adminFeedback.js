@@ -1,5 +1,9 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+const ADMIN_ERROR_DEDUPE_WINDOW_MS = 1200
+let lastAdminErrorMessage = ''
+let lastAdminErrorShownAt = 0
+
 /**
  * 管理端统一提示文案。
  * 作用：
@@ -30,7 +34,20 @@ export const showAdminSuccess = (message) => {
  * @param {string} message
  */
 export const showAdminError = (message) => {
-  ElMessage.error(message || ADMIN_FEEDBACK_TEXT.requestFailed)
+  const resolvedMessage = message || ADMIN_FEEDBACK_TEXT.requestFailed
+  const now = Date.now()
+
+  // 管理端请求层和页面 catch 可能在同一错误链路里先后触发，短时间内相同文案只展示一次。
+  if (
+    resolvedMessage === lastAdminErrorMessage
+    && now - lastAdminErrorShownAt < ADMIN_ERROR_DEDUPE_WINDOW_MS
+  ) {
+    return
+  }
+
+  lastAdminErrorMessage = resolvedMessage
+  lastAdminErrorShownAt = now
+  ElMessage.error(resolvedMessage)
 }
 
 /**

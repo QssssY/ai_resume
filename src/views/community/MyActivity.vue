@@ -36,8 +36,10 @@
 
     <!-- 评论列表（评论过的帖子标签） -->
     <div v-else-if="activeTab === 'commented' && commentedState.comments.value.length > 0" class="post-list">
-      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
-        <div v-for="item in commentedState.comments.value" :key="item.commentId" class="my-comment-card" :class="{ 'post-deleted': item.postDeleted }" @click="!item.postDeleted && goToDetail(item.postId, item.commentId, item.parentCommentId)">
+      <DynamicScroller :items="commentedState.comments.value" :min-item-size="150" key-field="commentId" class="post-list-inner virtual-activity-list" :buffer="700">
+        <template #default="{ item, active }">
+          <DynamicScrollerItem :item="item" :active="active" :size-dependencies="[item.commentContent, item.postContent, item.postDeleted]">
+        <div class="my-comment-card virtual-activity-card" :class="{ 'post-deleted': item.postDeleted }" @click="!item.postDeleted && goToDetail(item.postId, item.commentId, item.parentCommentId)">
           <!-- 我的评论（主要） -->
           <div class="comment-primary">
             <div class="comment-primary-header">
@@ -73,7 +75,9 @@
             </span>
           </div>
         </div>
-      </TransitionGroup>
+          </DynamicScrollerItem>
+        </template>
+      </DynamicScroller>
 
       <!-- 加载更多 -->
       <div v-if="commentedState.hasMore.value" class="load-more">
@@ -92,8 +96,10 @@
 
     <!-- 帖子列表（我的帖子 / 点赞过的帖子 / 收藏的帖子） -->
     <div v-else-if="['mine', 'liked', 'favorited'].includes(activeTab) && currentTabState.posts.value.length > 0" class="post-list">
-      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
-        <div v-for="post in currentTabState.posts.value" :key="post.id" class="my-post-card">
+      <DynamicScroller :items="currentTabState.posts.value" :min-item-size="150" key-field="id" class="post-list-inner virtual-activity-list" :buffer="700">
+        <template #default="{ item: post, active }">
+          <DynamicScrollerItem :item="post" :active="active" :size-dependencies="[post.content, post.images?.length, post.likeCount, post.commentCount]">
+        <div class="my-post-card virtual-activity-card">
           <div class="card-main" @click="goToDetail(post.id)">
             <div class="card-header">
               <span class="category-dot" :class="post.category"></span>
@@ -131,7 +137,9 @@
             </svg>
           </button>
         </div>
-      </TransitionGroup>
+          </DynamicScrollerItem>
+        </template>
+      </DynamicScroller>
 
       <!-- 加载更多 -->
       <div v-if="currentTabState.hasMore.value" class="load-more">
@@ -150,8 +158,10 @@
 
     <!-- 收到的点赞列表 -->
     <div v-else-if="activeTab === 'receivedLikes' && receivedLikesState.items.value.length > 0" class="post-list">
-      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
-        <div v-for="item in receivedLikesState.items.value" :key="`like-${item.userId}-${item.postId}`" class="interaction-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId)">
+      <DynamicScroller :items="receivedLikesState.items.value" :min-item-size="105" key-field="virtualKey" class="post-list-inner virtual-activity-list" :buffer="700">
+        <template #default="{ item, active }">
+          <DynamicScrollerItem :item="item" :active="active" :size-dependencies="[item.postContent, item.createTime]">
+        <div class="interaction-card virtual-activity-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId)">
           <div class="interaction-card-main">
             <span class="actor-name">{{ item.userName }}</span>
             <span v-if="isNewInteraction(item.createTime)" class="new-badge">新</span>
@@ -163,7 +173,9 @@
             <span class="post-snippet">{{ item.postContent }}</span>
           </div>
         </div>
-      </TransitionGroup>
+          </DynamicScrollerItem>
+        </template>
+      </DynamicScroller>
 
       <!-- 加载更多 -->
       <div v-if="receivedLikesState.hasMore.value" class="load-more">
@@ -182,8 +194,10 @@
 
     <!-- 收到的评论列表 -->
     <div v-else-if="activeTab === 'receivedComments' && receivedCommentsState.items.value.length > 0" class="post-list">
-      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
-        <div v-for="item in receivedCommentsState.items.value" :key="`comment-${item.commentId}`" class="interaction-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId, item.commentId)">
+      <DynamicScroller :items="receivedCommentsState.items.value" :min-item-size="130" key-field="virtualKey" class="post-list-inner virtual-activity-list" :buffer="700">
+        <template #default="{ item, active }">
+          <DynamicScrollerItem :item="item" :active="active" :size-dependencies="[item.commentContent, item.postContent, item.createTime]">
+        <div class="interaction-card virtual-activity-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId, item.commentId)">
           <div class="interaction-card-main">
             <span class="actor-name">{{ item.userName }}</span>
             <span v-if="isNewInteraction(item.createTime)" class="new-badge">新</span>
@@ -196,7 +210,9 @@
             <span class="post-snippet">{{ item.postContent }}</span>
           </div>
         </div>
-      </TransitionGroup>
+          </DynamicScrollerItem>
+        </template>
+      </DynamicScroller>
 
       <!-- 加载更多 -->
       <div v-if="receivedCommentsState.hasMore.value" class="load-more">
@@ -215,8 +231,10 @@
 
     <!-- 收到的回复列表 -->
     <div v-else-if="activeTab === 'receivedReplies' && receivedRepliesState.items.value.length > 0" class="post-list">
-      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
-        <div v-for="item in receivedRepliesState.items.value" :key="`reply-${item.replyId}`" class="interaction-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId, item.replyId, item.parentCommentId)">
+      <DynamicScroller :items="receivedRepliesState.items.value" :min-item-size="155" key-field="virtualKey" class="post-list-inner virtual-activity-list" :buffer="700">
+        <template #default="{ item, active }">
+          <DynamicScrollerItem :item="item" :active="active" :size-dependencies="[item.replyContent, item.parentCommentContent, item.postContent, item.createTime]">
+        <div class="interaction-card virtual-activity-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId, item.replyId, item.parentCommentId)">
           <div class="interaction-card-main">
             <span class="actor-name">{{ item.userName }}</span>
             <span v-if="isNewInteraction(item.createTime)" class="new-badge">新</span>
@@ -233,7 +251,9 @@
             <span class="post-snippet">{{ item.postContent }}</span>
           </div>
         </div>
-      </TransitionGroup>
+          </DynamicScrollerItem>
+        </template>
+      </DynamicScroller>
 
       <!-- 加载更多 -->
       <div v-if="receivedRepliesState.hasMore.value" class="load-more">
@@ -252,8 +272,10 @@
 
     <!-- 收到的收藏列表 -->
     <div v-else-if="activeTab === 'receivedFavorites' && receivedFavoritesState.items.value.length > 0" class="post-list">
-      <TransitionGroup name="post-card" tag="div" class="post-list-inner">
-        <div v-for="item in receivedFavoritesState.items.value" :key="`fav-${item.userId}-${item.postId}`" class="interaction-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId)">
+      <DynamicScroller :items="receivedFavoritesState.items.value" :min-item-size="105" key-field="virtualKey" class="post-list-inner virtual-activity-list" :buffer="700">
+        <template #default="{ item, active }">
+          <DynamicScrollerItem :item="item" :active="active" :size-dependencies="[item.postContent, item.createTime]">
+        <div class="interaction-card virtual-activity-card" :class="{ 'is-new': isNewInteraction(item.createTime) }" @click="goToDetail(item.postId)">
           <div class="interaction-card-main">
             <span class="actor-name">{{ item.userName }}</span>
             <span v-if="isNewInteraction(item.createTime)" class="new-badge">新</span>
@@ -265,7 +287,9 @@
             <span class="post-snippet">{{ item.postContent }}</span>
           </div>
         </div>
-      </TransitionGroup>
+          </DynamicScrollerItem>
+        </template>
+      </DynamicScroller>
 
       <!-- 加载更多 -->
       <div v-if="receivedFavoritesState.hasMore.value" class="load-more">
@@ -320,6 +344,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { DynamicScroller, DynamicScrollerItem } from 'vue-virtual-scroller'
 import { getMyPosts, getLikedPosts, getFavoritedPosts, getMyComments, deletePost, getMyInteractions, getInteractionUnreadCount } from '@/api/community'
 import { formatTime, categoryLabel } from '@/utils/community'
 
@@ -414,6 +439,11 @@ const getImageCount = (imagesJson) => {
   } catch { return 0 }
 }
 
+const withVirtualKeys = (items, prefix, keyFn) => items.map((item, index) => ({
+  ...item,
+  virtualKey: `${prefix}-${keyFn(item)}-${index}`
+}))
+
 // 获取指定标签的数据
 const fetchTabData = async (tab, page = 1, append = false) => {
   if (tab === 'commented') {
@@ -451,10 +481,10 @@ const fetchTabData = async (tab, page = 1, append = false) => {
         const data = res.data || {}
         let newItems = []
         let total = 0
-        if (tab === 'receivedLikes') { newItems = data.likes || []; total = data.totalLikes || 0 }
-        else if (tab === 'receivedComments') { newItems = data.comments || []; total = data.totalComments || 0 }
-        else if (tab === 'receivedReplies') { newItems = data.replies || []; total = data.totalReplies || 0 }
-        else if (tab === 'receivedFavorites') { newItems = data.favorites || []; total = data.totalFavorites || 0 }
+        if (tab === 'receivedLikes') { newItems = withVirtualKeys(data.likes || [], 'like', i => `${i.userId}-${i.postId}-${i.createTime}`); total = data.totalLikes || 0 }
+        else if (tab === 'receivedComments') { newItems = withVirtualKeys(data.comments || [], 'comment', i => `${i.commentId}-${i.createTime}`); total = data.totalComments || 0 }
+        else if (tab === 'receivedReplies') { newItems = withVirtualKeys(data.replies || [], 'reply', i => `${i.replyId}-${i.createTime}`); total = data.totalReplies || 0 }
+        else if (tab === 'receivedFavorites') { newItems = withVirtualKeys(data.favorites || [], 'favorite', i => `${i.userId}-${i.postId}-${i.createTime}`); total = data.totalFavorites || 0 }
 
         if (append) {
           const keyFn = tab === 'receivedLikes' || tab === 'receivedFavorites'
@@ -762,6 +792,14 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.virtual-activity-list {
+  overflow: visible;
+}
+
+.virtual-activity-card {
+  margin-bottom: 12px;
 }
 
 /* ===== 评论卡片（评论过的帖子） ===== */

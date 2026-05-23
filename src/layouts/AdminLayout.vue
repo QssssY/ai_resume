@@ -2,7 +2,7 @@
   <div class="admin-layout">
     <header class="admin-header">
       <img :src="logoUrl" alt="logo" class="header-logo" />
-      <div class="admin-header-title">智能简历助手管理端</div>
+      <div class="admin-header-title">offerCat 管理端</div>
       <div class="header-spacer"></div>
       <div class="admin-user-info">
         <el-icon><User /></el-icon>
