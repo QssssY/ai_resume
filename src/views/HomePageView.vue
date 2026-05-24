@@ -1,6 +1,6 @@
 <template>
   <MotionConfig reducedMotion="user">
-  <div class="landing-page">
+  <div class="landing-page theme-aware-home">
     <section
       class="hero-section background-hero-section"
       aria-labelledby="home-hero-title"
@@ -560,9 +560,42 @@ const handleInterview = () => {
 
 <style scoped>
 .landing-page {
+  --home-page-bg: linear-gradient(180deg, #fff7ec 0%, #fffaf6 42%, var(--bg-card) 100%);
+  --home-hero-bg-layer:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.92), transparent 30%),
+    linear-gradient(135deg, #fff8ed 0%, #fff2df 48%, #ffe3bd 100%);
+  --home-hero-overlay:
+    radial-gradient(circle at 80% 22%, rgba(255, 255, 255, 0.42), transparent 18%),
+    linear-gradient(90deg, rgba(255, 249, 240, 0.5) 0%, rgba(255, 249, 240, 0.2) 50%, rgba(255, 249, 240, 0) 100%);
+  --home-mobile-hero-bg:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.88), transparent 24%),
+    linear-gradient(180deg, #fff6e8 0%, #ffe7c7 100%);
+  --home-hero-border: rgba(249, 214, 174, 0.82);
+  --home-hero-shadow: 0 28px 80px rgba(148, 88, 36, 0.12);
+  --home-hero-surface: rgba(255, 253, 248, 0.82);
+  --home-card-surface: rgba(255, 255, 255, 0.84);
+  --home-soft-surface: rgba(255, 255, 255, 0.76);
+  --home-pill-surface: rgba(255, 255, 255, 0.7);
+  --home-card-gradient:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 251, 248, 0.82)),
+    rgba(255, 255, 255, 0.86);
+  --home-secondary-btn-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 248, 241, 0.88));
+  --home-workflow-bg:
+    radial-gradient(circle at 12% 20%, rgba(255, 255, 255, 0.82), transparent 24%),
+    linear-gradient(180deg, rgba(255, 250, 244, 0.62), rgba(255, 244, 231, 0.34));
+  --home-step-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 245, 236, 0.92));
+  --home-cloud-bg: rgba(255, 255, 255, 0.76);
+  --home-cloud-shadow-a: rgba(255, 255, 255, 0.68);
+  --home-cloud-shadow-b: rgba(255, 255, 255, 0.62);
+  --home-art-filter: drop-shadow(0 34px 54px rgba(141, 88, 40, 0.2));
+  --home-art-image-filter: none;
+  --home-text-strong: var(--text-title);
+  --home-text-body: var(--text-body);
+  --home-text-muted: var(--text-muted);
   min-height: calc(100vh - 60px);
   overflow-x: hidden;
-  background: linear-gradient(180deg, #fff7ec 0%, #fffaf6 42%, var(--bg-card) 100%);
+  color: var(--home-text-body);
+  background: var(--home-page-bg);
 }
 
 .hero-section,
@@ -584,12 +617,10 @@ const handleInterview = () => {
   width: min(1240px, calc(100vw - 48px));
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid rgba(249, 214, 174, 0.82);
+  border: 1px solid var(--home-hero-border);
   border-radius: 18px;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.92), transparent 30%),
-    linear-gradient(135deg, #fff8ed 0%, #fff2df 48%, #ffe3bd 100%);
-  box-shadow: 0 28px 80px rgba(148, 88, 36, 0.12);
+  background: var(--home-hero-bg-layer);
+  box-shadow: var(--home-hero-shadow);
 }
 
 .hero-background-art {
@@ -599,7 +630,7 @@ const handleInterview = () => {
   z-index: 0;
   width: clamp(720px, 70vw, 940px);
   aspect-ratio: 3 / 2;
-  filter: drop-shadow(0 34px 54px rgba(141, 88, 40, 0.2));
+  filter: var(--home-art-filter);
   pointer-events: none;
   will-change: transform;
   transition:
@@ -614,6 +645,7 @@ const handleInterview = () => {
   content: '';
   background: var(--home-hero-bg) center bottom / contain no-repeat;
   opacity: 0.96;
+  filter: var(--home-art-image-filter);
   transform: translate3d(18px, 12px, 0) scale(1.018);
   animation: hero-art-reveal 0.86s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both,
     hero-art-breathe 7.2s ease-in-out 1.1s infinite;
@@ -625,9 +657,7 @@ const handleInterview = () => {
   inset: 0;
   z-index: -1;
   content: '';
-  background:
-    radial-gradient(circle at 80% 22%, rgba(255, 255, 255, 0.42), transparent 18%),
-    linear-gradient(90deg, rgba(255, 249, 240, 0.5) 0%, rgba(255, 249, 240, 0.2) 50%, rgba(255, 249, 240, 0) 100%);
+  background: var(--home-hero-overlay);
 }
 
 .hero-main,
@@ -642,7 +672,7 @@ const handleInterview = () => {
   padding: clamp(22px, 3vw, 36px);
   border: 1px solid rgba(255, 226, 191, 0.76);
   border-radius: 14px;
-  background: rgba(255, 253, 248, 0.82);
+  background: var(--home-hero-surface);
   box-shadow: 0 16px 42px rgba(132, 75, 32, 0.08);
 }
 
@@ -653,10 +683,10 @@ const handleInterview = () => {
   width: var(--cloud-width);
   height: calc(var(--cloud-width) * 0.34);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
+  background: var(--home-cloud-bg);
   box-shadow:
-    calc(var(--cloud-width) * 0.18) calc(var(--cloud-width) * -0.1) 0 calc(var(--cloud-width) * 0.02) rgba(255, 255, 255, 0.68),
-    calc(var(--cloud-width) * 0.42) calc(var(--cloud-width) * -0.03) 0 calc(var(--cloud-width) * 0.04) rgba(255, 255, 255, 0.62),
+    calc(var(--cloud-width) * 0.18) calc(var(--cloud-width) * -0.1) 0 calc(var(--cloud-width) * 0.02) var(--home-cloud-shadow-a),
+    calc(var(--cloud-width) * 0.42) calc(var(--cloud-width) * -0.03) 0 calc(var(--cloud-width) * 0.04) var(--home-cloud-shadow-b),
     0 14px 36px rgba(213, 145, 72, 0.08);
   pointer-events: none;
   opacity: 0;
@@ -714,7 +744,7 @@ const handleInterview = () => {
   margin-bottom: 16px;
   border: 1px solid rgba(255, 140, 66, 0.24);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
+  background: var(--home-soft-surface);
   box-shadow: 0 8px 22px rgba(117, 72, 42, 0.06);
 }
 
@@ -725,7 +755,7 @@ const handleInterview = () => {
 .hero-title {
   max-width: 560px;
   margin: 0;
-  color: var(--text-title);
+  color: var(--home-text-strong);
   font-size: clamp(38px, 5.2vw, 64px);
   font-weight: 850;
   line-height: 1.06;
@@ -734,7 +764,7 @@ const handleInterview = () => {
 .hero-subtitle {
   max-width: 520px;
   margin: 16px 0 0;
-  color: var(--text-body);
+  color: var(--home-text-body);
   font-size: 17px;
   line-height: 1.72;
 }
@@ -769,8 +799,7 @@ const handleInterview = () => {
 .secondary-btn {
   color: var(--orange-deep);
   border: 1px solid rgba(255, 140, 66, 0.34);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 248, 241, 0.88));
+  background: var(--home-secondary-btn-bg);
   box-shadow: 0 12px 26px rgba(148, 88, 36, 0.1);
 }
 
@@ -837,8 +866,8 @@ const handleInterview = () => {
   padding: 0 14px 0 10px;
   border: 1px solid rgba(255, 180, 112, 0.36);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
-  color: var(--text-title);
+  background: var(--home-pill-surface);
+  color: var(--home-text-strong);
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
@@ -852,14 +881,14 @@ const handleInterview = () => {
 }
 
 .stat-number {
-  color: var(--text-title);
+  color: var(--home-text-strong);
   font-size: 24px;
   font-weight: 820;
   line-height: 1;
 }
 
 .stat-text {
-  color: var(--text-muted);
+  color: var(--home-text-muted);
   font-size: 13px;
 }
 
@@ -874,7 +903,7 @@ const handleInterview = () => {
   padding: 20px;
   border: 1px solid rgba(243, 216, 199, 0.86);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--home-card-surface);
   box-shadow: 0 18px 44px rgba(117, 72, 42, 0.09);
 }
 
@@ -886,14 +915,14 @@ const handleInterview = () => {
 }
 
 .board-header strong {
-  color: var(--text-title);
+  color: var(--home-text-strong);
   font-size: 19px;
   line-height: 1.35;
 }
 
 .board-header p {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--home-text-muted);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -930,8 +959,8 @@ const handleInterview = () => {
   padding: 11px 12px;
   border: 1px solid rgba(243, 216, 199, 0.72);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.74);
-  color: var(--text-title);
+  background: var(--home-card-surface);
+  color: var(--home-text-strong);
   font-weight: 700;
 }
 
@@ -968,7 +997,7 @@ const handleInterview = () => {
 
 .section-title {
   margin: 0;
-  color: var(--text-title);
+  color: var(--home-text-strong);
   font-size: clamp(28px, 3.6vw, 44px);
   font-weight: 820;
   line-height: 1.15;
@@ -976,7 +1005,7 @@ const handleInterview = () => {
 
 .section-desc {
   margin: 0;
-  color: var(--text-body);
+  color: var(--home-text-body);
   font-size: 16px;
   line-height: 1.75;
 }
@@ -1008,9 +1037,7 @@ const handleInterview = () => {
   padding: 18px 16px;
   border: 1px solid var(--border-card);
   border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 251, 248, 0.82)),
-    rgba(255, 255, 255, 0.86);
+  background: var(--home-card-gradient);
   box-shadow: 0 12px 30px rgba(117, 72, 42, 0.06);
   cursor: pointer;
   color: inherit;
@@ -1066,20 +1093,20 @@ const handleInterview = () => {
 }
 
 .route-tag {
-  color: var(--text-body);
-  background: rgba(255, 248, 243, 0.95);
+  color: var(--home-text-body);
+  background: var(--home-soft-surface);
 }
 
 .career-path-node h3 {
   margin: 0;
-  color: var(--text-title);
+  color: var(--home-text-strong);
   font-size: 17px;
   font-weight: 800;
 }
 
 .career-path-node p {
   margin: 0;
-  color: var(--text-body);
+  color: var(--home-text-body);
   font-size: 13px;
   line-height: 1.65;
 }
@@ -1128,9 +1155,7 @@ const handleInterview = () => {
   border-top: 1px solid rgba(243, 216, 199, 0.78);
   border-bottom: 1px solid rgba(243, 216, 199, 0.6);
   border-radius: 0;
-  background:
-    radial-gradient(circle at 12% 20%, rgba(255, 255, 255, 0.82), transparent 24%),
-    linear-gradient(180deg, rgba(255, 250, 244, 0.62), rgba(255, 244, 231, 0.34));
+  background: var(--home-workflow-bg);
 }
 
 .workflow-section::before {
@@ -1218,8 +1243,7 @@ const handleInterview = () => {
   height: 56px;
   border: 1px solid rgba(255, 140, 66, 0.28);
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 245, 236, 0.92));
+  background: var(--home-step-bg);
   color: var(--orange-deep);
   box-shadow: 0 12px 24px rgba(117, 72, 42, 0.08);
   font-weight: 850;
@@ -1237,7 +1261,7 @@ const handleInterview = () => {
 .workflow-step h3,
 .version-item-title {
   margin: 0;
-  color: var(--text-title);
+  color: var(--home-text-strong);
 }
 
 .workflow-step h3 {
@@ -1247,7 +1271,7 @@ const handleInterview = () => {
 
 .workflow-step p {
   margin: 0;
-  color: var(--text-body);
+  color: var(--home-text-body);
   font-size: 14px;
   line-height: 1.68;
 }
@@ -1267,7 +1291,7 @@ const handleInterview = () => {
   padding: 16px 18px;
   border: 1px solid rgba(243, 216, 199, 0.72);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--home-card-surface);
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -1357,13 +1381,13 @@ const handleInterview = () => {
 }
 
 .support-copy strong {
-  color: var(--text-title);
+  color: var(--home-text-strong);
   font-size: 16px;
   font-weight: 800;
 }
 
 .support-copy span {
-  color: var(--text-muted);
+  color: var(--home-text-muted);
   font-size: 13px;
   line-height: 1.65;
 }
@@ -1392,7 +1416,7 @@ const handleInterview = () => {
 
 .version-title {
   margin: 8px 0 0;
-  color: var(--text-title);
+  color: var(--home-text-strong);
   font-size: 28px;
   font-weight: 820;
 }
@@ -1421,7 +1445,7 @@ const handleInterview = () => {
   padding: 18px;
   border: 1px solid var(--border-card);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.84);
+  background: var(--home-card-surface);
   box-shadow: var(--shadow-card);
   transition: border-color 0.18s ease-out, box-shadow 0.18s ease-out;
 }
@@ -1453,7 +1477,7 @@ const handleInterview = () => {
   display: -webkit-box;
   margin: 8px 0;
   overflow: hidden;
-  color: var(--text-body);
+  color: var(--home-text-body);
   font-size: 13px;
   line-height: 1.55;
   -webkit-box-orient: vertical;
@@ -1462,7 +1486,7 @@ const handleInterview = () => {
 }
 
 .version-item-time {
-  color: var(--text-muted);
+  color: var(--home-text-muted);
   font-size: 12px;
 }
 
@@ -1531,9 +1555,7 @@ const handleInterview = () => {
   .background-hero-section {
     min-height: 690px;
     align-items: flex-end;
-    background:
-      radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.88), transparent 24%),
-      linear-gradient(180deg, #fff6e8 0%, #ffe7c7 100%);
+    background: var(--home-mobile-hero-bg);
   }
 
   .hero-background-art {
@@ -1700,6 +1722,138 @@ const handleInterview = () => {
   .support-icon {
     width: 58px;
     height: 58px;
+  }
+}
+
+:global(html[data-theme="dark"] .theme-aware-home) {
+  --text-title: #fff3e8;
+  --text-body: #e8c9b5;
+  --text-muted: #b9957e;
+  --border-card: rgba(255, 175, 108, 0.2);
+  --border-divider: rgba(255, 175, 108, 0.14);
+  --orange-deep: #ffb070;
+  --orange-border: rgba(255, 176, 122, 0.32);
+  --home-text-strong: #fff3e8;
+  --home-text-body: #f0d1bd;
+  --home-text-muted: #caa189;
+  --home-page-bg:
+    radial-gradient(circle at 17% 0%, rgba(255, 140, 66, 0.2), transparent 30%),
+    radial-gradient(circle at 88% 12%, rgba(255, 205, 154, 0.13), transparent 24%),
+    linear-gradient(180deg, #2a170e 0%, #1f1511 48%, #26170f 100%);
+  --home-hero-bg-layer:
+    radial-gradient(circle at 18% 14%, rgba(255, 184, 112, 0.24), transparent 30%),
+    radial-gradient(circle at 78% 18%, rgba(255, 226, 191, 0.16), transparent 24%),
+    linear-gradient(135deg, #3a2012 0%, #251713 52%, #3b2414 100%);
+  --home-mobile-hero-bg:
+    radial-gradient(circle at 50% 12%, rgba(255, 176, 122, 0.2), transparent 24%),
+    linear-gradient(180deg, #3a2012 0%, #2a170e 100%);
+  --home-hero-overlay:
+    radial-gradient(circle at 78% 24%, rgba(255, 229, 202, 0.12), transparent 18%),
+    linear-gradient(90deg, rgba(255, 140, 66, 0.1) 0%, rgba(255, 196, 128, 0.05) 52%, transparent 100%);
+  --home-hero-border: rgba(255, 180, 112, 0.28);
+  --home-hero-shadow: 0 28px 80px rgba(58, 32, 18, 0.34);
+  --home-hero-surface: rgba(44, 25, 16, 0.88);
+  --home-card-surface: rgba(48, 29, 19, 0.9);
+  --home-soft-surface: rgba(255, 176, 122, 0.14);
+  --home-pill-surface: rgba(255, 176, 122, 0.14);
+  --home-card-gradient: linear-gradient(180deg, rgba(58, 34, 21, 0.92), rgba(39, 24, 16, 0.88));
+  --home-secondary-btn-bg: linear-gradient(180deg, rgba(255, 176, 122, 0.18), rgba(255, 140, 66, 0.1));
+  --home-workflow-bg:
+    radial-gradient(circle at 12% 20%, rgba(255, 176, 122, 0.13), transparent 24%),
+    linear-gradient(180deg, rgba(52, 31, 20, 0.72), rgba(38, 23, 15, 0.46));
+  --home-step-bg: rgba(255, 176, 122, 0.16);
+  --home-cloud-bg: rgba(255, 226, 191, 0.22);
+  --home-cloud-shadow-a: rgba(255, 226, 191, 0.17);
+  --home-cloud-shadow-b: rgba(255, 226, 191, 0.13);
+  --home-art-filter: drop-shadow(0 34px 54px rgba(40, 18, 7, 0.36));
+  --home-art-image-filter: saturate(1.08) brightness(0.98);
+  background: var(--home-page-bg);
+}
+
+:global(html[data-theme="dark"] .hero-background-art) {
+  opacity: 0.96;
+}
+
+:global(html[data-theme="dark"] .hero-background-art::after) {
+  opacity: 0.98;
+}
+
+:global(html[data-theme="dark"] .hero-main),
+:global(html[data-theme="dark"] .hero-path-panel) {
+  border-color: rgba(255, 190, 132, 0.32);
+  box-shadow: 0 18px 46px rgba(40, 18, 7, 0.3);
+}
+
+:global(html[data-theme="dark"] .hero-cloud) {
+  box-shadow:
+    calc(var(--cloud-width) * 0.18) calc(var(--cloud-width) * -0.1) 0 calc(var(--cloud-width) * 0.02) var(--home-cloud-shadow-a),
+    calc(var(--cloud-width) * 0.42) calc(var(--cloud-width) * -0.03) 0 calc(var(--cloud-width) * 0.04) var(--home-cloud-shadow-b),
+    0 14px 36px rgba(58, 32, 18, 0.18);
+}
+
+:global(html[data-theme="dark"] .hero-badge),
+:global(html[data-theme="dark"] .hero-trail-pill),
+:global(html[data-theme="dark"] .route-tag) {
+  border-color: rgba(255, 190, 132, 0.3);
+  color: var(--home-text-strong);
+}
+
+:global(html[data-theme="dark"] .secondary-btn) {
+  color: #ffe1c7;
+  border-color: rgba(255, 190, 132, 0.42);
+  box-shadow: 0 12px 28px rgba(58, 32, 18, 0.28);
+}
+
+:global(html[data-theme="dark"] .secondary-btn:hover) {
+  border-color: rgba(255, 190, 132, 0.58);
+  box-shadow: 0 16px 34px rgba(58, 32, 18, 0.34);
+}
+
+:global(html[data-theme="dark"] .path-progress-track) {
+  background: rgba(255, 190, 132, 0.16);
+}
+
+:global(html[data-theme="dark"] .flow-item),
+:global(html[data-theme="dark"] .career-path-node),
+:global(html[data-theme="dark"] .support-capability-item),
+:global(html[data-theme="dark"] .version-item) {
+  border-color: rgba(255, 190, 132, 0.22);
+  box-shadow: 0 14px 34px rgba(40, 18, 7, 0.26);
+}
+
+:global(html[data-theme="dark"] .flow-item.is-active) {
+  border-color: rgba(255, 190, 132, 0.42);
+  background: rgba(255, 176, 122, 0.16);
+}
+
+:global(html[data-theme="dark"] .career-path-node:hover),
+:global(html[data-theme="dark"] .support-capability-item:hover),
+:global(html[data-theme="dark"] .version-item:hover) {
+  border-color: rgba(255, 190, 132, 0.5);
+  box-shadow: 0 18px 42px rgba(40, 18, 7, 0.34);
+}
+
+:global(html[data-theme="dark"] .workflow-section) {
+  border-top-color: rgba(255, 190, 132, 0.2);
+  border-bottom-color: rgba(255, 190, 132, 0.16);
+}
+
+:global(html[data-theme="dark"] .workflow-section::before),
+:global(html[data-theme="dark"] .career-path-rail::before),
+:global(html[data-theme="dark"] .workflow-step::after) {
+  background: linear-gradient(90deg, transparent, rgba(255, 140, 66, 0.34), transparent);
+}
+
+:global(html[data-theme="dark"] .step-index) {
+  border-color: rgba(255, 190, 132, 0.42);
+  color: #ffe1c7;
+  box-shadow: 0 12px 24px rgba(40, 18, 7, 0.26);
+}
+
+@media (max-width: 768px) {
+  :global(html[data-theme="dark"] .career-path-rail::before),
+  :global(html[data-theme="dark"] .workflow-step::after) {
+    background: linear-gradient(180deg, rgba(255, 140, 66, 0.28), rgba(255, 140, 66, 0.08));
   }
 }
 

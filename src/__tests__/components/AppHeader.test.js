@@ -62,7 +62,11 @@ const mountHeader = () => mount(AppHeader, {
         template: '<div><slot name="reference" /><slot /></div>'
       },
       ElDrawer: {
-        template: '<div><slot /></div>'
+        props: ['appendToBody'],
+        template: '<div class="drawer-stub" :data-append-to-body="String(appendToBody)"><slot /></div>'
+      },
+      ElTooltip: {
+        template: '<span><slot /></span>'
       },
       ElDialog: {
         template: '<div class="dialog-stub" :data-width="$attrs.width"><slot name="header" /><slot /><slot name="footer" /></div>'
@@ -139,5 +143,30 @@ describe('AppHeader', () => {
     const dialogWidths = wrapper.findAll('.dialog-stub').map((dialog) => dialog.attributes('data-width'))
 
     expect(dialogWidths).toContain('min(440px, calc(100vw - 24px))')
+  })
+
+  it('keeps the motion navigation structure for desktop and mobile header interactions', () => {
+    const wrapper = mountHeader()
+
+    expect(wrapper.find('.motion-app-header').exists()).toBe(true)
+    expect(wrapper.find('.motion-desktop-nav').exists()).toBe(true)
+    expect(wrapper.find('.motion-brand-mark').exists()).toBe(true)
+    expect(wrapper.find('.motion-hamburger-btn').exists()).toBe(true)
+    expect(wrapper.find('.motion-mobile-nav').exists()).toBe(true)
+    expect(wrapper.find('.motion-mobile-nav').text()).toContain('首页')
+    expect(wrapper.find('.motion-mobile-nav').text()).toContain('设置中心')
+    expect(wrapper.findAll('.desktop-nav .nav-link').length).toBeGreaterThanOrEqual(7)
+    expect(wrapper.findAll('.mobile-nav-link').length).toBeGreaterThanOrEqual(10)
+  })
+
+  it('opens mobile drawer from hamburger button and appends drawer to body for responsive layout', async () => {
+    const wrapper = mountHeader()
+
+    expect(wrapper.vm.drawerVisible).toBe(false)
+    expect(wrapper.find('.drawer-stub').attributes('data-append-to-body')).toBe('true')
+
+    await wrapper.find('.motion-hamburger-btn').trigger('click')
+
+    expect(wrapper.vm.drawerVisible).toBe(true)
   })
 })

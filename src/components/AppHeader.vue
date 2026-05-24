@@ -1,7 +1,9 @@
 <template>
-  <header class="app-header">
+  <header
+    class="app-header motion-app-header"
+  >
     <div class="header-left">
-      <router-link to="/" class="brand-mark">
+      <router-link to="/" class="brand-mark motion-brand-mark">
         <span class="logo-box">
           <img src="@/assets/logo.png" class="logo-img" alt="Logo" />
         </span>
@@ -9,7 +11,7 @@
       </router-link>
     </div>
 
-    <nav class="header-nav desktop-nav">
+    <nav class="header-nav desktop-nav motion-desktop-nav">
       <!-- 首页始终显示 -->
       <router-link to="/" class="nav-link" :class="{ active: isHomeActive }">
         <FeatureIcon name="home-dashboard" size="xs" class="nav-feature-icon" />
@@ -116,7 +118,7 @@
     </nav>
 
     <!-- 小屏汉堡按钮 -->
-    <button class="hamburger-btn" @click="drawerVisible = true">
+    <button class="hamburger-btn motion-hamburger-btn" @click="drawerVisible = true">
       <FeatureIcon name="menu" size="sm" />
     </button>
 
@@ -304,8 +306,9 @@
       direction="rtl"
       size="280px"
       :with-header="true"
+      :append-to-body="true"
     >
-      <nav class="mobile-nav">
+      <nav class="mobile-nav motion-mobile-nav">
         <router-link
           to="/"
           class="mobile-nav-link"
@@ -500,6 +503,7 @@ const nicknameFormRef = ref(null);
 const nicknameSaving = ref(false);
 const nicknameForm = ref({ nickname: "" });
 const isLoggedIn = computed(() => userStore.isLoggedIn());
+
 const notificationRealtimeEnabled = computed(() => settingsPreferences.value.notificationRealtimeEnabled !== false);
 
 // ===== 消息通知相关状态 =====
@@ -855,13 +859,15 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 82px;
-  background-color: var(--bg-header);
-  border-bottom: 1px solid var(--border-divider);
+  background: var(--bg-header);
+  border-bottom: 1px solid rgba(255, 140, 66, 0.14);
+  box-shadow: 0 10px 28px rgba(112, 62, 20, 0.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
   z-index: 1000;
+  --header-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .header-left {
@@ -875,12 +881,18 @@ onUnmounted(() => {
   gap: 12px;
   text-decoration: none;
   padding: 6px 16px 6px 8px;
-  border-radius: 14px;
-  transition: all 0.25s ease;
+  border-radius: 999px;
+  transition:
+    background-color 220ms var(--header-motion-ease),
+    box-shadow 220ms var(--header-motion-ease),
+    transform 220ms var(--header-motion-ease);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .brand-mark:hover {
   background-color: var(--orange-light-bg);
+  box-shadow: 0 10px 26px rgba(255, 140, 66, 0.12);
+  transform: translateY(-1px);
 }
 
 .logo-box {
@@ -915,48 +927,107 @@ onUnmounted(() => {
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .nav-link {
-  padding: 8px 16px;
+  position: relative;
+  isolation: isolate;
+  padding: 9px 14px;
   font-size: 14px;
   color: var(--text-body);
   text-decoration: none;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  transition:
+    color 180ms var(--header-motion-ease),
+    border-color 180ms var(--header-motion-ease),
+    box-shadow 220ms var(--header-motion-ease),
+    transform 220ms var(--header-motion-ease);
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-link::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 245, 236, 0.96), rgba(255, 255, 255, 0.82));
+  box-shadow: 0 10px 24px rgba(255, 140, 66, 0.1);
+  opacity: 0;
+  transform: scale(0.94);
+  transition:
+    opacity 220ms var(--header-motion-ease),
+    transform 220ms var(--header-motion-ease);
 }
 
 .nav-feature-icon {
-  margin-right: 2px;
+  margin-right: 1px;
+  transition:
+    opacity 180ms var(--header-motion-ease),
+    transform 220ms var(--header-motion-ease);
+}
+
+.nav-link :deep(.feature-icon.size-xs) {
+  width: 24px;
+  height: 24px;
 }
 
 .nav-link:hover {
   color: var(--orange-main);
+  border-color: rgba(255, 140, 66, 0.18);
+  transform: translateY(-1px);
+}
+
+.nav-link:hover::before,
+.nav-link.active::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.nav-link:hover .nav-feature-icon,
+.nav-link.active .nav-feature-icon {
+  opacity: 1;
+  transform: translateY(-1px) scale(1.08);
 }
 
 .nav-link.active {
   color: var(--orange-main);
-  border-bottom-color: var(--orange-main);
+  border-color: rgba(255, 140, 66, 0.22);
+  box-shadow: 0 12px 26px rgba(255, 140, 66, 0.1);
+  font-weight: 700;
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  gap: 2px;
 }
 
 .login-link {
   font-size: 14px;
   color: var(--orange-main);
   text-decoration: none;
+  border: 1px solid rgba(255, 140, 66, 0.18);
+  border-radius: 999px;
+  padding: 9px 16px;
+  background: linear-gradient(135deg, rgba(255, 246, 238, 0.98), rgba(255, 255, 255, 0.78));
+  box-shadow: 0 12px 24px rgba(255, 140, 66, 0.12);
+  transition:
+    box-shadow 220ms var(--header-motion-ease),
+    transform 220ms var(--header-motion-ease);
 }
 
 .login-link:hover {
-  text-decoration: underline;
+  box-shadow: 0 16px 30px rgba(255, 140, 66, 0.18);
+  transform: translateY(-1px);
 }
 
 /* 历史记录下拉菜单 */
@@ -969,13 +1040,13 @@ onUnmounted(() => {
 }
 
 .dropdown-arrow {
-  width: 14px;
-  height: 14px;
-  transition: transform 0.2s;
+  width: 20px;
+  height: 20px;
+  transition: transform 220ms var(--header-motion-ease);
 }
 
 .feature-dropdown-icon {
-  margin-right: 4px;
+  margin-right: 8px;
 }
 
 .history-dropdown-wrapper:hover .dropdown-arrow {
@@ -985,65 +1056,114 @@ onUnmounted(() => {
 /* 小屏汉堡按钮 */
 .hamburger-btn {
   display: none;
-  background: none;
-  border: none;
+  position: relative;
+  z-index: 2;
+  flex: 0 0 46px;
+  background: linear-gradient(135deg, rgba(255, 246, 238, 0.96), rgba(255, 255, 255, 0.8));
+  border: 1px solid rgba(255, 140, 66, 0.16);
   cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 999px;
+  box-shadow: 0 12px 24px rgba(255, 140, 66, 0.12);
+  transition:
+    box-shadow 220ms var(--header-motion-ease),
+    transform 160ms var(--header-motion-ease),
+    border-color 220ms var(--header-motion-ease);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hamburger-btn:hover {
-  background-color: var(--bg-page);
+  border-color: rgba(255, 140, 66, 0.28);
+  box-shadow: 0 16px 30px rgba(255, 140, 66, 0.18);
+  transform: translateY(-1px);
 }
 
-.hamburger-btn svg {
-  width: 22px;
-  height: 22px;
-  color: var(--text-title);
-  display: block;
+.hamburger-btn:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.hamburger-btn :deep(.feature-icon) {
+  width: 30px;
+  height: 30px;
 }
 
 /* 移动端导航 */
 .mobile-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
 }
 
 .mobile-nav-link {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding: 14px 16px;
   font-size: 15px;
   color: var(--text-body);
   text-decoration: none;
-  border-radius: 8px;
-  transition: all 0.15s;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  transition:
+    background-color 180ms var(--header-motion-ease),
+    border-color 180ms var(--header-motion-ease),
+    color 180ms var(--header-motion-ease),
+    transform 180ms var(--header-motion-ease);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-nav-link:hover {
-  background-color: var(--bg-page);
+  background-color: var(--orange-light-bg);
+  border-color: rgba(255, 140, 66, 0.16);
   color: var(--orange-main);
+  transform: translateX(4px);
 }
 
 .mobile-nav-link.router-link-active {
-  background-color: var(--bg-page);
+  background-color: var(--orange-light-bg);
+  border-color: rgba(255, 140, 66, 0.2);
   color: var(--orange-main);
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .mobile-nav-link :deep(.feature-icon) {
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
+  transition: transform 180ms var(--header-motion-ease);
+}
+
+.mobile-nav-link:hover :deep(.feature-icon) {
+  transform: scale(1.08);
+}
+
+.motion-desktop-nav > .nav-link,
+.motion-desktop-nav > .history-dropdown-wrapper {
+  opacity: 1;
+}
+
+.motion-mobile-nav .mobile-nav-link {
+  opacity: 1;
 }
 
 /* 响应式断点 */
 /* 中屏：1024px - 1279px */
 @media (max-width: 1279px) {
   .nav-link {
-    padding: 8px 10px;
+    padding: 8px 9px;
     font-size: 13px;
+  }
+
+  .header-nav {
+    gap: 3px;
+  }
+
+  .nav-link :deep(.feature-icon.size-xs) {
+    width: 22px;
+    height: 22px;
   }
 }
 
@@ -1073,8 +1193,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -1083,6 +1203,11 @@ onUnmounted(() => {
 
 .notification-bell:hover {
   background-color: var(--bg-page);
+}
+
+.notification-bell :deep(.feature-icon) {
+  width: 30px;
+  height: 30px;
 }
 
 .bell-badge {
@@ -1306,31 +1431,47 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   cursor: pointer;
-  background: none;
-  border: none;
-  transition: background-color 0.2s, transform 0.15s;
+  background: transparent;
+  border: 1px solid transparent;
+  transition:
+    background-color 180ms var(--header-motion-ease),
+    border-color 180ms var(--header-motion-ease),
+    color 180ms var(--header-motion-ease),
+    transform 160ms var(--header-motion-ease);
   margin-right: 4px;
   color: var(--text-body);
   -webkit-tap-highlight-color: transparent;
 }
 
 .theme-toggle:hover {
-  background-color: var(--bg-page);
+  background-color: var(--orange-light-bg);
+  border-color: rgba(255, 140, 66, 0.14);
   color: var(--orange-main);
+  transform: translateY(-1px);
 }
 
 .theme-toggle:active {
-  transform: scale(0.88);
+  transform: translateY(0) scale(0.92);
 }
 
-.theme-toggle svg {
-  width: 20px;
-  height: 20px;
-  transition: color 0.2s;
+.theme-toggle :deep(.feature-icon) {
+  width: 30px;
+  height: 30px;
+  transition: transform 180ms var(--header-motion-ease);
+}
+
+.theme-toggle :deep(.feature-icon img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.theme-toggle:hover :deep(.feature-icon) {
+  transform: rotate(-8deg) scale(1.06);
 }
 
 /* 设置中心图标按钮 */
@@ -1338,36 +1479,48 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   cursor: pointer;
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid transparent;
   text-decoration: none;
-  transition: background-color 0.2s, color 0.2s, transform 0.15s;
+  transition:
+    background-color 180ms var(--header-motion-ease),
+    border-color 180ms var(--header-motion-ease),
+    color 180ms var(--header-motion-ease),
+    transform 160ms var(--header-motion-ease);
   color: var(--text-body);
   margin-right: 12px;
   -webkit-tap-highlight-color: transparent;
 }
 
 .header-icon-btn:hover {
-  background-color: var(--bg-page);
+  background-color: var(--orange-light-bg);
+  border-color: rgba(255, 140, 66, 0.14);
   color: var(--orange-main);
+  transform: translateY(-1px);
 }
 
-.header-icon-btn.active svg {
+.header-icon-btn.active {
+  background-color: var(--orange-light-bg);
+  border-color: rgba(255, 140, 66, 0.18);
+}
+
+.header-icon-btn.active :deep(.feature-icon) {
   color: var(--text-title);
+  transform: scale(1.06);
 }
 
 .header-icon-btn:active {
-  transform: scale(0.88);
+  transform: translateY(0) scale(0.92);
 }
 
-.header-icon-btn svg {
-  width: 20px;
-  height: 20px;
-  transition: color 0.2s;
+.header-icon-btn :deep(.feature-icon) {
+  width: 30px;
+  height: 30px;
+  transition: transform 180ms var(--header-motion-ease);
 }
 
 /* 移动端主题切换 */
@@ -1389,9 +1542,45 @@ onUnmounted(() => {
 }
 
 .theme-toggle-mobile .theme-icon {
-  width: 18px;
-  height: 18px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark,
+  .nav-link,
+  .nav-link::before,
+  .nav-feature-icon,
+  .dropdown-arrow,
+  .hamburger-btn,
+  .mobile-nav-link,
+  .mobile-nav-link :deep(.feature-icon),
+  .theme-toggle,
+  .theme-toggle :deep(.feature-icon),
+  .header-icon-btn,
+  .header-icon-btn :deep(.feature-icon),
+  .login-link {
+    transition-duration: 0.01ms;
+  }
+
+  .brand-mark:hover,
+  .nav-link:hover,
+  .nav-link:hover .nav-feature-icon,
+  .nav-link.active .nav-feature-icon,
+  .hamburger-btn:hover,
+  .hamburger-btn:active,
+  .mobile-nav-link:hover,
+  .mobile-nav-link:hover :deep(.feature-icon),
+  .theme-toggle:hover,
+  .theme-toggle:active,
+  .theme-toggle:hover :deep(.feature-icon),
+  .header-icon-btn:hover,
+  .header-icon-btn:active,
+  .header-icon-btn.active :deep(.feature-icon),
+  .login-link:hover {
+    transform: none;
+  }
 }
 
 </style>
@@ -1471,6 +1660,30 @@ onUnmounted(() => {
     gap: 6px;
   }
 
+  .header-right {
+    gap: 0;
+  }
+
+  .theme-toggle,
+  .header-icon-btn,
+  .notification-bell {
+    width: 40px;
+    height: 40px;
+  }
+
+  .theme-toggle :deep(.feature-icon),
+  .header-icon-btn :deep(.feature-icon),
+  .notification-bell :deep(.feature-icon) {
+    width: 28px;
+    height: 28px;
+  }
+
+  .hamburger-btn {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+
   .announcement-dialog {
     --el-dialog-width: calc(100vw - 32px);
   }
@@ -1508,6 +1721,10 @@ onUnmounted(() => {
   .brand-mark {
     padding: 3px 8px 3px 2px;
     gap: 5px;
+  }
+
+  .header-icon-btn {
+    display: none;
   }
 
   .announcement-dialog {

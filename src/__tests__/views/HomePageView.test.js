@@ -1,5 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import HomePageView from '@/views/HomePageView.vue'
 import { getLatestVersionLogs } from '@/api/versionLog'
 import { getPublicStats } from '@/api/stats'
@@ -32,6 +34,11 @@ const mountView = () => mount(HomePageView, {
     }
   }
 })
+
+const homePageSource = () => readFileSync(
+  join(process.cwd(), 'src/views/HomePageView.vue'),
+  'utf-8'
+)
 
 describe('HomePageView', () => {
   beforeEach(() => {
@@ -85,6 +92,7 @@ describe('HomePageView', () => {
 
     expect(wrapper.text()).toContain('简历诊断')
     expect(wrapper.find('.hero-section').exists()).toBe(true)
+    expect(wrapper.find('.theme-aware-home').exists()).toBe(true)
     expect(wrapper.find('.background-hero-section').exists()).toBe(true)
     expect(wrapper.find('.hero-background-art').exists()).toBe(true)
     expect(wrapper.findAll('.hero-cloud')).toHaveLength(3)
@@ -123,5 +131,56 @@ describe('HomePageView', () => {
     expect(wrapper.findAll('.support-next.size-md')).toHaveLength(4)
     expect(wrapper.find('.n-button').exists()).toBe(true)
     expect(wrapper.findAll('.cta-btn .btn-icon.size-md')).toHaveLength(2)
+  })
+
+  it('should keep dark mode target surfaces available for theme overrides', async () => {
+    getLatestVersionLogs.mockResolvedValue({
+      data: [
+        {
+          id: 2,
+          version: '3.1',
+          type: 'patch',
+          title: '暗色模式验证标题',
+          content: '暗色模式验证内容',
+          publishedAt: '2026-05-24T08:00:00'
+        }
+      ]
+    })
+    getPublicStats.mockResolvedValue({
+      data: {
+        userCount: 1,
+        diagnosisCount: 2,
+        interviewCount: 3
+      }
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('.theme-aware-home').exists()).toBe(true)
+    expect(wrapper.find('.background-hero-section').exists()).toBe(true)
+    expect(wrapper.find('.hero-main').exists()).toBe(true)
+    expect(wrapper.findAll('.hero-cloud')).toHaveLength(3)
+    expect(wrapper.findAll('.career-path-node')).toHaveLength(6)
+    expect(wrapper.find('.workflow-section').exists()).toBe(true)
+    expect(wrapper.findAll('.support-capability-item')).toHaveLength(4)
+    expect(wrapper.find('.version-section').exists()).toBe(true)
+    expect(wrapper.find('.version-item').exists()).toBe(true)
+  })
+
+  it('should drive homepage dark mode through scoped theme variables instead of light hardcoded surfaces', () => {
+    const source = homePageSource()
+
+    expect(source).toContain('--home-page-bg')
+    expect(source).toContain('--home-hero-surface')
+    expect(source).toContain('--home-card-surface')
+    expect(source).toContain('--home-workflow-bg')
+    expect(source).toContain(':global(html[data-theme="dark"] .theme-aware-home)')
+    expect(source).toContain(':global(html[data-theme="dark"] .hero-main)')
+    expect(source).toContain(':global(html[data-theme="dark"] .career-path-node)')
+    expect(source).toMatch(/--home-page-bg:\s*\n\s*radial-gradient/)
+    expect(source).toContain('background: var(--home-page-bg);')
+    expect(source).toContain('background: var(--home-hero-bg-layer);')
+    expect(source).toContain('background: var(--home-card-surface);')
   })
 })
