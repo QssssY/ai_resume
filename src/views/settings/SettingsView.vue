@@ -17,7 +17,7 @@
           :class="{ active: activeSection === section.key }"
           @click="activeSection = section.key"
         >
-          <el-icon><component :is="section.icon" /></el-icon>
+          <FeatureIcon :name="section.icon" size="sm" class="settings-nav-icon" />
           <span>{{ section.label }}</span>
         </button>
       </aside>
@@ -199,16 +199,7 @@
                     :disabled="!previewTextToSpeech.isSupported.value"
                     @click="handleVoicePreview"
                   >
-                    <svg
-                      class="voice-preview-icon"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" />
-                      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-                      <path d="M18.5 5.5a9 9 0 0 1 0 13" />
-                    </svg>
+                  <FeatureIcon name="voice-interview" size="sm" class="voice-preview-icon" />
                   </el-button>
                 </div>
               </div>
@@ -437,7 +428,7 @@
 
             <div v-else key="accountDeletion" class="account-delete-zone">
               <div class="account-delete-context account-delete-alert" role="alert">
-                <el-icon><Warning /></el-icon>
+                <FeatureIcon name="account-security" size="sm" class="settings-alert-icon" />
                 <span>注销后不可恢复，系统将永久清理你的面试、简历、通知等所有数据。</span>
               </div>
 
@@ -523,9 +514,9 @@
             <div class="delete-dialog-body">
               <!-- 第一段红色警告框 -->
               <div class="delete-warning-box">
-                <div class="delete-warning-icon">
-                  <el-icon :size="20"><Warning /></el-icon>
-                </div>
+              <div class="delete-warning-icon">
+                <FeatureIcon name="account-security" size="sm" />
+              </div>
                 <div class="delete-warning-text">
                   <strong>此操作不可恢复！</strong>
                   <p>你的账号及所有关联数据（简历诊断记录、模拟面试历史、通知、成长数据等）将被<strong>永久删除</strong>，无法恢复。</p>
@@ -572,7 +563,7 @@
                 :disabled="growthOverviewLoading"
                 @click="fetchGrowthOverview"
               >
-                <el-icon><Refresh /></el-icon>
+              <FeatureIcon name="growth-radar" size="sm" class="settings-refresh-icon" />
               </el-button>
             </el-tooltip>
           </div>
@@ -897,7 +888,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Brush, ChatLineRound, DataAnalysis, FolderDelete, Memo, Lock, Refresh, Setting, Star, User, Warning } from '@element-plus/icons-vue'
 import { deleteAccount, getCurrentAccountSecurityQuestion, updatePassword, updateSecurityQuestion } from '@/api/auth'
 import { createUserFeedback } from '@/api/feedback'
 import { getGrowthOverview } from '@/api/growth'
@@ -911,6 +901,7 @@ import { FEEDBACK_MODE_OPTIONS, INTERACTION_MODE_OPTIONS, INTERVIEW_MODE_OPTIONS
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import { removeToken } from '@/utils/auth'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import {
   clearLocalSettingsCache,
   DEFAULT_SETTINGS_PREFERENCES,
@@ -938,16 +929,16 @@ const feedbackFormRef = ref(null)
 const feedbackSubmitting = ref(false)
 
 const sections = [
-  { key: 'profile', label: '账号资料', icon: User },
-  { key: 'interview', label: '面试偏好', icon: Setting },
-  { key: 'security', label: '账号安全', icon: Lock },
-  { key: 'privacy', label: '隐私与数据', icon: DataAnalysis },
-  { key: 'dataManagement', label: '数据管理', icon: FolderDelete },
-  { key: 'feedback', label: '问题反馈', icon: ChatLineRound },
-  { key: 'appearance', label: '外观偏好', icon: Brush },
-  { key: 'notification', label: '通知偏好', icon: Bell },
-  { key: 'onboarding', label: '新手引导', icon: Memo },
-  { key: 'membership', label: '会员与额度', icon: Star }
+  { key: 'profile', label: '账号资料', icon: 'user-profile' },
+  { key: 'interview', label: '面试偏好', icon: 'ai-interviewer' },
+  { key: 'security', label: '账号安全', icon: 'account-security' },
+  { key: 'privacy', label: '隐私与数据', icon: 'data-cleanup' },
+  { key: 'dataManagement', label: '数据管理', icon: 'data-management' },
+  { key: 'feedback', label: '问题反馈', icon: 'feedback-center' },
+  { key: 'appearance', label: '外观偏好', icon: 'settings' },
+  { key: 'notification', label: '通知偏好', icon: 'notification-center' },
+  { key: 'onboarding', label: '新手引导', icon: 'onboarding-task' },
+  { key: 'membership', label: '会员与额度', icon: 'membership-credits' }
 ]
 
 const themeOptions = [
@@ -1895,10 +1886,14 @@ onBeforeUnmount(() => {
   line-height: 1.5;
 }
 
-.account-delete-alert .el-icon {
+.settings-alert-icon {
   flex-shrink: 0;
-  font-size: 16px;
   color: #f56c6c;
+}
+
+.settings-alert-icon :deep(.feature-icon) {
+  width: 20px;
+  height: 20px;
 }
 
 .account-delete-form {
@@ -2294,20 +2289,12 @@ onBeforeUnmount(() => {
   transform: none;
 }
 
-.voice-preview-icon {
-  width: 19px;
-  height: 19px;
-  display: block;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
 .voice-preview-button:hover:not(.is-disabled) .voice-preview-icon {
   transform: scale(1.08);
+}
+
+.voice-preview-icon {
+  transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 :global(.browser-voice-select-popper) {
@@ -2364,15 +2351,15 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.1);
 }
 
-.data-overview-refresh-btn .el-icon {
+.settings-refresh-icon {
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.data-overview-refresh-btn:hover .el-icon {
+.data-overview-refresh-btn:hover .settings-refresh-icon {
   transform: rotate(60deg);
 }
 
-.data-overview-refresh-btn.is-refreshing .el-icon {
+.data-overview-refresh-btn.is-refreshing .settings-refresh-icon {
   animation: data-overview-spin 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 }
 
@@ -2546,6 +2533,11 @@ onBeforeUnmount(() => {
   background: rgba(229, 57, 53, 0.12);
   margin-bottom: 10px;
   color: #d32f2f;
+}
+
+.delete-warning-box .delete-warning-icon :deep(.feature-icon) {
+  width: 20px;
+  height: 20px;
 }
 
 .delete-warning-text strong {

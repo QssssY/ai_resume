@@ -3,7 +3,7 @@
     <!-- 优先级建议 -->
     <div v-if="prioritySuggestions.length > 0" class="suggestions-group priority">
       <div class="group-header">
-        <el-icon :size="18" color="#f56c6c"><WarningFilled /></el-icon>
+        <FeatureIcon name="warning" size="xs" />
         <span>优先改进</span>
       </div>
       <div class="suggestions-list">
@@ -25,7 +25,7 @@
               :key="idx"
               class="action-item"
             >
-              <el-icon :size="12" color="#409eff"><ArrowRight /></el-icon>
+              <FeatureIcon name="next" size="xs" />
               <span>{{ action }}</span>
             </div>
           </div>
@@ -36,7 +36,7 @@
     <!-- 一般建议 -->
     <div v-if="generalSuggestions.length > 0" class="suggestions-group general">
       <div class="group-header">
-        <el-icon :size="18" color="#409eff"><InfoFilled /></el-icon>
+        <FeatureIcon name="resume-optimization" size="xs" />
         <span>优化建议</span>
       </div>
       <div class="suggestions-list">
@@ -59,7 +59,7 @@
     <!-- 可执行操作 -->
     <div v-if="actionableItems.length > 0" class="actionable-section">
       <div class="section-title">
-        <el-icon :size="16" color="#67c23a"><CircleCheck /></el-icon>
+        <FeatureIcon name="success" size="xs" />
         <span>可执行修改</span>
       </div>
       <div class="actionable-list">
@@ -77,7 +77,7 @@
 
     <!-- 空状态 -->
     <div v-if="!hasContent" class="empty-optimization">
-      <el-icon :size="24" color="#c0c4cc"><InfoFilled /></el-icon>
+      <FeatureIcon name="empty-state" size="sm" />
       <span>暂无优化建议</span>
     </div>
   </div>
@@ -85,12 +85,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import {
-  WarningFilled,
-  InfoFilled,
-  CircleCheck,
-  ArrowRight
-} from '@element-plus/icons-vue'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const props = defineProps({
   data: {

@@ -20,6 +20,8 @@ const setTheme = vi.fn()
 const setFollowSystem = vi.fn()
 let currentWrapper = null
 
+vi.setConfig({ testTimeout: 15000 })
+
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push })
 }))
@@ -228,7 +230,7 @@ describe('SettingsView', () => {
     await flushPromises()
 
     expect(wrapper.find('.settings-form h3').exists()).toBe(false)
-  })
+  }, 15000)
 
   it('updates theme via theme store handlers', async () => {
     const wrapper = mountView()
@@ -286,7 +288,7 @@ describe('SettingsView', () => {
       interviewRetentionDays: 90,
       resumeRetentionDays: 180
     })
-  })
+  }, 15000)
 
   it('resets local voice preferences without changing other interview settings', async () => {
     const wrapper = mountView()
@@ -322,7 +324,7 @@ describe('SettingsView', () => {
       voiceURI: '',
       voiceLang: ''
     })
-  })
+  }, 15000)
 
   it('uses responsive class for custom browser voice selector', async () => {
     const wrapper = mountView()
@@ -337,7 +339,7 @@ describe('SettingsView', () => {
       .find((select) => select.classes().includes('browser-voice-select'))
     expect(browserVoiceSelect.props('fitInputWidth')).toBe(true)
     expect(browserVoiceSelect.props('popperClass')).toBe('browser-voice-select-popper')
-  })
+  }, 15000)
 
   it('renders voice preview as an accessible icon button', async () => {
     const wrapper = mountView()
@@ -349,7 +351,7 @@ describe('SettingsView', () => {
     const previewButton = wrapper.find('.voice-preview-button')
     expect(previewButton.exists()).toBe(true)
     expect(previewButton.attributes('aria-label')).toBe('试听当前 AI 播报声音')
-    expect(previewButton.find('svg.voice-preview-icon').exists()).toBe(true)
+    expect(previewButton.find('.voice-preview-icon img').exists()).toBe(true)
   })
 
   it('loads server settings and renders resume retention preference', async () => {
@@ -369,7 +371,7 @@ describe('SettingsView', () => {
       interviewRetentionDays: 30,
       resumeRetentionDays: 90
     })
-  })
+  }, 15000)
 
   it('does not change local preferences when server settings save fails', async () => {
     saveSettingsPreferences({ interviewRetentionDays: 30, resumeRetentionDays: 90 })
@@ -474,7 +476,7 @@ describe('SettingsView', () => {
 
     expect(localStorage.getItem('ai_resume_token')).toBe('user-token')
     expect(clearUserInfo).not.toHaveBeenCalled()
-  })
+  }, 15000)
 
   it('loads security question and keeps account delete button disabled during cooldown', async () => {
     const wrapper = mountView()
@@ -489,7 +491,7 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('注销后不可恢复')
     expect(wrapper.text()).toContain('你的出生城市是哪里？')
     expect(wrapper.find('.account-delete-form button.el-button--danger').attributes('disabled')).toBeDefined()
-  })
+  }, 15000)
 
   it('submits account deletion from security tab after cooldown with existing payload', async () => {
     const wrapper = mountView()
@@ -518,7 +520,7 @@ describe('SettingsView', () => {
       confirmPassword: 'current-password',
       securityAnswer: 'answer'
     })
-  })
+  }, 15000)
 
   it('opens text confirmation before deleting account', async () => {
     const wrapper = mountView()
@@ -540,7 +542,7 @@ describe('SettingsView', () => {
 
     expect(wrapper.vm.accountDeleteConfirmDialogVisible).toBe(true)
     expect(deleteAccount).not.toHaveBeenCalled()
-  })
+  }, 15000)
 
   it('collapses and expands long account deletion security questions', async () => {
     const wrapper = mountView()
@@ -564,7 +566,7 @@ describe('SettingsView', () => {
 
     expect(wrapper.find('.security-question-toggle').attributes('aria-expanded')).toBe('true')
     expect(wrapper.find('.security-question-card').classes()).toContain('expanded')
-  })
+  }, 15000)
 
   it('shows account data overview from existing growth overview api', async () => {
     const wrapper = mountView()

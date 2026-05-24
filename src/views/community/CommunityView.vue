@@ -3,21 +3,13 @@
     <!-- 【页面标题横幅】带渐变背景的装饰性banner区域 -->
     <div class="page-banner">
       <button class="my-activity-btn" @click="router.push('/community/my')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
+        <FeatureIcon name="community-activity" size="sm" />
         <span>个人动态中心</span>
         <span v-if="unreadCount > 0" class="activity-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
       </button>
       <div class="page-header">
         <div class="header-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
+          <FeatureIcon name="community-hub" size="md" />
         </div>
         <div>
           <h1 class="page-title">社区</h1>
@@ -45,10 +37,7 @@
           :class="{ active: activeTab === 'interview_exp' }"
           @click="switchTab('interview_exp')"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-          </svg>
+          <FeatureIcon name="interview-replay" size="xs" class="tab-icon" />
           面试经验分享
         </button>
         <button
@@ -56,10 +45,7 @@
           :class="{ active: activeTab === 'referral' }"
           @click="switchTab('referral')"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-          </svg>
+          <FeatureIcon name="offer-comparison" size="xs" class="tab-icon" />
           内推广场
         </button>
       </div>
@@ -119,9 +105,7 @@
       <!-- 空状态 -->
       <div v-else class="empty-state">
         <div class="empty-icon-wrapper">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
+          <FeatureIcon name="empty-state" size="lg" />
         </div>
         <h3 class="empty-title">暂无帖子</h3>
         <p class="empty-desc">成为第一个分享的人吧</p>
@@ -150,17 +134,11 @@
     <div class="fab-group">
       <!-- 刷新按钮 -->
       <button class="fab-button fab-refresh" @click="handleRefresh" :class="{ refreshing: isRefreshing }">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 4v6h-6" />
-          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-        </svg>
+        <FeatureIcon name="retry" size="sm" />
       </button>
       <!-- 发布按钮 -->
       <button class="fab-button fab-post" @click="showEditor = true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
+        <FeatureIcon name="edit" size="sm" />
       </button>
     </div>
 
@@ -205,6 +183,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPostList, togglePostLike, togglePostFavorite, getInteractionUnreadCount } from '@/api/community'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import PostCard from '@/components/community/PostCard.vue'
 import PostEditor from '@/components/community/PostEditor.vue'
 

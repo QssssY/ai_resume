@@ -2,7 +2,7 @@
   <div class="interview-report-view">
     <div class="page-back">
       <el-button link @click="goBack" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon>
+        <FeatureIcon name="back" size="xs" />
         返回历史记录
       </el-button>
     </div>
@@ -506,13 +506,7 @@
           <el-button @click="goBack" class="action-btn secondary">返回历史</el-button>
           <el-button @click="goToSession" class="action-btn secondary">查看会话</el-button>
           <el-button class="action-btn share-btn" @click="showShareDialog = true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="share-icon">
-              <circle cx="18" cy="5" r="3" />
-              <circle cx="6" cy="12" r="3" />
-              <circle cx="18" cy="19" r="3" />
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-            </svg>
+            <FeatureIcon name="share" size="xs" class="share-icon" />
             分享到社区
           </el-button>
           <el-button type="primary" class="action-btn primary" @click="goToEntry">再来一次</el-button>
@@ -549,12 +543,12 @@ import {
   getInterviewModeLabel,
   DIFFICULTY_KEY_MAP,
 } from "@/constants/interview";
-import { ArrowLeft } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { getInterviewSession } from "@/api/interview";
 import RadarChart from "@/components/resume/RadarChart.vue";
 import RadarScorePanel from "@/components/resume/RadarScorePanel.vue";
 import AiLoadingState from "@/components/common/AiLoadingState.vue";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import { completeOnboardingTask } from "@/api/onboarding";
 import ShareReportDialog from "@/components/community/ShareReportDialog.vue";
 

@@ -24,7 +24,9 @@
           :aria-selected="activeTab === item.value"
           @click="activeTab = item.value"
         >
-          <span class="mode-icon" v-html="item.icon"></span>
+          <span class="mode-icon">
+            <FeatureIcon :name="item.iconName" size="sm" />
+          </span>
           <span>
             <strong>{{ item.label }}</strong>
             <small>{{ item.desc }}</small>
@@ -183,10 +185,7 @@
 
           <div v-else class="result-state empty-state">
             <div class="empty-mark">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path d="M8 7h8M8 11h5M8 15h7" />
-                <rect x="4" y="3" width="16" height="18" rx="3" />
-              </svg>
+              <FeatureIcon :name="currentMode.iconName" size="lg" />
             </div>
             <h3>{{ currentMode.emptyTitle }}</h3>
             <p>{{ currentMode.emptyText }}</p>
@@ -201,6 +200,7 @@
 import { computed, defineComponent, h, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { generateSalaryScript, simulateSalaryNegotiation } from '@/api/offer'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const activeTab = ref('simulate')
 const simulationFormRef = ref(null)
@@ -220,7 +220,7 @@ const modeOptions = [
     tag: '情景推演',
     emptyTitle: '等待谈判信息',
     emptyText: '补齐目标岗位、期望薪资、背景和 HR 问题后，右侧会生成建议回复。',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 8h10M7 12h7M12 20l-3-3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-2l-4 3Z"/></svg>'
+    iconName: 'salary-negotiation'
   },
   {
     value: 'script',
@@ -231,7 +231,7 @@ const modeOptions = [
     tag: '模板生成',
     emptyTitle: '等待谈薪目标',
     emptyText: '填写背景、期望薪资和谈判目标后，右侧会生成分场景话术。',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3v4a2 2 0 0 0 2 2h4"/><path d="M6 21h12a2 2 0 0 0 2-2V8l-5-5H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2Z"/><path d="M8 13h8M8 17h5"/></svg>'
+    iconName: 'salary-script'
   }
 ]
 

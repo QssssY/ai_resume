@@ -26,7 +26,8 @@ describe('notificationMeta', () => {
       key: 'unknown',
       label: '通知',
       tagType: 'info',
-      icon: 'bell'
+      icon: 'bell',
+      featureIcon: 'notification-center'
     })
   })
 

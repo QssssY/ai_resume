@@ -3,7 +3,10 @@
     <!-- 页面顶部 Banner：简洁说明会员价值，不含技术细节 -->
     <section class="hero-card">
       <div class="hero-content">
-        <div class="hero-badge">会员中心</div>
+        <div class="hero-badge">
+          <FeatureIcon name="membership-center" size="xs" />
+          会员中心
+        </div>
         <h1 class="hero-title">解锁全部功能</h1>
         <p class="hero-subtitle">
           升级后立即生效，可享受每日 5 次简历诊断、每日 10 次模拟面试，到期时间自动顺延。
@@ -22,7 +25,10 @@
         <div class="status-header">
           <div>
             <div class="section-eyebrow">当前状态</div>
-            <h2 class="section-title">我的会员</h2>
+            <h2 class="section-title">
+              <FeatureIcon name="membership-center" size="sm" />
+              我的会员
+            </h2>
           </div>
           <div class="status-badge" :class="statusBadgeClass">
             {{ memberIdentityText }}
@@ -44,21 +50,25 @@
       <!-- 额度展示卡：用户关心的使用数据，无技术注释 -->
       <section class="quota-panel">
         <article class="quota-card">
+          <FeatureIcon name="membership-credits" size="sm" class="quota-icon" />
           <div class="quota-label">身份</div>
           <div class="quota-value">{{ memberIdentityText }}</div>
         </article>
 
         <article class="quota-card">
+          <FeatureIcon name="membership-center" size="sm" class="quota-icon" />
           <div class="quota-label">当前套餐</div>
           <div class="quota-value">{{ currentPlanName }}</div>
         </article>
 
         <article class="quota-card">
+          <FeatureIcon name="resume-score" size="sm" class="quota-icon" />
           <div class="quota-label">{{ resumeQuotaLabel }}</div>
           <div class="quota-value">{{ resumeQuotaText }}</div>
         </article>
 
         <article class="quota-card">
+          <FeatureIcon name="ai-interviewer" size="sm" class="quota-icon" />
           <div class="quota-label">{{ interviewQuotaLabel }}</div>
           <div class="quota-value">{{ interviewQuotaText }}</div>
         </article>
@@ -70,7 +80,10 @@
       <div class="plans-header">
         <div>
           <div class="section-eyebrow">套餐列表</div>
-          <h2 class="section-title">选择适合你的方案</h2>
+          <h2 class="section-title">
+            <FeatureIcon name="membership-credits" size="sm" />
+            选择适合你的方案
+          </h2>
         </div>
       </div>
 
@@ -105,7 +118,10 @@
           <div class="plan-top">
             <div>
               <!-- 套餐名称：中文化，后端返回英文名时做本地映射 -->
-              <div class="plan-name">{{ getPlanNameCn(plan.planName) }}</div>
+              <div class="plan-name">
+                <FeatureIcon name="membership-center" size="sm" />
+                {{ getPlanNameCn(plan.planName) }}
+              </div>
               <div class="plan-desc">
                 开通后立即生效，每日 5 次简历诊断、每日 10 次模拟面试
               </div>
@@ -178,6 +194,7 @@
 
       <!-- 空状态 -->
       <div v-else class="empty-card">
+        <FeatureIcon name="membership-credits" size="lg" class="empty-icon" />
         <div class="empty-title">暂无可用套餐</div>
         <div class="empty-desc">请稍后再试</div>
       </div>
@@ -189,6 +206,7 @@
 import { computed, onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { getMembershipPlans, mockUpgradeMembership } from "@/api/membership";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import { useUserStore } from "@/stores/user";
 
 const userStore = useUserStore();
@@ -494,6 +512,7 @@ onMounted(async () => {
 .hero-badge {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   padding: 8px 14px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.18);
@@ -587,6 +606,17 @@ onMounted(async () => {
   font-size: 22px;
   font-weight: 700;
   color: var(--text-title, #2f2f2f);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-badge :deep(.feature-icon),
+.section-title :deep(.feature-icon),
+.quota-icon,
+.plan-name :deep(.feature-icon),
+.empty-icon {
+  flex-shrink: 0;
 }
 
 .status-badge {
@@ -732,6 +762,9 @@ onMounted(async () => {
   font-size: 22px;
   font-weight: 700;
   color: var(--text-title, #2f2f2f);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .plan-desc {

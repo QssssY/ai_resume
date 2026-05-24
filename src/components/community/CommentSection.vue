@@ -3,9 +3,7 @@
     <!-- 评论区标题 -->
     <div class="section-header">
       <div class="header-left">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-icon">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
+        <FeatureIcon name="comment" size="sm" class="header-icon" />
         <h3 class="header-title">评论</h3>
         <span v-if="total > 0" class="header-count">{{ total }}</span>
       </div>
@@ -34,9 +32,7 @@
           <div v-for="(img, index) in commentImages" :key="index" class="comment-img-thumb">
             <img :src="img" />
             <button class="remove-img-btn" @click="removeCommentImage(index)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <FeatureIcon name="close" size="xs" />
             </button>
           </div>
         </div>
@@ -51,11 +47,7 @@
                   hidden
                   @change="handleCommentImageUpload"
                 />
-                <svg v-if="!imageUploading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
+                <FeatureIcon v-if="!imageUploading" name="image-upload" size="xs" />
                 <span v-else class="btn-spinner sm"></span>
               </label>
               <span class="char-count" :class="{ warn: commentText.length > 450 }">
@@ -81,9 +73,7 @@
     <!-- 懒加载占位：未进入视口时显示 -->
     <div v-if="!shouldLoad" class="lazy-placeholder" ref="observerTarget">
       <div class="lazy-hint">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="lazy-icon">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
+        <FeatureIcon name="comment" size="sm" class="lazy-icon" />
         <span>滚动加载评论...</span>
       </div>
     </div>
@@ -115,10 +105,7 @@
               @click="handleDeleteComment(comment)"
               title="删除评论"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
+              <FeatureIcon name="delete" size="xs" />
             </button>
           </div>
           <p class="comment-content clickable" @click.prevent="startReply(comment)">{{ comment.content }}</p>
@@ -129,10 +116,8 @@
             v-if="comment.replyCount > 0"
             class="btn-toggle-replies"
             @click="toggleReplies(comment)"
-          >
-            <svg :class="{ rotated: expandedReplies.has(comment.id) }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            >
+            <FeatureIcon :name="expandedReplies.has(comment.id) ? 'collapse' : 'expand'" size="xs" />
             <span v-if="!expandedReplies.has(comment.id)">共{{ comment.replyCount }}条回复，点击查看</span>
             <span v-else>收起回复</span>
           </button>
@@ -167,10 +152,7 @@
                       @click="handleDeleteReply(comment, reply)"
                       title="删除回复"
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
+                      <FeatureIcon name="delete" size="xs" />
                     </button>
                   </div>
                   <p class="reply-content">{{ reply.content }}</p>
@@ -193,9 +175,7 @@
             <div class="reply-composer-header">
               <span class="reply-to-hint">回复 @{{ replyTarget._replyToName || replyTarget.authorName }}</span>
               <button class="btn-cancel-reply" @click="cancelReply">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <FeatureIcon name="close" size="xs" />
               </button>
             </div>
             <div class="reply-composer-body">
@@ -214,9 +194,7 @@
                 <div v-for="(img, index) in replyImages" :key="index" class="comment-img-thumb">
                   <img :src="img" />
                   <button class="remove-img-btn" @click="removeReplyImage(index)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
+                    <FeatureIcon name="close" size="xs" />
                   </button>
                 </div>
               </div>
@@ -230,11 +208,7 @@
                       hidden
                       @change="handleReplyImageUpload"
                     />
-                    <svg v-if="!replyImageUploading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
+                    <FeatureIcon v-if="!replyImageUploading" name="image-upload" size="xs" />
                     <span v-else class="btn-spinner sm"></span>
                   </label>
                   <span class="char-count" :class="{ warn: replyText.length > 450 }">
@@ -267,11 +241,7 @@
     <!-- 空评论状态 -->
     <div v-else-if="!loading && comments.length === 0" class="empty-state">
       <div class="empty-illustration">
-        <svg viewBox="0 0 80 80" fill="none" class="empty-svg">
-          <rect x="12" y="16" width="56" height="40" rx="8" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3" opacity="0.3" />
-          <path d="M28 44l8-8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5" />
-          <circle cx="40" cy="32" r="2" fill="currentColor" opacity="0.3" />
-        </svg>
+        <FeatureIcon name="empty-state" size="xl" class="empty-svg" />
       </div>
       <p class="empty-title">还没有评论</p>
       <p class="empty-desc">快来发表第一条评论吧</p>
@@ -285,6 +255,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getComments, createComment, deleteComment, getReplies, uploadPostImage } from '@/api/community'
 import { useUserStore } from '@/stores/user'
 import defaultAvatar from '@/assets/user.png'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import ImageGrid from '@/components/community/ImageGrid.vue'
 import { formatTime } from '@/utils/community'
 import { useScrollToComment } from '@/composables/useScrollToComment'

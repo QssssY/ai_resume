@@ -5,7 +5,7 @@
   </div>
   <!-- 错误状态 -->
   <div v-else-if="loadError" class="dashboard-error">
-    <div class="error-icon">!</div>
+    <FeatureIcon name="error" size="lg" class="error-icon" />
     <h3>加载失败</h3>
     <p>获取数据时出现问题，请重试</p>
     <el-button type="primary" @click="fetchData">重新加载</el-button>
@@ -37,17 +37,7 @@
           </div>
           <div class="identity-right">
             <div class="vip-badge">
-              <svg
-                class="vip-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <polygon
-                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-                />
-              </svg>
+              <FeatureIcon name="membership-center" size="xs" class="vip-icon" />
               <span>注册时间</span>
             </div>
             <div class="vip-expire-time">{{ formatRegisterTime }}</div>
@@ -59,20 +49,7 @@
       <div class="quota-card">
         <div class="quota-item resume">
           <div class="quota-icon-wrap">
-            <svg
-              class="quota-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-              />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
+            <FeatureIcon name="resume-analysis" size="sm" class="quota-icon" />
           </div>
           <div class="quota-info">
             <div class="quota-number">{{ resumeQuotaLeft }}</div>
@@ -86,18 +63,7 @@
         <div class="quota-divider"></div>
         <div class="quota-item interview">
           <div class="quota-icon-wrap">
-            <svg
-              class="quota-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+            <FeatureIcon name="mock-interview" size="sm" class="quota-icon" />
           </div>
           <div class="quota-info">
             <div class="quota-number">{{ interviewQuotaLeft }}</div>
@@ -115,17 +81,7 @@
     <div class="stats-section">
       <div class="stat-card">
         <div class="stat-icon resume">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-            />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
+          <FeatureIcon name="resume-score" size="sm" />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ resumeCountThisMonth }}</div>
@@ -134,17 +90,7 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon interview">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
+          <FeatureIcon name="interview-replay" size="sm" />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ interviewCountThisMonth }}</div>
@@ -153,17 +99,7 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon resume-left">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
+          <FeatureIcon name="membership-credits" size="sm" />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ isVipUser ? vipDailyResumeQuotaLeft : resumeQuotaLeft }}</div>
@@ -172,16 +108,7 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon interview-left">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polygon
-              points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-            />
-          </svg>
+          <FeatureIcon name="membership-credits" size="sm" />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ isVipUser ? vipDailyInterviewQuotaLeft : interviewQuotaLeft }}</div>
@@ -201,17 +128,13 @@
     <!-- 成长中心入口 -->
     <div class="growth-entry-card" @click="router.push('/growth')">
       <div class="growth-entry-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-        </svg>
+        <FeatureIcon name="growth-radar" size="sm" />
       </div>
       <div class="growth-entry-content">
         <div class="growth-entry-title">个人成长中心</div>
         <div class="growth-entry-desc">查看你的成长轨迹与个性化建议</div>
       </div>
-      <svg class="growth-entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="9 18 15 12 9 6" />
-      </svg>
+      <FeatureIcon name="next" size="xs" class="growth-entry-arrow" />
     </div>
 
     <!-- 最近记录区 -->
@@ -220,17 +143,7 @@
         <div class="column-header">
           <div class="header-left">
             <div class="header-icon resume">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
+              <FeatureIcon name="resume-analysis" size="sm" />
             </div>
             <h3 class="column-title">最近简历诊断</h3>
           </div>
@@ -241,15 +154,7 @@
             @click="viewAllResume"
           >
             查看全部
-            <svg
-              class="arrow-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
+            <FeatureIcon name="next" size="xs" class="arrow-icon" />
           </el-button>
         </div>
         <div class="record-list">
@@ -263,17 +168,7 @@
             >
               <div class="record-left">
                 <div class="file-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                    />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
+                  <FeatureIcon name="resume-analysis" size="xs" />
                 </div>
                 <div class="record-info">
                   <div class="record-name">{{ record.fileName }}</div>
@@ -287,18 +182,7 @@
           </template>
           <template v-else>
             <div class="empty-state">
-              <svg
-                class="empty-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-              >
-                <path
-                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
+              <FeatureIcon name="resume-upload" size="lg" class="empty-icon" />
               <div class="empty-text">暂无简历诊断记录</div>
               <el-button link type="primary" @click="startResumeDiagnosis"
                 >上传简历</el-button
@@ -312,17 +196,7 @@
         <div class="column-header">
           <div class="header-left">
             <div class="header-icon interview">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
+              <FeatureIcon name="mock-interview" size="sm" />
             </div>
             <h3 class="column-title">最近模拟面试</h3>
           </div>
@@ -333,15 +207,7 @@
             @click="viewAllInterview"
           >
             查看全部
-            <svg
-              class="arrow-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
+            <FeatureIcon name="next" size="xs" class="arrow-icon" />
           </el-button>
         </div>
         <div class="record-list">
@@ -355,17 +221,7 @@
             >
               <div class="record-left">
                 <div class="interview-icon-wrap">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
+                  <FeatureIcon name="ai-interviewer" size="xs" />
                 </div>
                 <div class="record-info">
                   <div class="record-name">{{ record.jobRole }}</div>
@@ -380,18 +236,7 @@
           </template>
           <template v-else>
             <div class="empty-state">
-              <svg
-                class="empty-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-              >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
+              <FeatureIcon name="mock-interview" size="lg" class="empty-icon" />
               <div class="empty-text">暂无模拟面试记录</div>
               <el-button link type="primary" @click="startInterview"
                 >开始面试</el-button
@@ -412,6 +257,7 @@ import { getResumeHistory, extractFileName } from "@/api/resume";
 import { getInterviewHistory } from "@/api/interview";
 import { getMonthlyStats } from "@/api/stats";
 import { getOnboardingTasks } from "@/api/onboarding";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import OnboardingTaskCard from "@/components/OnboardingTaskCard.vue";
 
 const router = useRouter();

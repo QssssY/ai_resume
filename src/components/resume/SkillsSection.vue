@@ -34,7 +34,7 @@
       <div class="section-label">技术栈</div>
       <div class="tech-list">
         <div v-for="(tech, index) in techStack" :key="index" class="tech-item">
-          <el-icon :size="14" color="#409eff"><Check /></el-icon>
+          <FeatureIcon name="success" size="xs" />
           <span>{{ tech }}</span>
         </div>
       </div>
@@ -48,7 +48,7 @@
 
     <!-- 空状态 -->
     <div v-if="!hasContent" class="empty-skills">
-      <el-icon :size="24" color="#c0c4cc"><InfoFilled /></el-icon>
+      <FeatureIcon name="empty-state" size="md" />
       <span>暂无技能信息</span>
     </div>
   </div>
@@ -56,7 +56,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Check, InfoFilled, Star } from '@element-plus/icons-vue'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const props = defineProps({
   data: {

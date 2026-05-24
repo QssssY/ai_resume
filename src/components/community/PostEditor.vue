@@ -9,16 +9,11 @@
           :class="{ active: form.category === 'interview_exp' }"
           @click="form.category = 'interview_exp'"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-          </svg>
+          <FeatureIcon name="interview-replay" size="sm" />
           面试经验分享
           <!-- 【选中对勾】激活时显示的圆形对勾标记 -->
           <span v-if="form.category === 'interview_exp'" class="cat-check">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+            <FeatureIcon name="success" size="xs" />
           </span>
         </button>
         <button
@@ -26,16 +21,11 @@
           :class="{ active: form.category === 'referral' }"
           @click="form.category = 'referral'"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-          </svg>
+          <FeatureIcon name="offer-comparison" size="sm" />
           内推广场
           <!-- 【选中对勾】激活时显示的圆形对勾标记 -->
           <span v-if="form.category === 'referral'" class="cat-check">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+            <FeatureIcon name="success" size="xs" />
           </span>
         </button>
       </div>
@@ -43,11 +33,7 @@
 
     <!-- 脱敏提示（面试经验板块） -->
     <div v-if="form.category === 'interview_exp'" class="privacy-tip">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tip-icon">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
+      <FeatureIcon name="privacy" size="sm" class="tip-icon" />
       <div class="tip-content">
         <strong>隐私保护提醒</strong>
         <p>请对以下信息进行脱敏处理：公司名称（可用"某互联网公司"代替）、面试官姓名、个人联系方式、具体薪资数字等。保护您和他人的隐私。</p>
@@ -82,10 +68,7 @@
         >
           <img :src="img" />
           <button class="remove-btn" @click="removeImage(index)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <FeatureIcon name="close" size="xs" />
           </button>
         </div>
         <label
@@ -100,10 +83,7 @@
             hidden
             @change="handleImageUpload"
           />
-          <svg v-if="!imageUploading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <FeatureIcon v-if="!imageUploading" name="image-upload" size="sm" />
           <div v-else class="upload-loading">
             <div class="loading-spinner-sm"></div>
           </div>
@@ -132,6 +112,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createPost, uploadPostImage } from '@/api/community'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const emit = defineEmits(['success', 'cancel'])
 

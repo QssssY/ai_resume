@@ -8,12 +8,7 @@
     >
       <img :src="img" :alt="`图片${index + 1}`" loading="lazy" @error="onImgError" />
       <div class="hover-overlay">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="zoom-icon">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          <line x1="11" y1="8" x2="11" y2="14" />
-          <line x1="8" y1="11" x2="14" y2="11" />
-        </svg>
+        <FeatureIcon name="search" size="sm" class="zoom-icon" />
       </div>
       <div v-if="index === 8 && images.length > 9" class="more-overlay">
         +{{ images.length - 9 }}
@@ -25,16 +20,11 @@
   <div v-if="viewerVisible" class="community-viewer" @click.self="closePreview">
         <!-- 关闭按钮 -->
         <button class="community-viewer-close" @click="closePreview">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <FeatureIcon name="close" size="sm" />
         </button>
         <!-- 左箭头 -->
         <button v-if="images.length > 1" class="viewer-arrow community-viewer-arrow community-viewer-prev" @click.stop="prevImage">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          <FeatureIcon name="previous" size="sm" />
         </button>
         <!-- 图片 -->
         <div class="community-viewer-canvas" @click.self="closePreview">
@@ -42,9 +32,7 @@
         </div>
         <!-- 右箭头 -->
         <button v-if="images.length > 1" class="viewer-arrow community-viewer-arrow community-viewer-next" @click.stop="nextImage">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+          <FeatureIcon name="next" size="sm" />
         </button>
         <!-- 计数器 -->
         <div v-if="images.length > 1" class="community-viewer-counter">
@@ -55,6 +43,7 @@
 
 <script setup>
 import { computed, ref, onBeforeUnmount, useAttrs } from 'vue'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 defineOptions({
   inheritAttrs: false

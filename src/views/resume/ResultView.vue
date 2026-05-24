@@ -2,7 +2,7 @@
   <div class="resume-result-view">
     <div class="page-back">
       <n-button quaternary size="tiny" @click="goToHistory" class="back-btn">
-        <svg width="16" height="16" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24"><polyline points="160 208 80 128 160 48"/></svg>
+        <FeatureIcon name="back" size="xs" />
         返回历史记录
       </n-button>
     </div>
@@ -21,11 +21,7 @@
     <div v-else-if="error" class="error-section">
       <div class="error-card">
         <div class="error-icon-wrap">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="#f56c6c" stroke-width="2"/>
-            <line x1="15" y1="9" x2="9" y2="15" stroke="#f56c6c" stroke-width="2"/>
-            <line x1="9" y1="9" x2="15" y2="15" stroke="#f56c6c" stroke-width="2"/>
-          </svg>
+          <FeatureIcon name="error" size="lg" />
         </div>
         <div class="error-title">加载失败</div>
         <div class="error-desc">{{ error }}</div>
@@ -41,10 +37,7 @@
       <!-- 轮询超时提示 -->
       <div v-if="pollTimeout" class="poll-timeout-section">
         <div class="poll-timeout-card">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="timeout-icon">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+          <FeatureIcon name="processing" size="lg" class="timeout-icon" />
           <h3 class="timeout-title">诊断处理时间较长</h3>
           <p class="timeout-desc">系统仍在处理你的简历，你可以稍后在历史记录中查看结果。</p>
           <div class="timeout-actions">
@@ -119,10 +112,7 @@
             </div>
             <div class="ai-summary" v-if="isCompleted && parsedResult?.overallEvaluation?.summary">
               <div class="summary-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2a10 10 0 1 0 10 10"/>
-                  <path d="M12 6v6l4 2"/>
-                </svg>
+                <FeatureIcon name="ai-loading" size="xs" />
                 AI 总评
               </div>
               <p class="summary-text">{{ parsedResult.overallEvaluation.summary }}</p>
@@ -206,12 +196,9 @@
 
       <!-- 五维能力雷达图 + 得分明细（仅完成时显示） -->
       <div v-if="isCompleted && parsedResult" class="section-card">
-        <div class="section-header">
-          <div class="section-icon radar">
-            <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="128" cy="128" r="96"/>
-              <polyline points="128 56 128 120 168 156"/>
-            </svg>
+          <div class="section-header">
+            <div class="section-icon radar">
+            <FeatureIcon name="growth-radar" size="xs" />
           </div>
           <h3 class="section-title">五维能力分析</h3>
         </div>
@@ -231,13 +218,7 @@
         <div class="section-card" v-if="parsedResult.skillEvaluation">
           <div class="section-header">
             <div class="section-icon skill">
-            <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="128" cy="128" r="96"/>
-              <path d="M128 56v0a28 28 0 0 1 28 28v0a28 28 0 0 1-28 28"/>
-              <path d="M128 172v0a28 28 0 0 0 28 28v0a28 28 0 0 0 28-28v0"/>
-              <path d="M128 84v0a28 28 0 0 0-28 28v0"/>
-              <path d="M128 172v0a28 28 0 0 1-28 28v0a28 28 0 0 1-28-28v0"/>
-            </svg>
+            <FeatureIcon name="job-match-analysis" size="xs" />
           </div>
           <h3 class="section-title">技能情况</h3>
           </div>
@@ -250,9 +231,7 @@
         <div class="section-card" v-if="parsedResult.highlights?.length">
           <div class="section-header">
             <div class="section-icon highlight">
-            <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M128 24l28 60 64 8-48 44 16 64-60-32-60 32 16-64-48-44 64-8z"/>
-            </svg>
+            <FeatureIcon name="success" size="xs" />
           </div>
           <h3 class="section-title">亮点确认</h3>
           </div>
@@ -265,10 +244,7 @@
         <div class="section-card" v-if="basicInfoDetails">
           <div class="section-header">
             <div class="section-icon basic">
-            <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="128" cy="112" r="40"/>
-              <path d="M208 216a80 80 0 0 0-160 0"/>
-            </svg>
+            <FeatureIcon name="user-profile" size="xs" />
           </div>
           <h3 class="section-title">基础信息完整度</h3>
           </div>
@@ -327,10 +303,7 @@
         <div class="section-card" v-if="workExperienceData">
           <div class="section-header">
             <div class="section-icon experience">
-            <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="24" y="80" width="208" height="136" rx="16"/>
-              <path d="M168 216v-32a40 40 0 0 0-80 0v32"/>
-            </svg>
+            <FeatureIcon name="resume-editor" size="xs" />
           </div>
           <h3 class="section-title">工作与项目经验</h3>
           </div>
@@ -343,12 +316,7 @@
         <div class="section-card" v-if="parsedResult.optimizationSuggestions?.length">
           <div class="section-header">
             <div class="section-icon optimization">
-            <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M96 208H40a8 8 0 0 1-8-8V56a8 8 0 0 1 8-8h96l32 32v48"/>
-              <path d="M168 176l24-24 24 24"/>
-              <path d="M192 152v48a8 8 0 0 0 8 8h32"/>
-              <path d="M152 224h80"/>
-            </svg>
+            <FeatureIcon name="resume-optimization" size="xs" />
           </div>
           <h3 class="section-title">优化建议</h3>
           </div>
@@ -366,12 +334,7 @@
         <div class="section-card" v-if="positioningEval.score !== undefined">
           <div class="section-header">
             <div class="section-icon positioning">
-              <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M48 40h160a8 8 0 0 1 8 8v160a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8V48a8 8 0 0 1 8-8z"/>
-                <path d="M72 88h112"/>
-                <path d="M72 128h96"/>
-                <path d="M72 168h64"/>
-              </svg>
+              <FeatureIcon name="job-match-analysis" size="xs" />
             </div>
             <h3 class="section-title">个人定位</h3>
           </div>
@@ -408,11 +371,7 @@
         <div class="section-card" v-if="parsedResult.overallEvaluation">
           <div class="section-header">
             <div class="section-icon overall">
-            <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="128" cy="120" r="64"/>
-              <path d="M128 72v48l24 24"/>
-              <path d="M176 192l16 40-64-24-64 24 16-40"/>
-            </svg>
+            <FeatureIcon name="resume-score" size="xs" />
           </div>
           <h3 class="section-title">AI 总体评价</h3>
           </div>
@@ -435,11 +394,7 @@
 
       <!-- 失败提示区 -->
       <div v-if="isFailed" class="failed-section">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="#f56c6c" stroke-width="2"/>
-          <line x1="12" y1="9" x2="12" y2="13" stroke="#f56c6c" stroke-width="2"/>
-          <line x1="12" y1="17" x2="12.01" y2="17" stroke="#f56c6c" stroke-width="2"/>
-        </svg>
+        <FeatureIcon name="error" size="lg" />
         <div class="failed-title">诊断失败</div>
         <div class="failed-desc">{{ task.errorMsg || '请稍后重试' }}</div>
         <div class="failed-actions">
@@ -454,12 +409,7 @@
       <div v-if="isCompleted" class="section-card job-match-card">
         <div class="section-header">
           <div class="section-icon overall">
-            <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="40" y="168" width="40" height="48"/>
-              <rect x="108" y="112" width="40" height="104"/>
-              <rect x="176" y="56" width="40" height="160"/>
-              <line x1="216" y1="24" x2="176" y2="56"/>
-            </svg>
+            <FeatureIcon name="job-match-analysis" size="xs" />
           </div>
           <h3 class="section-title">岗位匹配分析</h3>
         </div>
@@ -552,11 +502,7 @@
       <div v-if="isCompleted" ref="polishSectionRef" class="section-card polish-card">
         <div class="section-header">
           <div class="section-icon optimization">
-            <svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M200 216H40a8 8 0 0 1-8-8V56a8 8 0 0 1 8-8h96l32 32v128"/>
-              <path d="M168 176l24-24 24 24"/>
-              <path d="M192 152v48a8 8 0 0 0 8 8h32"/>
-            </svg>
+            <FeatureIcon name="resume-editor" size="xs" />
           </div>
           <h3 class="section-title">AI 简历润色</h3>
         </div>
@@ -641,6 +587,7 @@ import { NButton, NInput, useMessage } from 'naive-ui'
 const message = useMessage()
 
 import AiLoadingState from '@/components/common/AiLoadingState.vue'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import OverallEvaluation from '@/components/resume/OverallEvaluation.vue'
 import HighlightsSection from '@/components/resume/HighlightsSection.vue'
 import SkillsSection from '@/components/resume/SkillsSection.vue'

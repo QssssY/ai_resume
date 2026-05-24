@@ -38,8 +38,8 @@
           </div>
         </div>
         <div class="item-status">
-          <el-icon v-if="item.hasValue" :size="16" color="#67c23a"><CircleCheck /></el-icon>
-          <el-icon v-else :size="16" color="#c0c4cc"><CircleClose /></el-icon>
+          <FeatureIcon v-if="item.hasValue" name="success" size="xs" />
+          <FeatureIcon v-else name="error" size="xs" />
         </div>
       </div>
     </div>
@@ -60,10 +60,9 @@ import {
   Phone,
   OfficeBuilding,
   Link,
-  Location,
-  CircleCheck,
-  CircleClose
+  Location
 } from '@element-plus/icons-vue'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const props = defineProps({
   data: {

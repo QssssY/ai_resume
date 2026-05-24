@@ -7,7 +7,7 @@
         class="highlight-item"
       >
         <div class="highlight-icon">
-          <el-icon :size="18" color="#67c23a"><StarFilled /></el-icon>
+          <FeatureIcon name="success" size="xs" />
         </div>
         <div class="highlight-content">
           <div v-if="item.title" class="highlight-title">{{ item.title }}</div>
@@ -17,7 +17,7 @@
       </div>
     </div>
     <div v-else class="empty-highlights">
-      <el-icon :size="24" color="#c0c4cc"><InfoFilled /></el-icon>
+      <FeatureIcon name="empty-state" size="md" />
       <span>暂无亮点记录</span>
     </div>
   </div>
@@ -25,7 +25,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { StarFilled, InfoFilled, Star } from '@element-plus/icons-vue'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const props = defineProps({
   data: {

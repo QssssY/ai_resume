@@ -13,7 +13,7 @@
         size="small"
         @click="handleClearAll"
       >
-        <el-icon style="margin-right: 4px;"><Delete /></el-icon>
+        <FeatureIcon name="delete" size="xs" class="button-feature-icon" />
         清空全部
       </el-button>
     </header>
@@ -48,7 +48,7 @@
     <div v-else-if="error" class="centered-state">
       <div class="error-card">
         <div class="error-icon-ring">
-          <el-icon :size="28" color="var(--color-danger, #f56c6c)"><CircleClose /></el-icon>
+          <FeatureIcon name="error" size="md" />
         </div>
         <div class="error-body">
           <span class="error-title">加载失败</span>
@@ -80,7 +80,7 @@
         <div class="card-head">
           <div class="file-block">
             <div class="file-icon" :class="`file-icon--${item.status}`">
-              <el-icon :size="20"><Document /></el-icon>
+              <FeatureIcon name="resume-analysis" size="xs" />
             </div>
             <div class="file-meta">
               <span class="file-name" :title="getFileName(item)">{{ getFileName(item) }}</span>
@@ -103,7 +103,7 @@
             @click="handleDelete(item)"
             title="删除记录"
           >
-            <el-icon :size="15"><Delete /></el-icon>
+            <FeatureIcon name="delete" size="xs" />
           </el-button>
         </div>
 
@@ -126,7 +126,7 @@
             <!-- 失败 -->
             <template v-if="item.status === 3">
               <el-button size="small" type="primary" :loading="retryingTaskId === item.taskId" @click="handleRetry(item)">
-                <el-icon style="margin-right: 4px;"><RefreshRight /></el-icon>
+                <FeatureIcon v-if="retryingTaskId !== item.taskId" name="retry" size="xs" class="button-feature-icon" />
                 重新诊断
               </el-button>
               <el-button link type="primary" size="small" @click="viewResult(item)">
@@ -145,7 +145,7 @@
 
         <!-- 失败原因 -->
         <div v-if="item.status === 3 && item.errorMsg" class="card-error">
-          <el-icon :size="14" style="flex-shrink: 0;"><CircleClose /></el-icon>
+          <FeatureIcon name="error" size="xs" style="flex-shrink: 0;" />
           <span>{{ item.errorMsg }}</span>
         </div>
       </div>
@@ -169,15 +169,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import {
-  CircleClose,
-  Document,
-  Delete,
-  Clock,
-  RefreshRight,
-} from "@element-plus/icons-vue";
+import { Clock } from "@element-plus/icons-vue";
 import { getResumeHistory, extractFileName, clearResumeHistory, deleteResumeHistory, retryResumeTask } from "@/api/resume";
 import { ElMessage, ElMessageBox } from "element-plus";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import ResumeEmpty from "@/components/empty/ResumeEmpty.vue";
 
 const router = useRouter();
@@ -386,6 +381,9 @@ onUnmounted(() => {
   flex-shrink: 0;
   color: var(--text-muted);
   font-size: 13px;
+}
+.button-feature-icon {
+  margin-right: 4px;
 }
 .clear-all-btn:hover {
   color: var(--color-danger);

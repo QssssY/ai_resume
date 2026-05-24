@@ -17,7 +17,7 @@
         >
           <div v-if="!selectedFile" class="upload-placeholder">
             <div class="upload-icon">
-              <el-icon :size="48"><Upload /></el-icon>
+              <FeatureIcon name="upload-file" size="lg" />
             </div>
             <div class="upload-text">
               <div class="upload-title">点击或拖拽文件到此处上传</div>
@@ -28,7 +28,7 @@
           </div>
           <div v-else class="upload-selected">
             <div class="file-info">
-              <el-icon class="file-icon" :size="32"><Document /></el-icon>
+              <FeatureIcon name="attachment" size="md" class="file-icon" />
               <div class="file-detail">
                 <div class="file-name">{{ selectedFile.name }}</div>
                 <div class="file-size">{{ formatFileSize(selectedFile.size) }}</div>
@@ -39,7 +39,7 @@
         </el-upload>
 
         <div v-if="fileError" class="file-error">
-          <el-icon><WarningFilled /></el-icon>
+          <FeatureIcon name="warning" size="xs" />
           <span>{{ fileError }}</span>
         </div>
 
@@ -51,7 +51,7 @@
             <li>支持文本型 PDF，也支持图片型/扫描型 PDF</li>
           </ul>
           <div class="req-warning">
-            <el-icon><WarningFilled /></el-icon>
+            <FeatureIcon name="warning" size="xs" />
             <span>图片型/扫描型 PDF 需要额外识别步骤，处理时间可能更长。</span>
           </div>
         </div>
@@ -72,7 +72,7 @@
 
         <div v-if="submitError" class="submit-error">
           <div class="error-icon">
-            <el-icon :size="32" color="#f56c6c"><CircleClose /></el-icon>
+            <FeatureIcon name="error" size="md" />
           </div>
           <div class="error-content">
             <div class="error-title">提交失败</div>
@@ -112,10 +112,10 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CircleClose, Document, Upload, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { uploadResume } from '@/api/resume'
 import { completeOnboardingTask } from '@/api/onboarding'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import { isLoggedIn } from '@/utils/auth'
 
 const router = useRouter()

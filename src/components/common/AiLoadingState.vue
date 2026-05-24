@@ -3,6 +3,7 @@
   <div class="ai-loading-state" :class="{ 'no-card': noCard }">
     <!-- SVG 轨道环动画 -->
     <div class="animation-area">
+      <FeatureIcon name="ai-loading" size="lg" class="ai-loading-feature-icon" />
       <svg class="orbit-svg" width="120" height="120" viewBox="0 0 120 120">
         <!-- 外环：虚线圆，顺时针慢转 -->
         <circle
@@ -50,9 +51,7 @@
         :class="{ active: idx === currentStageIndex, completed: idx < currentStageIndex }"
       >
         <div class="stage-dot">
-          <svg v-if="idx < currentStageIndex" width="12" height="12" viewBox="0 0 12 12">
-            <polyline points="2.5,6 5,8.5 9.5,3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <FeatureIcon v-if="idx < currentStageIndex" name="success" size="xs" />
         </div>
         <span class="stage-label">{{ stage.label }}</span>
         <div v-if="idx < stages.length - 1" class="stage-line"></div>
@@ -84,6 +83,8 @@
 </template>
 
 <script setup>
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
+
 /**
  * AI 加载状态通用组件
  * 用于简历诊断等待、面试报告生成等待等需要长时间等待的场景
@@ -210,7 +211,16 @@ function onMotionChange(e) {
    SVG 轨道环动画
    ============================================ */
 .animation-area {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 28px;
+}
+
+.ai-loading-feature-icon {
+  position: absolute;
+  z-index: 1;
 }
 
 .orbit-svg {

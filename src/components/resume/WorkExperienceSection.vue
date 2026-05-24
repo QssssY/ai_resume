@@ -71,7 +71,7 @@
           :key="index"
           class="issue-item"
         >
-          <el-icon :size="16" color="#f56c6c"><Warning /></el-icon>
+          <FeatureIcon name="warning" size="xs" />
           <span>{{ typeof issue === 'string' ? issue : issue.description || issue.text }}</span>
         </div>
       </div>
@@ -81,7 +81,7 @@
           :key="index"
           class="suggestion-item"
         >
-          <el-icon :size="16" color="#409eff"><InfoFilled /></el-icon>
+          <FeatureIcon name="resume-optimization" size="xs" />
           <span>{{ typeof suggestion === 'string' ? suggestion : suggestion.description || suggestion.text }}</span>
         </div>
       </div>
@@ -89,7 +89,7 @@
 
     <!-- 空状态 -->
     <div v-if="!hasContent" class="empty-experience">
-      <el-icon :size="24" color="#c0c4cc"><InfoFilled /></el-icon>
+      <FeatureIcon name="empty-state" size="md" />
       <span>暂无经验信息</span>
     </div>
   </div>
@@ -97,14 +97,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import {
-  Warning,
-  InfoFilled,
-  Check,
-  Calendar,
-  OfficeBuilding,
-  CircleCheck as CircleCheckIcon
-} from '@element-plus/icons-vue'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const props = defineProps({
   data: {

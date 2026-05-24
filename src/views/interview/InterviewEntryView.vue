@@ -7,7 +7,7 @@
 
     <div class="ready-bar">
       <div class="ready-icon">
-        <el-icon :size="20"><CircleCheckFilled /></el-icon>
+        <FeatureIcon name="interview-start" size="sm" />
       </div>
       <span class="ready-text">普通模拟面试可直接开始，开启岗位定向后会额外结合 JD 要求提问</span>
     </div>
@@ -260,11 +260,11 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { CircleCheckFilled } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
 import { createInterviewSession, getInterviewJobRoles } from "@/api/interview";
 import { getResumeTask } from "@/api/resume";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import {
   FEEDBACK_MODE_OPTIONS,
   INTERACTION_MODE_OPTIONS,

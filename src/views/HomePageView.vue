@@ -10,9 +10,7 @@
 
       <div class="hero-content">
         <div class="hero-badge">
-          <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-          </svg>
+          <FeatureIcon name="ai-loading" size="xs" class="badge-icon" />
           <span>AI 驱动 · 智能求职助手</span>
         </div>
 
@@ -27,20 +25,7 @@
             class="cta-btn primary-btn"
             @click="handleResume"
           >
-            <svg
-              class="btn-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-              />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
+            <FeatureIcon name="resume-analysis" size="xs" class="btn-icon" />
             开始简历诊断
           </el-button>
           <el-button
@@ -48,18 +33,7 @@
             class="cta-btn secondary-btn"
             @click="handleInterview"
           >
-            <svg
-              class="btn-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+            <FeatureIcon name="ai-interviewer" size="xs" class="btn-icon" />
             开始模拟面试
           </el-button>
         </div>
@@ -89,23 +63,13 @@
       <div class="hero-visual">
         <div class="visual-card resume-visual">
           <div class="visual-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
+            <FeatureIcon name="resume-score" size="md" />
           </div>
           <span>简历智能诊断</span>
         </div>
         <div class="visual-card interview-visual">
           <div class="visual-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" />
-              <line x1="8" y1="23" x2="16" y2="23" />
-            </svg>
+            <FeatureIcon name="voice-interview" size="md" />
           </div>
           <span>AI 模拟面试</span>
         </div>
@@ -126,20 +90,7 @@
           <div class="card-glow"></div>
           <div class="feature-icon-wrap">
             <div class="feature-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <line x1="10" y1="9" x2="8" y2="9" />
-              </svg>
+              <FeatureIcon name="resume-analysis" size="md" />
             </div>
           </div>
           <h3 class="feature-title">简历诊断</h3>
@@ -149,15 +100,7 @@
           <div class="feature-footer">
             <span class="feature-link">
               立即体验
-              <svg
-                class="arrow-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
+              <FeatureIcon name="next" size="xs" class="arrow-icon" />
             </span>
           </div>
         </div>
@@ -167,17 +110,7 @@
           <div class="card-glow"></div>
           <div class="feature-icon-wrap">
             <div class="feature-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
+              <FeatureIcon name="mock-interview" size="md" />
             </div>
           </div>
           <h3 class="feature-title">模拟面试</h3>
@@ -187,15 +120,7 @@
           <div class="feature-footer">
             <span class="feature-link">
               立即体验
-              <svg
-                class="arrow-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
+              <FeatureIcon name="next" size="xs" class="arrow-icon" />
             </span>
           </div>
         </div>
@@ -207,16 +132,7 @@
       <div class="highlights-grid">
         <div class="highlight-item">
           <div class="highlight-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-              />
-            </svg>
+            <FeatureIcon name="ai-loading" size="sm" />
           </div>
           <div class="highlight-content">
             <h4 class="highlight-title">AI 智能分析</h4>
@@ -226,14 +142,7 @@
 
         <div class="highlight-item">
           <div class="highlight-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
+            <FeatureIcon name="message" size="sm" />
           </div>
           <div class="highlight-content">
             <h4 class="highlight-title">实时流式对话</h4>
@@ -245,16 +154,7 @@
 
         <div class="highlight-item">
           <div class="highlight-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="3" y1="9" x2="21" y2="9" />
-              <line x1="9" y1="21" x2="9" y2="9" />
-            </svg>
+            <FeatureIcon name="job-match-analysis" size="sm" />
           </div>
           <div class="highlight-content">
             <h4 class="highlight-title">多岗位覆盖</h4>
@@ -264,15 +164,7 @@
 
         <div class="highlight-item">
           <div class="highlight-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
+            <FeatureIcon name="processing" size="sm" />
           </div>
           <div class="highlight-content">
             <h4 class="highlight-title">随时随地</h4>
@@ -324,6 +216,7 @@ import { useRouter } from "vue-router";
 import { getLatestVersionLogs } from "@/api/versionLog";
 import { isLoggedIn } from "@/utils/auth";
 import { getPublicStats } from "@/api/stats";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 
 const router = useRouter();
 
@@ -475,9 +368,15 @@ const handleInterview = () => {
 }
 
 .badge-icon {
-  width: 16px;
-  height: 16px;
+  width: 28px;
+  height: 28px;
   color: var(--orange-main);
+}
+
+.hero-badge :deep(.badge-icon.feature-icon) {
+  width: 28px !important;
+  height: 28px !important;
+  filter: drop-shadow(0 4px 8px rgba(255, 140, 66, 0.18));
 }
 
 .hero-badge span {
@@ -512,8 +411,15 @@ const handleInterview = () => {
 }
 
 .btn-icon {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
+}
+
+.cta-btn :deep(.btn-icon.feature-icon) {
+  width: 22px !important;
+  height: 22px !important;
+  margin-left: -4px;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.12));
 }
 
 .primary-btn {
@@ -603,20 +509,28 @@ const handleInterview = () => {
 }
 
 .visual-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ff8c42 0%, #ffb07a 100%);
+  position: relative;
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.visual-icon svg {
-  width: 24px;
-  height: 24px;
-  color: var(--bg-card);
+.visual-icon::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 140, 66, 0.16) 0%, rgba(255, 140, 66, 0.04) 72%);
+}
+
+.visual-icon :deep(.feature-icon) {
+  position: relative;
+  width: 42px !important;
+  height: 42px !important;
+  filter: drop-shadow(0 6px 10px rgba(255, 140, 66, 0.18));
 }
 
 .visual-card span {
@@ -730,20 +644,24 @@ const handleInterview = () => {
 }
 
 .feature-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #ff8c42 0%, #ffb07a 100%);
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.9), rgba(255, 244, 236, 0.64) 58%, rgba(255, 140, 66, 0.1));
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(255, 140, 66, 0.3);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 140, 66, 0.12),
+    0 12px 28px rgba(255, 140, 66, 0.12);
 }
 
-.feature-icon svg {
-  width: 30px;
-  height: 30px;
-  color: var(--bg-card);
+.feature-icon :deep(.feature-icon) {
+  width: 52px !important;
+  height: 52px !important;
+  filter: drop-shadow(0 6px 10px rgba(255, 140, 66, 0.2));
 }
 
 .feature-title {
@@ -821,24 +739,21 @@ const handleInterview = () => {
 }
 
 .highlight-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 140, 66, 0.1) 0%,
-    rgba(255, 140, 66, 0.05) 100%
-  );
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: rgba(255, 140, 66, 0.07);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.highlight-icon svg {
-  width: 20px;
-  height: 20px;
-  color: var(--orange-main);
+.highlight-icon :deep(.feature-icon) {
+  width: 34px !important;
+  height: 34px !important;
+  filter: drop-shadow(0 4px 8px rgba(255, 140, 66, 0.14));
 }
 
 .highlight-content {

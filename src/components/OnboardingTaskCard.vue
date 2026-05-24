@@ -3,10 +3,7 @@
     <div class="task-card-header">
       <div class="header-left">
         <div class="header-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
+          <FeatureIcon name="onboarding-task" size="sm" />
         </div>
         <div class="header-text">
           <div class="header-title">快速上手</div>
@@ -37,9 +34,7 @@
       >
         <div class="task-left">
           <div class="task-check" :class="{ done: item.completed }">
-            <svg v-if="item.completed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+            <FeatureIcon v-if="item.completed" name="success" size="xs" />
             <span v-else class="check-empty"></span>
           </div>
           <div class="task-info">
@@ -49,9 +44,7 @@
         </div>
         <router-link v-if="!item.completed" :to="item.actionUrl" class="task-action">
           去完成
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+          <FeatureIcon :name="getTaskIcon(item)" size="xs" />
         </router-link>
         <span v-else class="task-done-label">已完成</span>
       </div>
@@ -61,6 +54,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const props = defineProps({
   tasks: { type: Array, default: () => [] },
@@ -69,6 +63,15 @@ const props = defineProps({
 })
 
 const circumference = 2 * Math.PI * 15.5
+
+const getTaskIcon = (item) => {
+  const text = `${item.taskKey || ''} ${item.taskLabel || ''} ${item.taskDesc || ''} ${item.actionUrl || ''}`.toLowerCase()
+  if (text.includes('resume') || text.includes('简历')) return 'resume-upload'
+  if (text.includes('interview') || text.includes('面试')) return 'ai-interviewer'
+  if (text.includes('template') || text.includes('模板')) return 'template-editor'
+  if (text.includes('growth') || text.includes('成长')) return 'growth-milestone'
+  return 'onboarding-task'
+}
 const progressPercent = computed(() => {
   if (props.totalCount <= 0) return 0
   return Math.round((props.completedCount / props.totalCount) * 100)
@@ -113,11 +116,6 @@ const dashOffset = computed(() => {
   align-items: center;
   justify-content: center;
   color: var(--orange-main);
-}
-
-.header-icon svg {
-  width: 20px;
-  height: 20px;
 }
 
 .header-title {
@@ -262,11 +260,6 @@ const dashOffset = computed(() => {
 
 .task-action:hover {
   background: rgba(255, 140, 66, 0.15);
-}
-
-.task-action svg {
-  width: 14px;
-  height: 14px;
 }
 
 .task-done-label {

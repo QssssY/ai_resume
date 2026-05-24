@@ -3,27 +3,21 @@
     <!-- 返回按钮 -->
     <div class="top-bar">
       <button class="back-btn" @click="goBack">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
+        <FeatureIcon name="back" size="xs" />
         <span>返回</span>
       </button>
     </div>
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
-      <div class="loading-spinner"></div>
+      <FeatureIcon name="loading" size="sm" class="loading-feature-icon" />
       <span>加载中...</span>
     </div>
 
     <!-- 加载失败 -->
     <div v-else-if="loadError" class="error-state">
       <div class="error-icon-wrapper">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
+        <FeatureIcon name="error" size="lg" />
       </div>
       <h3 class="error-title">加载失败</h3>
       <p class="error-desc">帖子可能已被删除或不存在</p>
@@ -64,31 +58,19 @@
 
           <div class="post-actions">
             <button class="act-btn" :class="{ active: post.liked }" @click="handleLike">
-              <svg viewBox="0 0 24 24" :fill="post.liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
+              <FeatureIcon :name="post.liked ? 'liked' : 'favorite'" size="xs" />
               <span>{{ post.likeCount || 0 }}</span>
             </button>
             <button class="act-btn" @click="scrollToComments">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
+              <FeatureIcon name="comment" size="xs" />
               <span>{{ post.commentCount || 0 }}</span>
             </button>
             <button class="act-btn" :class="{ active: post.favorited, 'active-fav': post.favorited }" @click="handleFavorite">
-              <svg viewBox="0 0 24 24" :fill="post.favorited ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-              </svg>
+              <FeatureIcon name="favorite" size="xs" />
               <span>收藏</span>
             </button>
             <button class="act-btn" @click="handleShare">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-              </svg>
+              <FeatureIcon name="share" size="xs" />
               <span>分享</span>
             </button>
           </div>
@@ -126,6 +108,7 @@ import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPostDetail, togglePostLike, togglePostFavorite } from '@/api/community'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import ImageGrid from '@/components/community/ImageGrid.vue'
 import CommentSection from '@/components/community/CommentSection.vue'
 import defaultAvatar from '@/assets/user.png'
@@ -295,6 +278,10 @@ loadPost()
   border-top-color: var(--orange-main);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+.loading-feature-icon {
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }

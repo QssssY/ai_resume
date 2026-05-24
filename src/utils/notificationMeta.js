@@ -3,49 +3,57 @@ const NOTIFICATION_TYPES = {
     key: 'resume',
     label: '简历诊断',
     tagType: 'warning',
-    icon: 'document'
+    icon: 'document',
+    featureIcon: 'resume-notifications'
   },
   polish: {
     key: 'polish',
     label: 'AI润色',
     tagType: 'primary',
-    icon: 'edit'
+    icon: 'edit',
+    featureIcon: 'resume-polish-notifications'
   },
   interview: {
     key: 'interview',
     label: '模拟面试',
     tagType: 'success',
-    icon: 'user'
+    icon: 'user',
+    featureIcon: 'interview-notifications'
   },
   quota: {
     key: 'quota',
     label: '额度提醒',
     tagType: 'danger',
-    icon: 'alert'
+    icon: 'alert',
+    featureIcon: 'membership-credits'
   },
   system: {
     key: 'system',
     label: '系统公告',
     tagType: 'info',
-    icon: 'bell'
+    icon: 'bell',
+    featureIcon: 'system-notifications'
   },
   activity: {
     key: 'activity',
     label: '活动公告',
     tagType: 'warning',
-    icon: 'calendar'
+    icon: 'calendar',
+    featureIcon: 'event-notifications'
   },
   update: {
     key: 'update',
     label: '版本公告',
     tagType: 'primary',
-    icon: 'refresh'
+    icon: 'refresh',
+    featureIcon: 'version-log'
   },
   maintenance: {
     key: 'maintenance',
     label: '维护公告',
     tagType: 'danger',
-    icon: 'tool'
+    icon: 'tool',
+    featureIcon: 'account-security'
   }
 }
 
@@ -53,7 +61,8 @@ const DEFAULT_TYPE = {
   key: 'unknown',
   label: '通知',
   tagType: 'info',
-  icon: 'bell'
+  icon: 'bell',
+  featureIcon: 'notification-center'
 }
 
 const ADMIN_ANNOUNCEMENT_TYPES = new Set(['system', 'activity', 'update', 'maintenance'])
@@ -61,7 +70,7 @@ const ADMIN_ANNOUNCEMENT_TYPES = new Set(['system', 'activity', 'update', 'maint
 /**
  * 统一管理通知类型的展示元数据，避免铃铛下拉和通知中心出现文案或图标不一致。
  * @param {string} type 通知类型
- * @returns {{ key: string, label: string, tagType: string, icon: string }}
+ * @returns {{ key: string, label: string, tagType: string, icon: string, featureIcon: string }}
  */
 export function getNotificationTypeMeta(type) {
   return NOTIFICATION_TYPES[type] || DEFAULT_TYPE

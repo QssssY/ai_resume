@@ -44,9 +44,9 @@
 
         </div>
 
-      <div class="auth-card">
-        <router-link to="/" class="back-home">
-          <el-icon><ArrowLeft /></el-icon>
+        <div class="auth-card">
+          <router-link to="/" class="back-home">
+          <FeatureIcon name="back" size="xs" />
           <span>返回首页</span>
         </router-link>
 
@@ -64,11 +64,19 @@
 
             <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="auth-form" size="large" @keyup.enter="handleLogin">
               <el-form-item prop="username">
-                <el-input id="login-username" v-model="loginForm.username" placeholder="用户名" :prefix-icon="User" clearable />
+                <el-input id="login-username" v-model="loginForm.username" placeholder="用户名" clearable>
+                  <template #prefix>
+                    <FeatureIcon name="user-profile" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
               </el-form-item>
 
               <el-form-item prop="password">
-                <el-input id="login-password" v-model="loginForm.password" type="password" placeholder="密码" :prefix-icon="Lock" show-password clearable />
+                <el-input id="login-password" v-model="loginForm.password" type="password" placeholder="密码" show-password clearable>
+                  <template #prefix>
+                    <FeatureIcon name="password" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
               </el-form-item>
 
               <div class="forgot-row">
@@ -95,11 +103,19 @@
 
             <el-form ref="registerFormRef" :model="registerForm" :rules="registerRules" class="auth-form" size="large" @keyup.enter="handleRegister">
               <el-form-item prop="username">
-                <el-input id="register-username" v-model="registerForm.username" placeholder="用户名（3-50个字符）" :prefix-icon="User" clearable />
+                <el-input id="register-username" v-model="registerForm.username" placeholder="用户名（3-50个字符）" clearable>
+                  <template #prefix>
+                    <FeatureIcon name="user-profile" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
               </el-form-item>
 
               <el-form-item prop="password">
-                <el-input id="register-password" v-model="registerForm.password" type="password" placeholder="密码（6-100个字符）" :prefix-icon="Lock" show-password clearable />
+                <el-input id="register-password" v-model="registerForm.password" type="password" placeholder="密码（6-100个字符）" show-password clearable>
+                  <template #prefix>
+                    <FeatureIcon name="password" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
                 <!-- 密码强度指示器 -->
                 <div v-if="registerForm.password" class="password-strength" role="meter" :aria-valuenow="registerStrengthScore" aria-valuemin="0" aria-valuemax="5" :aria-label="`密码强度：${registerStrengthLabel}`">
                   <div class="strength-bars">
@@ -112,7 +128,11 @@
               </el-form-item>
 
               <el-form-item prop="confirmPassword">
-                <el-input id="register-confirm" v-model="registerForm.confirmPassword" type="password" placeholder="确认密码" :prefix-icon="Lock" show-password clearable />
+                <el-input id="register-confirm" v-model="registerForm.confirmPassword" type="password" placeholder="确认密码" show-password clearable>
+                  <template #prefix>
+                    <FeatureIcon name="password" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
               </el-form-item>
 
               <el-form-item prop="securityQuestion">
@@ -129,7 +149,11 @@
               </el-form-item>
 
               <el-form-item prop="securityAnswer">
-                <el-input v-model="registerForm.securityAnswer" placeholder="安全问题答案" :prefix-icon="Key" clearable @keyup.enter="handleRegister" />
+                <el-input v-model="registerForm.securityAnswer" placeholder="安全问题答案" clearable @keyup.enter="handleRegister">
+                  <template #prefix>
+                    <FeatureIcon name="security-question" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
               </el-form-item>
 
               <el-form-item>
@@ -153,7 +177,11 @@
             <!-- Step 1: 输入用户名 -->
             <el-form v-if="forgotStep === 1" ref="forgotStep1FormRef" :model="forgotForm" :rules="forgotStep1Rules" class="auth-form" size="large" @keyup.enter="handleFetchQuestion">
               <el-form-item prop="username">
-                <el-input v-model="forgotForm.username" placeholder="请输入用户名" :prefix-icon="User" clearable />
+                <el-input v-model="forgotForm.username" placeholder="请输入用户名" clearable>
+                  <template #prefix>
+                    <FeatureIcon name="user-profile" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
               </el-form-item>
 
               <el-form-item>
@@ -169,11 +197,19 @@
               </div>
 
               <el-form-item prop="securityAnswer">
-                <el-input v-model="forgotForm.securityAnswer" placeholder="请输入安全问题答案" :prefix-icon="Key" clearable />
+                <el-input v-model="forgotForm.securityAnswer" placeholder="请输入安全问题答案" clearable>
+                  <template #prefix>
+                    <FeatureIcon name="security-question" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
               </el-form-item>
 
               <el-form-item prop="newPassword">
-                <el-input v-model="forgotForm.newPassword" type="password" placeholder="新密码（6-100个字符）" :prefix-icon="Lock" show-password clearable />
+                <el-input v-model="forgotForm.newPassword" type="password" placeholder="新密码（6-100个字符）" show-password clearable>
+                  <template #prefix>
+                    <FeatureIcon name="password" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
                 <!-- 忘记密码流程的密码强度指示器 -->
                 <div v-if="forgotForm.newPassword" class="password-strength" role="meter" :aria-valuenow="forgotStrengthScore" aria-valuemin="0" aria-valuemax="5" :aria-label="`密码强度：${forgotStrengthLabel}`">
                   <div class="strength-bars">
@@ -186,7 +222,11 @@
               </el-form-item>
 
               <el-form-item prop="confirmPassword">
-                <el-input v-model="forgotForm.confirmPassword" type="password" placeholder="确认新密码" :prefix-icon="Lock" show-password clearable @keyup.enter="handleResetPassword" />
+                <el-input v-model="forgotForm.confirmPassword" type="password" placeholder="确认新密码" show-password clearable @keyup.enter="handleResetPassword">
+                  <template #prefix>
+                    <FeatureIcon name="password" size="xs" class="auth-prefix-icon" />
+                  </template>
+                </el-input>
               </el-form-item>
 
               <el-form-item>
@@ -202,12 +242,12 @@
         </template>
 
         <div v-if="errorMessage" class="alert-error">
-          <el-icon><WarningFilled /></el-icon>
+          <FeatureIcon name="warning" size="xs" />
           <span>{{ errorMessage }}</span>
         </div>
 
         <div v-if="registerSuccess" class="alert-success">
-          <el-icon color="#67c23a"><CircleCheck /></el-icon>
+          <FeatureIcon name="success" size="xs" />
           <span>{{ registerSuccess }}</span>
         </div>
       </div>
@@ -218,10 +258,10 @@
 <script setup>
 import { ref, reactive, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { User, Lock, Key, ArrowLeft, WarningFilled, CircleCheck } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
 import { register, getSecurityQuestion, resetPasswordBySecurity } from "@/api/auth";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import brandLogo from "@/assets/logo.png";
 
 const router = useRouter();
@@ -760,6 +800,10 @@ const handleResetPassword = async () => {
 
 .auth-form :deep(.el-input__wrapper.is-focus) {
   box-shadow: 0 0 0 1px var(--orange-main) inset;
+}
+
+.auth-prefix-icon {
+  opacity: 0.82;
 }
 
 .btn-primary {

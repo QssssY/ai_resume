@@ -12,7 +12,7 @@
         size="small"
         @click="handleClearAll"
       >
-        <el-icon style="margin-right: 4px;"><Delete /></el-icon>
+        <FeatureIcon name="delete" size="xs" class="button-feature-icon" />
         清空全部
       </el-button>
     </div>
@@ -46,7 +46,7 @@
     <div v-else-if="error" class="error-section">
       <div class="error-card">
         <div class="error-icon">
-          <el-icon :size="48" color="#f56c6c"><CircleClose /></el-icon>
+          <FeatureIcon name="error" size="lg" />
         </div>
         <div class="error-content">
           <div class="error-title">加载失败</div>
@@ -80,7 +80,7 @@
                 @click="handleDelete(item)"
                 title="删除记录"
               >
-                <el-icon :size="15"><Delete /></el-icon>
+                <FeatureIcon name="delete" size="xs" />
               </el-button>
             </div>
             <div class="title-tags">
@@ -89,10 +89,11 @@
                 effect="plain"
                 :type="item.interactionType === INTERACTION_TYPE_VOICE ? 'success' : 'info'"
               >
-                <el-icon class="tag-icon">
-                  <Microphone v-if="item.interactionType === INTERACTION_TYPE_VOICE" />
-                  <ChatDotSquare v-else />
-                </el-icon>
+                <FeatureIcon
+                  :name="item.interactionType === INTERACTION_TYPE_VOICE ? 'voice-interview' : 'message'"
+                  size="xs"
+                  class="tag-icon"
+                />
                 {{ getInteractionTypeLabel(item.interactionType) }}
               </el-tag>
               <el-tag
@@ -178,9 +179,9 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { ChatDotSquare, CircleClose, Delete, Microphone } from "@element-plus/icons-vue";
 import { getInterviewHistory, clearInterviewHistory, deleteInterviewSession } from "@/api/interview";
 import { ElMessage, ElMessageBox } from "element-plus";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import InterviewEmpty from "@/components/empty/InterviewEmpty.vue";
 import {
   DIFFICULTY_TAG_MAP,
@@ -351,6 +352,9 @@ onMounted(() => {
   color: var(--text-muted);
   font-size: 13px;
 }
+.button-feature-icon {
+  margin-right: 4px;
+}
 .clear-all-btn:hover {
   color: var(--color-danger);
 }
@@ -514,7 +518,7 @@ onMounted(() => {
 
 .tag-icon {
   margin-right: 4px;
-  vertical-align: -1px;
+  vertical-align: -4px;
 }
 
 .job-title {

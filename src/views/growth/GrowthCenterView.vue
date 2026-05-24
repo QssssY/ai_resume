@@ -4,9 +4,7 @@
     <div class="page-header">
       <div class="header-left">
         <div class="header-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
+          <FeatureIcon name="growth-center" size="md" />
         </div>
         <div>
           <h1 class="page-title">个人成长中心</h1>
@@ -14,29 +12,26 @@
         </div>
       </div>
       <el-button
-        :icon="Refresh"
         circle
         size="small"
         :loading="loading"
         @click="fetchData"
         class="refresh-btn"
-      />
+      >
+        <FeatureIcon v-if="!loading" name="retry" size="xs" />
+      </el-button>
     </div>
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
-      <div class="loading-spinner"></div>
+      <FeatureIcon name="loading" size="sm" class="loading-feature-icon" />
       <span>正在加载成长数据...</span>
     </div>
 
     <!-- 加载失败状态 -->
     <div v-else-if="loadError" class="error-state">
       <div class="error-icon-wrapper">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
+        <FeatureIcon name="error" size="lg" />
       </div>
       <h3 class="error-title">加载失败</h3>
       <p class="error-desc">获取成长数据时出现问题，请重试</p>
@@ -46,9 +41,7 @@
     <!-- 全量无数据状态 -->
     <div v-else-if="isEmpty" class="empty-full-state">
       <div class="empty-icon-wrapper">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-        </svg>
+        <FeatureIcon name="empty-state" size="lg" />
       </div>
       <h3 class="empty-title">还没有成长数据</h3>
       <p class="empty-desc">完成简历诊断或模拟面试后，这里将展示你的成长轨迹</p>
@@ -64,40 +57,28 @@
       <section class="summary-section">
         <div class="summary-card">
           <div class="summary-icon resume-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
+            <FeatureIcon name="resume-score" size="sm" />
           </div>
           <div class="summary-value">{{ summary.latestResumeScore ?? '--' }}</div>
           <div class="summary-label">最近简历分</div>
         </div>
         <div class="summary-card">
           <div class="summary-icon interview-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-            </svg>
+            <FeatureIcon name="interview-report" size="sm" />
           </div>
           <div class="summary-value">{{ summary.latestInterviewScore ?? '--' }}</div>
           <div class="summary-label">最近面试分</div>
         </div>
         <div class="summary-card">
           <div class="summary-icon count-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-            </svg>
+            <FeatureIcon name="resume-analysis" size="sm" />
           </div>
           <div class="summary-value">{{ summary.resumeDiagnosisCount ?? 0 }}</div>
           <div class="summary-label">简历诊断次数</div>
         </div>
         <div class="summary-card">
           <div class="summary-icon count-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
+            <FeatureIcon name="mock-interview" size="sm" />
           </div>
           <div class="summary-value">{{ summary.mockInterviewCount ?? 0 }}</div>
           <div class="summary-label">模拟面试次数</div>
@@ -147,9 +128,7 @@
             :datasets="[{ label: '简历分数', data: resumeScoreTrend.map(i => i.score), borderColor: '#FF8C42', backgroundColor: 'rgba(255, 140, 66, 0.1)' }]"
           />
           <div v-else class="chart-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
+            <FeatureIcon name="resume-analysis" size="sm" />
             <span>暂无数据，完成更多诊断后将展示趋势</span>
           </div>
         </div>
@@ -161,10 +140,7 @@
             :datasets="[{ label: '面试分数', data: interviewScoreTrend.map(i => i.score), borderColor: '#E67A35', backgroundColor: 'rgba(230, 122, 53, 0.1)' }]"
           />
           <div v-else class="chart-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-            </svg>
+            <FeatureIcon name="interview-report" size="sm" />
             <span>暂无数据，完成更多面试后将展示趋势</span>
           </div>
         </div>
@@ -235,9 +211,7 @@
           </div>
         </template>
         <div v-else class="radar-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
+          <FeatureIcon name="growth-radar" size="sm" />
           <span>暂无维度数据，完成面试后将展示雷达分析</span>
           <el-button link type="primary" @click="$router.push('/interview/entry')">去面试</el-button>
         </div>
@@ -322,10 +296,7 @@
         <div class="weakness-grid">
           <div v-if="weaknessSummary.resumeWeaknesses?.length" class="weakness-block">
             <div class="weakness-block-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
+              <FeatureIcon name="resume-optimization" size="xs" />
               简历侧
             </div>
             <ul class="weakness-list">
@@ -334,10 +305,7 @@
           </div>
           <div v-if="weaknessSummary.jobMatchWeaknesses?.length" class="weakness-block">
             <div class="weakness-block-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
+              <FeatureIcon name="job-match-analysis" size="xs" />
               岗位匹配侧
             </div>
             <ul class="weakness-list">
@@ -346,10 +314,7 @@
           </div>
           <div v-if="weaknessSummary.interviewWeaknesses?.length" class="weakness-block">
             <div class="weakness-block-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-              </svg>
+              <FeatureIcon name="interview-feedback" size="xs" />
               面试表现侧
             </div>
             <ul class="weakness-list">
@@ -373,8 +338,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
 import { getGrowthOverview, getInterviewRadar } from '@/api/growth'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import LineChart from '@/components/resume/LineChart.vue'
 import RadarChart from '@/components/resume/RadarChart.vue'
 import RadarScorePanel from '@/components/resume/RadarScorePanel.vue'
@@ -633,6 +598,9 @@ onMounted(() => {
   animation: spin 0.8s linear infinite;
 }
 
+.loading-feature-icon {
+  animation: spin 1s linear infinite;
+}
 
 /* 全量无数据状态 */
 .empty-full-state {

@@ -2,6 +2,7 @@
   <div class="interview-session-view">
     <div class="session-status-bar">
       <div class="status-bar-left">
+        <FeatureIcon name="ai-interviewer" size="sm" class="title-icon" />
         <span class="interview-title">模拟面试 · {{ sessionData?.jobRole || "加载中" }}</span>
         <span class="status-divider">|</span>
         <span class="difficulty-badge" :class="`difficulty-${sessionData?.difficulty || 1}`">
@@ -17,7 +18,7 @@
           <span class="status-text">{{ sessionStatusText }}</span>
         </span>
         <el-button link class="back-btn" @click="goBack" aria-label="返回">
-          <el-icon><ArrowLeft /></el-icon>
+          <FeatureIcon name="back" size="xs" />
         </el-button>
         <!-- 结束按钮：桌面端显示文字，移动端切换为挂断图标 SVG -->
         <el-button
@@ -29,15 +30,7 @@
           aria-label="结束面试"
           @click="endInterview"
         >
-          <svg
-            class="end-btn-svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85a.9.9 0 0 1-.65.27c-.25 0-.48-.1-.65-.27L.29 13.08a.95.95 0 0 1-.29-.68c0-.27.11-.52.29-.7C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.7c.18.18.29.43.29.7 0 .27-.11.52-.29.7l-2.59 2.49a.91.91 0 0 1-.65.27.9.9 0 0 1-.65-.27 11.27 11.27 0 0 0-2.67-1.85.99.99 0 0 1-.56-.9v-3.1A16.4 16.4 0 0 0 12 9z" transform="rotate(135 12 12)"/>
-          </svg>
+          <FeatureIcon name="interview-end" size="xs" class="end-btn-svg" />
           <span class="end-btn-text">结束面试</span>
         </el-button>
         <el-button
@@ -59,7 +52,7 @@
 
     <div v-if="loading" class="loading-section">
       <div class="loading-content">
-        <el-icon class="loading-icon" :size="48"><Loading /></el-icon>
+        <FeatureIcon name="loading" size="lg" class="loading-icon" />
         <div class="loading-text">加载面试会话...</div>
       </div>
     </div>
@@ -86,7 +79,7 @@
             <!-- 开场白加载中 -->
             <div v-if="openingPending" class="opening-pending">
               <div class="opening-loading">
-                <el-icon class="loading-icon" :size="48"><Loading /></el-icon>
+                <FeatureIcon name="ai-loading" size="lg" class="loading-icon" />
                 <div class="loading-text">AI 面试官正在准备中...</div>
                 <div class="loading-hint">首次生成可能需要 1-2 分钟，请稍候</div>
               </div>
@@ -167,7 +160,7 @@
 
             <div v-else class="empty-chat">
               <div class="empty-icon-wrapper">
-                <el-icon :size="56" color="#F3D8C7"><ChatDotSquare /></el-icon>
+                <FeatureIcon name="ai-interviewer" size="lg" class="empty-stage-icon" />
               </div>
               <p class="empty-title">等待开始</p>
               <p class="empty-desc">在下方输入你的回答，AI 面试官会继续追问。</p>
@@ -212,7 +205,7 @@
 
           <div class="voice-dock-actions">
             <button class="voice-icon-btn" type="button" aria-label="折叠到聊天界面" title="折叠到聊天界面" @click="collapseVoiceCall">
-              <el-icon><ChatDotSquare /></el-icon>
+              <FeatureIcon name="collapse" size="sm" />
             </button>
             <button
               class="voice-icon-btn"
@@ -222,7 +215,7 @@
               :disabled="!voiceFeatureSupported || replyLocked"
               @click="handleMicControl"
             >
-              <el-icon><Microphone /></el-icon>
+              <FeatureIcon :name="voiceCall.isMuted.value ? 'microphone-off' : 'microphone-on'" size="sm" />
               <span v-if="voiceCall.isMuted.value" class="muted-slash" aria-hidden="true"></span>
             </button>
             <button
@@ -234,10 +227,10 @@
               :disabled="replyLocked || voiceCall.isAiSpeaking.value"
               @click="handleStopListeningAndSend"
             >
-              <el-icon><CircleCheckFilled /></el-icon>
+              <FeatureIcon name="success" size="sm" />
             </button>
             <button class="voice-icon-btn voice-hangup-btn" type="button" aria-label="挂断语音通话" title="挂断语音通话" @click="handleEndVoiceCall">
-              <el-icon><PhoneFilled /></el-icon>
+              <FeatureIcon name="interview-end" size="sm" />
             </button>
           </div>
         </div>
@@ -266,7 +259,7 @@
             :disabled="!voiceFeatureSupported || replyLocked"
             @click="handleStartVoiceCall"
           >
-            <el-icon><Microphone /></el-icon>
+            <FeatureIcon name="microphone-on" size="xs" class="button-feature-icon" />
             开始通话
           </el-button>
           <template v-else>
@@ -275,7 +268,7 @@
               plain
               @click="handleToggleMute"
             >
-              <el-icon><Microphone /></el-icon>
+              <FeatureIcon :name="voiceCall.isMuted.value ? 'microphone-off' : 'microphone-on'" size="xs" class="button-feature-icon" />
               {{ voiceCall.isManualResumePending.value ? '继续收音' : voiceCall.isMuted.value ? '取消静音' : '静音' }}
             </el-button>
             <el-button
@@ -283,11 +276,11 @@
               :disabled="replyLocked || voiceCall.isAiSpeaking.value"
               @click="handleStopListeningAndSend"
             >
-              <el-icon><CircleCheckFilled /></el-icon>
+              <FeatureIcon name="success" size="xs" class="button-feature-icon" />
               停止收听并发送
             </el-button>
             <el-button plain @click="expandVoiceCall">
-              <el-icon><FullScreen /></el-icon>
+              <FeatureIcon name="fullscreen" size="xs" class="button-feature-icon" />
               展开
             </el-button>
             <el-button
@@ -295,7 +288,7 @@
               plain
               @click="handleEndVoiceCall"
             >
-              <el-icon><PhoneFilled /></el-icon>
+              <FeatureIcon name="interview-end" size="xs" class="button-feature-icon" />
               挂断
             </el-button>
           </template>
@@ -323,7 +316,7 @@
               circle
               @click="sttToggle"
             >
-              <el-icon :size="18"><Microphone /></el-icon>
+              <FeatureIcon :name="sttRecording ? 'microphone-off' : 'microphone-on'" size="sm" />
             </el-button>
             <el-button
               type="primary"
@@ -340,7 +333,7 @@
     </div>
 
     <div v-if="isEnded" class="ended-notice">
-      <el-icon><CircleCheckFilled /></el-icon>
+      <FeatureIcon name="success" size="sm" />
       <span>面试已结束，你可以查看报告或返回历史记录。</span>
     </div>
 
@@ -368,15 +361,6 @@ import {
   INTERACTION_TYPE_VOICE,
 } from '@/constants/interview'
 import {
-  ArrowLeft,
-  ChatDotSquare,
-  Loading,
-  CircleCheckFilled,
-  FullScreen,
-  Microphone,
-  PhoneFilled,
-} from "@element-plus/icons-vue";
-import {
   endInterview as apiEndInterview,
   getInterviewSession,
   streamInterviewMessage,
@@ -384,6 +368,7 @@ import {
 import { ElMessage } from "element-plus";
 import { getToken } from "@/utils/auth";
 import { getSettingsPreferences } from "@/utils/settingsPreferences";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import { useSpeechToText } from "@/composables/useSpeechToText";
 import { useTextToSpeech } from "@/composables/useTextToSpeech";
 import { useVoiceCall } from "@/composables/useVoiceCall";
@@ -1210,6 +1195,11 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.title-icon,
+.empty-stage-icon {
+  flex-shrink: 0;
+}
+
 .status-divider {
   color: var(--border-card);
 }
@@ -1917,6 +1907,10 @@ onBeforeUnmount(() => {
 
 .voice-icon-btn .el-icon {
   font-size: 26px;
+}
+
+.button-feature-icon {
+  margin-right: 4px;
 }
 
 .voice-hangup-btn {

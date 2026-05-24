@@ -12,6 +12,7 @@
     <nav class="header-nav desktop-nav">
       <!-- 首页始终显示 -->
       <router-link to="/" class="nav-link" :class="{ active: isHomeActive }">
+        <FeatureIcon name="home-dashboard" size="xs" class="nav-feature-icon" />
         首页
       </router-link>
 
@@ -22,6 +23,7 @@
         class="nav-link"
         :class="{ active: isResumeActive }"
       >
+        <FeatureIcon name="resume-upload" size="xs" class="nav-feature-icon" />
         简历诊断
       </router-link>
 
@@ -32,6 +34,7 @@
         class="nav-link"
         :class="{ active: isInterviewActive }"
       >
+        <FeatureIcon name="mock-interview" size="xs" class="nav-feature-icon" />
         模拟面试
       </router-link>
 
@@ -42,6 +45,7 @@
         class="nav-link"
         :class="{ active: isTemplateActive }"
       >
+        <FeatureIcon name="template-library" size="xs" class="nav-feature-icon" />
         模板库
       </router-link>
 
@@ -52,6 +56,7 @@
         class="nav-link"
         :class="{ active: isCommunityActive }"
       >
+        <FeatureIcon name="community-hub" size="xs" class="nav-feature-icon" />
         社区
       </router-link>
 
@@ -62,6 +67,7 @@
         class="nav-link"
         :class="{ active: isGrowthActive }"
       >
+        <FeatureIcon name="growth-center" size="xs" class="nav-feature-icon" />
         成长中心
       </router-link>
 
@@ -72,6 +78,7 @@
         class="nav-link"
         :class="{ active: isOfferActive }"
       >
+        <FeatureIcon name="offer-assistant" size="xs" class="nav-feature-icon" />
         Offer 辅助
       </router-link>
 
@@ -82,16 +89,9 @@
             class="nav-link history-trigger"
             :class="{ active: isHistoryActive }"
           >
+            <FeatureIcon name="history-records" size="xs" class="nav-feature-icon" />
             历史记录
-            <svg
-              class="dropdown-arrow"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            <FeatureIcon name="expand" size="xs" class="dropdown-arrow" />
           </span>
           <template #dropdown>
             <el-dropdown-menu class="history-dropdown-menu">
@@ -99,36 +99,14 @@
                 command="resume"
                 :class="{ active: isResumeHistoryActive }"
               >
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                  />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
+                <FeatureIcon name="resume-score" size="xs" class="dropdown-icon feature-dropdown-icon" />
                 简历诊断历史
               </el-dropdown-item>
               <el-dropdown-item
                 command="interview"
                 :class="{ active: isInterviewHistoryActive }"
               >
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
+                <FeatureIcon name="interview-replay" size="xs" class="dropdown-icon feature-dropdown-icon" />
                 模拟面试历史
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -139,38 +117,14 @@
 
     <!-- 小屏汉堡按钮 -->
     <button class="hamburger-btn" @click="drawerVisible = true">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <line x1="3" y1="6" x2="21" y2="6" />
-        <line x1="3" y1="12" x2="21" y2="12" />
-        <line x1="3" y1="18" x2="21" y2="18" />
-      </svg>
+      <FeatureIcon name="menu" size="sm" />
     </button>
 
     <div class="header-right">
       <!-- 主题切换按钮 -->
       <el-tooltip :content="themeStore.resolvedTheme === 'dark' ? '切换亮色模式' : '切换暗色模式'" placement="bottom" :show-after="300">
         <button class="theme-toggle" @click="themeStore.toggleTheme()" :aria-label="themeStore.resolvedTheme === 'dark' ? '切换为亮色模式' : '切换为暗色模式'">
-          <!-- 亮色模式显示月亮图标 -->
-          <svg v-if="themeStore.resolvedTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-          <!-- 暗色模式显示太阳图标 -->
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5" />
-            <line x1="12" y1="1" x2="12" y2="3" />
-            <line x1="12" y1="21" x2="12" y2="23" />
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-            <line x1="1" y1="12" x2="3" y2="12" />
-            <line x1="21" y1="12" x2="23" y2="12" />
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-          </svg>
+          <FeatureIcon :name="themeStore.resolvedTheme === 'light' ? 'dark-mode' : 'light-mode'" size="sm" />
         </button>
       </el-tooltip>
 
@@ -190,10 +144,7 @@
           >
             <template #reference>
               <div ref="bellRef" class="notification-bell">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
+                <FeatureIcon name="notification-center" size="sm" />
                 <span v-if="unreadCount > 0" class="bell-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
               </div>
             </template>
@@ -220,10 +171,7 @@
             </div>
 
             <div v-else-if="notificationList.length === 0" class="panel-empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-bell-icon">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
+              <FeatureIcon name="notification-center" size="lg" class="empty-bell-icon" />
               <p>暂无消息</p>
             </div>
 
@@ -262,10 +210,7 @@
         <!-- 设置中心齿轮按钮：桌面端保持独立入口，避免回退到头像下拉菜单中。 -->
         <el-tooltip content="设置中心" placement="bottom" :show-after="300">
           <router-link to="/settings" class="header-icon-btn" :class="{ active: isSettingsActive }" aria-label="设置中心">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+            <FeatureIcon name="settings" size="sm" />
           </router-link>
         </el-tooltip>
 
@@ -319,29 +264,11 @@
 
               <!-- 个人中心入口 -->
               <el-dropdown-item command="nickname">
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
+                <FeatureIcon name="user-profile" size="xs" class="dropdown-icon feature-dropdown-icon" />
                 修改昵称
               </el-dropdown-item>
               <el-dropdown-item command="profile">
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
+                <FeatureIcon name="user-profile" size="xs" class="dropdown-icon feature-dropdown-icon" />
                 个人中心
               </el-dropdown-item>
               <!-- 退出登录 -->
@@ -349,43 +276,15 @@
                    页面已经存在，这里只是在头像下拉菜单中补入口。
                    放在“个人中心”下面、“退出登录”上面，符合账户相关操作的使用顺序。 -->
               <el-dropdown-item command="membership">
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polygon
-                    points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-                  />
-                </svg>
+                <FeatureIcon name="membership-center" size="xs" class="dropdown-icon feature-dropdown-icon" />
                 会员中心
               </el-dropdown-item>
               <el-dropdown-item command="activity">
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                </svg>
+                <FeatureIcon name="community-activity" size="xs" class="dropdown-icon feature-dropdown-icon" />
                 个人动态中心
               </el-dropdown-item>
               <el-dropdown-item command="logout" class="logout-item">
-                <svg
-                  class="dropdown-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
+                <FeatureIcon name="back" size="xs" class="dropdown-icon feature-dropdown-icon" />
                 退出登录
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -411,104 +310,117 @@
           to="/"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >首页</router-link
         >
+          <FeatureIcon name="home-dashboard" size="sm" />
+          首页
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/resume/upload"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >简历诊断</router-link
         >
+          <FeatureIcon name="resume-upload" size="sm" />
+          简历诊断
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/interview/entry"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >模拟面试</router-link
         >
+          <FeatureIcon name="mock-interview" size="sm" />
+          模拟面试
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/templates"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >模板库</router-link
         >
+          <FeatureIcon name="template-library" size="sm" />
+          模板库
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/community"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >社区</router-link
         >
+          <FeatureIcon name="community-hub" size="sm" />
+          社区
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/growth"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >成长中心</router-link>
         >
+          <FeatureIcon name="growth-center" size="sm" />
+          成长中心
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/offer"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >Offer 辅助</router-link
         >
+          <FeatureIcon name="offer-assistant" size="sm" />
+          Offer 辅助
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/resume/history"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >简历诊断历史</router-link
         >
+          <FeatureIcon name="history-records" size="sm" />
+          简历诊断历史
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/interview/history"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >模拟面试历史</router-link
         >
+          <FeatureIcon name="interview-replay" size="sm" />
+          模拟面试历史
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/dashboard"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >个人中心</router-link
         >
+          <FeatureIcon name="user-profile" size="sm" />
+          个人中心
+        </router-link>
         <router-link
           v-if="isLoggedIn && notificationRealtimeEnabled"
           to="/notifications"
           class="mobile-nav-link"
           @click="drawerVisible = false"
         >
+          <FeatureIcon name="notification-center" size="sm" />
           消息通知
           <span v-if="unreadCount > 0" class="mobile-unread-badge">{{ unreadCount }}</span>
-        </router-link
-        >
+        </router-link>
         <router-link
           v-if="isLoggedIn"
           to="/settings"
           class="mobile-nav-link"
           @click="drawerVisible = false"
-          >设置中心</router-link
         >
+          <FeatureIcon name="settings" size="sm" />
+          设置中心
+        </router-link>
         <!-- 移动端主题切换 -->
         <button class="mobile-nav-link theme-toggle-mobile" @click="themeStore.toggleTheme(); drawerVisible = false">
-          <svg v-if="themeStore.resolvedTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="theme-icon">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="theme-icon">
-            <circle cx="12" cy="12" r="5" />
-            <line x1="12" y1="1" x2="12" y2="3" />
-            <line x1="12" y1="21" x2="12" y2="23" />
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-            <line x1="1" y1="12" x2="3" y2="12" />
-            <line x1="21" y1="12" x2="23" y2="12" />
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-          </svg>
+          <FeatureIcon
+            :name="themeStore.resolvedTheme === 'light' ? 'dark-mode' : 'light-mode'"
+            size="sm"
+            class="theme-icon"
+          />
           {{ themeStore.resolvedTheme === 'dark' ? '切换亮色模式' : '切换暗色模式' }}
         </button>
       </nav>
@@ -571,6 +483,7 @@ import { ElMessage } from "element-plus";
 import { removeToken } from "@/utils/auth";
 import { updateNickname } from "@/api/auth";
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, connectNotificationStream } from "@/api/notification";
+import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import NotificationTypeIcon from "@/components/notification/NotificationTypeIcon.vue";
 import { formatNotificationTime, getNotificationTypeMeta, isAdminAnnouncementType } from "@/utils/notificationMeta";
 import { getSettingsPreferences, SETTINGS_PREFERENCES_UPDATED_EVENT } from "@/utils/settingsPreferences";
@@ -1018,6 +931,10 @@ onUnmounted(() => {
   gap: 4px;
 }
 
+.nav-feature-icon {
+  margin-right: 2px;
+}
+
 .nav-link:hover {
   color: var(--orange-main);
 }
@@ -1057,6 +974,10 @@ onUnmounted(() => {
   transition: transform 0.2s;
 }
 
+.feature-dropdown-icon {
+  margin-right: 4px;
+}
+
 .history-dropdown-wrapper:hover .dropdown-arrow {
   transform: rotate(180deg);
 }
@@ -1091,7 +1012,9 @@ onUnmounted(() => {
 }
 
 .mobile-nav-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 14px 16px;
   font-size: 15px;
   color: var(--text-body);
@@ -1109,6 +1032,10 @@ onUnmounted(() => {
   background-color: var(--bg-page);
   color: var(--orange-main);
   font-weight: 500;
+}
+
+.mobile-nav-link :deep(.feature-icon) {
+  flex-shrink: 0;
 }
 
 /* 响应式断点 */
@@ -1156,17 +1083,6 @@ onUnmounted(() => {
 
 .notification-bell:hover {
   background-color: var(--bg-page);
-}
-
-.notification-bell svg {
-  width: 20px;
-  height: 20px;
-  color: var(--text-body);
-  transition: color 0.2s;
-}
-
-.notification-bell:hover svg {
-  color: var(--orange-main);
 }
 
 .bell-badge {
@@ -1234,9 +1150,6 @@ onUnmounted(() => {
 }
 
 .empty-bell-icon {
-  width: 40px;
-  height: 40px;
-  color: var(--text-placeholder);
   margin-bottom: 8px;
 }
 

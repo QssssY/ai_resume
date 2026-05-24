@@ -3,9 +3,7 @@
     <!-- 顶部导航 -->
     <div class="top-bar">
       <button class="back-btn" @click="goBack">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
+        <FeatureIcon name="back" size="xs" />
         <span>返回</span>
       </button>
       <h1 class="page-title">个人动态中心</h1>
@@ -30,7 +28,7 @@
 
     <!-- 加载状态 -->
     <div v-if="isLoading" class="loading-state">
-      <div class="loading-spinner"></div>
+      <FeatureIcon name="loading" size="sm" class="loading-feature-icon" />
       <span>加载中...</span>
     </div>
 
@@ -43,9 +41,7 @@
           <!-- 我的评论（主要） -->
           <div class="comment-primary">
             <div class="comment-primary-header">
-              <svg class="comment-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
+              <FeatureIcon name="comment" size="xs" class="comment-icon" />
               <span class="comment-label">我的评论</span>
               <span class="comment-time">{{ formatTime(item.commentTime) }}</span>
             </div>
@@ -53,11 +49,7 @@
           </div>
           <!-- 所属帖子（次要） -->
           <div v-if="item.postDeleted" class="comment-post-ref deleted">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
+            <FeatureIcon name="error" size="xs" />
             <span class="deleted-text">原帖已被删除</span>
           </div>
           <div v-else class="comment-post-ref">
@@ -66,11 +58,7 @@
             <span class="post-author">@{{ item.postAuthorName }}</span>
             <span class="post-snippet">{{ item.postContent?.slice(0, 60) }}{{ (item.postContent?.length || 0) > 60 ? '...' : '' }}</span>
             <span v-if="getImageCount(item.postImages) > 0" class="post-img-count">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
+              <FeatureIcon name="image-upload" size="xs" />
               {{ getImageCount(item.postImages) }}
             </span>
           </div>
@@ -108,33 +96,22 @@
             </div>
             <p class="card-content">{{ post.content }}</p>
             <div v-if="post.images && post.images.length > 0" class="card-image-hint">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
+              <FeatureIcon name="image-upload" size="xs" />
               <span>{{ post.images.length }}张图片</span>
             </div>
             <div class="card-stats">
               <span class="stat">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
+                <FeatureIcon name="liked" size="xs" />
                 {{ post.likeCount || 0 }}
               </span>
               <span class="stat">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
+                <FeatureIcon name="comment" size="xs" />
                 {{ post.commentCount || 0 }}
               </span>
             </div>
           </div>
           <button v-if="activeTab === 'mine'" class="delete-btn" @click.stop="confirmDelete(post)" title="删除帖子">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
+            <FeatureIcon name="delete" size="xs" />
           </button>
         </div>
           </DynamicScrollerItem>
@@ -309,12 +286,7 @@
     <!-- 空状态 -->
     <div v-else class="empty-state">
       <div class="empty-icon-wrapper">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-          <line x1="12" y1="18" x2="12" y2="12" />
-          <line x1="9" y1="15" x2="15" y2="15" />
-        </svg>
+        <FeatureIcon name="empty-state" size="lg" />
       </div>
       <h3 class="empty-title">{{ emptyInfo.title }}</h3>
       <p class="empty-desc">{{ emptyInfo.desc }}</p>
@@ -346,6 +318,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { DynamicScroller, DynamicScrollerItem } from 'vue-virtual-scroller'
 import { getMyPosts, getLikedPosts, getFavoritedPosts, getMyComments, deletePost, getMyInteractions, getInteractionUnreadCount } from '@/api/community'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import { formatTime, categoryLabel } from '@/utils/community'
 
 const router = useRouter()
@@ -777,6 +750,10 @@ onMounted(() => {
   border-top-color: var(--orange-main);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+.loading-feature-icon {
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }

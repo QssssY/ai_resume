@@ -1,6 +1,7 @@
 <template>
   <main class="version-page">
     <section class="version-hero" aria-labelledby="version-page-title">
+      <FeatureIcon name="version-log" size="lg" class="version-hero-icon" />
       <div class="hero-copy">
         <p class="eyebrow">公开更新</p>
         <h1 id="version-page-title">版本日志</h1>
@@ -8,7 +9,10 @@
       </div>
 
       <router-link to="/" class="home-link">
-        <n-button secondary round class="home-button">返回首页</n-button>
+        <n-button secondary round class="home-button">
+          <FeatureIcon name="back" size="xs" class="home-button-icon" />
+          返回首页
+        </n-button>
       </router-link>
     </section>
 
@@ -30,6 +34,9 @@
 
     <section v-else-if="logs.length === 0" class="state-panel">
       <n-empty description="暂无版本日志">
+        <template #icon>
+          <FeatureIcon name="empty-state" size="lg" />
+        </template>
         <template #extra>
           <p class="empty-copy">发布后的产品更新会展示在这里。</p>
         </template>
@@ -56,6 +63,7 @@
                 v{{ log.version }}
               </n-tag>
               <span class="type-label">{{ getVersionTypeLabel(log.type) }}</span>
+              <FeatureIcon name="announcement" size="xs" class="version-type-icon" />
             </div>
           </div>
 
@@ -98,6 +106,7 @@ import { onMounted, ref } from 'vue'
 import { ElPagination } from 'element-plus'
 import { NButton, NEmpty, NResult, NSkeleton, NTag } from 'naive-ui'
 import { getPublicVersionLogsPage } from '@/api/publicVersionLog'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const logs = ref([])
 const currentPage = ref(1)
@@ -194,10 +203,14 @@ onMounted(loadLogs)
 
 .version-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--version-space-2xl);
   align-items: end;
   margin-bottom: var(--version-space-3xl);
+}
+
+.version-hero-icon {
+  align-self: center;
 }
 
 .hero-copy {
@@ -250,6 +263,11 @@ h1 {
   --n-border-pressed: 1px solid var(--orange-main) !important;
   min-width: 104px;
   font-weight: 700;
+}
+
+.home-button-icon,
+.version-type-icon {
+  margin-right: 4px;
 }
 
 .loading-panel,

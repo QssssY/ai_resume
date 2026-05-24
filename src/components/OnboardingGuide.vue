@@ -12,10 +12,7 @@
 
           <!-- 关闭按钮 -->
           <button class="close-btn" @click="skipGuide" aria-label="关闭引导">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+            <FeatureIcon name="close" size="xs" />
           </button>
 
           <!-- 引导内容区域 -->
@@ -33,9 +30,7 @@
                 @click="goToStep(index)"
               >
                 <div class="dot-inner">
-                  <svg v-if="index < currentStep" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
+                  <FeatureIcon v-if="index < currentStep" name="success" size="xs" />
                 </div>
               </div>
             </div>
@@ -46,8 +41,9 @@
                 <!-- 图标容器 -->
                 <div class="step-icon-wrapper">
                   <div class="icon-glow"></div>
-                  <!-- 安全提示：v-html 仅渲染硬编码的 SVG 常量，切勿绑定外部数据 -->
-                  <div class="step-icon" v-html="steps[currentStep].iconSvg"></div>
+                  <div class="step-icon">
+                    <FeatureIcon :name="steps[currentStep].icon" size="xl" />
+                  </div>
                 </div>
 
                 <!-- 文本内容 -->
@@ -66,10 +62,7 @@
               @click="prevStep"
               class="btn btn-ghost"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-              </svg>
+              <FeatureIcon name="previous" size="xs" />
               上一步
             </button>
             <div v-else class="footer-placeholder"></div>
@@ -89,10 +82,7 @@
               >
                 <span v-if="loading" class="btn-loader"></span>
                 <span>{{ primaryButtonText }}</span>
-                <svg v-if="!loading" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                  <polyline points="12 5 19 12 12 19"></polyline>
-                </svg>
+                <FeatureIcon v-if="!loading" name="next" size="xs" />
               </button>
             </div>
           </div>
@@ -105,75 +95,62 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { updateOnboardingStatus } from '@/api/onboarding'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 // 引导版本标识
 const GUIDE_KEY = 'v1_3_main_onboarding'
-
-// Lucide 图标 SVG
-const icons = {
-  sparkles: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594zM20 2v4m2-2h-4"/><circle cx="4" cy="20" r="2"/></g></svg>',
-  fileUp: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5m-8 4v6m3-3l-3-3l-3 3"/></g></svg>',
-  target: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></g></svg>',
-  wand: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m21.64 3.64l-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72M14 7l3 3M5 6v4m14 4v4M10 2v2M7 8H3m18 8h-4M11 3H9"/></svg>',
-  mic: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/></g></svg>',
-  history: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5m4-1v5l4 2"/></g></svg>',
-  trendingUp: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M16 7h6v6"/><path d="m22 7l-8.5 8.5l-5-5L2 17"/></g></svg>',
-  rocket: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></g></svg>',
-  bell: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M20 3v4m2-2h-4"/></g></svg>',
-  crown: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M2 17l2-11l4 5l4-8l4 8l4-5l2 11z"/><path d="M2 17h20v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></g></svg>'
-}
 
 // 引导步骤定义
 const steps = [
   {
     title: '欢迎使用 offerCat',
     description: '接下来我们将带您快速了解系统的核心功能，帮助您高效准备求职。',
-    iconSvg: icons.sparkles
+    icon: 'home-dashboard'
   },
   {
     title: '上传简历，获取诊断报告',
     description: '上传您的简历 PDF，AI 将从多个维度进行分析，给出详细的诊断报告和优化建议。',
-    iconSvg: icons.fileUp
+    icon: 'resume-upload'
   },
   {
     title: '输入目标岗位 JD',
     description: '粘贴目标职位的 JD 描述，系统将自动分析您的简历与岗位的匹配程度。',
-    iconSvg: icons.target
+    icon: 'job-match-analysis'
   },
   {
     title: 'AI 简历润色',
     description: '基于诊断结果和 JD 匹配分析，AI 将帮您优化简历内容，提升竞争力。',
-    iconSvg: icons.wand
+    icon: 'resume-editor'
   },
   {
     title: '模拟面试练习',
     description: '选择目标岗位，开始 AI 模拟面试。支持普通和压力面试两种模式。',
-    iconSvg: icons.mic
+    icon: 'ai-interviewer'
   },
   {
     title: '查看历史记录',
     description: '随时查看简历诊断和模拟面试的历史记录，跟踪您的进步。',
-    iconSvg: icons.history
+    icon: 'history-records'
   },
   {
     title: '消息通知',
     description: '实时接收诊断结果、面试反馈和系统通知，支持批量管理和删除。',
-    iconSvg: icons.bell
+    icon: 'notification-center'
   },
   {
     title: '个人成长中心',
     description: '查看你的成长轨迹与个性化建议，了解简历分数和面试表现的变化趋势。',
-    iconSvg: icons.trendingUp
+    icon: 'growth-radar'
   },
   {
     title: '会员权益',
     description: '升级会员解锁更多诊断次数、每日面试额度和专属功能，助力求职提速。',
-    iconSvg: icons.crown
+    icon: 'membership-center'
   },
   {
     title: '准备就绪！',
     description: '您已了解所有核心功能，现在开始体验吧！',
-    iconSvg: icons.rocket
+    icon: 'offer-assistant'
   }
 ]
 

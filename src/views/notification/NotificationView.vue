@@ -2,7 +2,7 @@
   <div class="notification-page">
     <div class="page-back">
       <el-button link @click="goHome" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon>
+        <FeatureIcon name="back" size="xs" />
         返回首页
       </el-button>
     </div>
@@ -21,6 +21,7 @@
         @click="handleMarkAllRead"
         :loading="markAllLoading"
       >
+        <FeatureIcon v-if="!markAllLoading" name="mark-read" size="xs" class="button-feature-icon" />
         全部已读
       </el-button>
     </div>
@@ -47,16 +48,13 @@
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
-      <span class="loading-spinner"></span>
+      <FeatureIcon name="loading" size="sm" class="loading-feature-icon" />
       <span>加载中...</span>
     </div>
 
     <!-- 空状态 -->
     <div v-else-if="notifications.length === 0" class="empty-state">
-      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-      </svg>
+      <FeatureIcon name="notification-center" size="xl" class="empty-icon" />
       <p class="empty-text">暂无消息通知</p>
       <p class="empty-desc">当有新的诊断结果、润色报告或面试反馈时，会在这里通知你</p>
     </div>
@@ -79,6 +77,7 @@
           :loading="deleteLoading"
           @click="handleBatchDelete"
         >
+          <FeatureIcon v-if="!deleteLoading" name="delete" size="xs" class="button-feature-icon" />
           批量删除 ({{ selectedIds.length }})
         </el-button>
       </div>
@@ -122,12 +121,13 @@
           <el-button
             class="item-delete-btn"
             type="danger"
-            :icon="Delete"
             size="small"
             circle
             plain
             @click.stop="handleDelete(item.id)"
-          />
+          >
+            <FeatureIcon name="delete" size="xs" />
+          </el-button>
         </div>
       </div>
 
@@ -176,8 +176,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Delete } from '@element-plus/icons-vue'
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, deleteNotification, batchDeleteNotifications } from '@/api/notification'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import NotificationTypeIcon from '@/components/notification/NotificationTypeIcon.vue'
 import { formatNotificationTime, getNotificationTypeMeta, isAdminAnnouncementType } from '@/utils/notificationMeta'
 import { getSettingsPreferences } from '@/utils/settingsPreferences'
@@ -516,15 +516,13 @@ onUnmounted(() => {
   font-size: 14px;
 }
 
-.loading-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border-divider, #e0e0e0);
-  border-top-color: var(--orange-main);
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+.loading-feature-icon {
+  animation: spin 1s linear infinite;
 }
 
+.button-feature-icon {
+  margin-right: 4px;
+}
 
 /* 空状态 */
 .empty-state {
@@ -535,9 +533,6 @@ onUnmounted(() => {
 }
 
 .empty-icon {
-  width: 64px;
-  height: 64px;
-  color: var(--text-placeholder, #ddd);
   margin-bottom: 16px;
 }
 

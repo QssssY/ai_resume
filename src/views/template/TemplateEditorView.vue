@@ -3,6 +3,7 @@
     <!-- 顶部工具栏 -->
     <div class="editor-toolbar">
       <div class="toolbar-left">
+        <FeatureIcon name="template-editor" size="sm" class="toolbar-icon" />
         <el-button text @click="goBack">
           ← 返回模板库
         </el-button>
@@ -64,6 +65,7 @@ import { templates } from '@/data/templates.js'
 import TemplateRenderer from '@/components/template/TemplateRenderer.vue'
 import ResumeEditor from '@/components/template/ResumeEditor.vue'
 import ExportToolbar from '@/components/template/ExportToolbar.vue'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -141,6 +143,10 @@ watch(() => route.params.templateId, () => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.toolbar-icon {
+  flex-shrink: 0;
 }
 
 .template-name {
