@@ -1,14 +1,15 @@
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 
 const DEFAULT_SILENCE_TIMEOUT_MS = 3000
 const CHECK_INTERVAL_MS = 500
 const MUTE_RESUME_MODE_AUTO = 'auto'
+const TTS_RESUME_DELAY_MS = 1500
 const UNSUPPORTED_SPEECH_ERROR_MESSAGE = '当前浏览器不支持语音识别，已降级为手动输入'
 const UNSUPPORTED_TTS_ERROR_MESSAGE = '当前浏览器不支持语音播报，已降级为手动输入'
 
 /**
  * 语音通话模式编排。
- * STT 底层复用现有 useSpeechToText，TTS 由外部传入；静音时只暂停收音，不退出通话。
+ * STT 失败只退出语音模式，不中断面试会话；AI 播报期间暂停收音，播报结束后按当前规则恢复。
  */
 export function useVoiceCall(options) {
   const isVoiceMode = ref(false)
@@ -25,6 +26,11 @@ export function useVoiceCall(options) {
   let lastSpeechAt = 0
   let lastFinal = ''
   let lastInterim = ''
+  let isInitialListeningDeferred = false
+  // ttsWasActive: TTS 播报期间同步设置，确保 resumeListening 在播报结束后始终走延迟路径，
+  // 避免 isSpeaking / isReplying 两个 watcher 竞态导致延迟失效。
+  let ttsWasActive = false
+  let ttsResumeTimer = null
 
   const silenceTimeoutMs = Number(options.silenceTimeoutMs ?? DEFAULT_SILENCE_TIMEOUT_MS)
   const muteResumeMode = options.muteResumeMode || MUTE_RESUME_MODE_AUTO
@@ -38,26 +44,58 @@ export function useVoiceCall(options) {
       clearInterval(silenceTimer)
       silenceTimer = null
     }
+    if (ttsResumeTimer) {
+      clearTimeout(ttsResumeTimer)
+      ttsResumeTimer = null
+    }
   }
 
   const resetSpeechState = () => {
     pendingMessage.value = ''
     isManualResumePending.value = false
+    isInitialListeningDeferred = false
     lastSpeechAt = 0
     lastFinal = options.speech.finalTranscript.value || ''
     lastInterim = options.speech.interimTranscript.value || ''
+    ttsWasActive = false
   }
 
   const pauseListeningForAi = () => {
     if (options.speech.isRecording.value) {
-      options.speech.stop?.()
+      void options.speech.stop?.()
     }
+  }
+
+  const flushListeningBeforeSend = () => {
+    if (!options.speech.isRecording.value) return null
+    const stopResult = options.speech.stop?.()
+    if (!stopResult || typeof stopResult.then !== 'function') return null
+    return stopResult.then(() => nextTick())
   }
 
   const resumeListening = () => {
     if (!isVoiceMode.value || isMuted.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) {
       return
     }
+    // TTS 刚结束时必须延迟恢复收音，避免麦克风拾取扬声器的尾音 / 回声。
+    // ttsWasActive 在 TTS 开始时同步设置（isSpeaking watcher speaking=true 分支），
+    // 无论哪个 watcher 先触发 resumeListening，延迟保护始终生效。
+    if (ttsWasActive) {
+      if (!ttsResumeTimer) {
+        ttsResumeTimer = setTimeout(() => {
+          ttsResumeTimer = null
+          ttsWasActive = false
+          resumeListening()
+        }, TTS_RESUME_DELAY_MS)
+      }
+      return
+    }
+    isInitialListeningDeferred = false
+    // 清理 TTS 播报期间可能残留的误识别文本，防止复读
+    pendingMessage.value = ''
+    lastSpeechAt = 0
+    lastFinal = options.speech.finalTranscript.value || ''
+    lastInterim = options.speech.interimTranscript.value || ''
     if (!options.speech.isSupported.value) {
       error.value = UNSUPPORTED_SPEECH_ERROR_MESSAGE
       return
@@ -68,11 +106,17 @@ export function useVoiceCall(options) {
   }
 
   const autoSendTranscript = async () => {
+    if (options.isReplying?.value) return false
+    if (pendingMessage.value.trim() || lastSpeechAt) {
+      const flushPromise = flushListeningBeforeSend()
+      if (flushPromise) {
+        await flushPromise
+      }
+    }
     const text = pendingMessage.value.trim()
     if (!text || options.isReplying?.value) return false
 
     pendingMessage.value = ''
-    pauseListeningForAi()
     await options.onSend(text)
     return true
   }
@@ -81,16 +125,14 @@ export function useVoiceCall(options) {
     if (!isVoiceMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) {
       return false
     }
-    // 手动停止只提交本轮已识别文本，不改变静音状态，避免把“提交回答”误处理成“暂停通话”。
     return autoSendTranscript()
   }
 
   const checkSilence = () => {
     if (!isVoiceMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
-    if (!options.speech.isRecording.value && !isMuted.value && !isManualResumePending.value) {
+    if (!options.speech.isRecording.value && !isMuted.value && !isManualResumePending.value && !isInitialListeningDeferred) {
       resumeListening()
     }
-    // 人声活动优先于文本结果刷新静音计时，避免识别文本尚未回调时误判用户已停止说话。
     if (options.speech.isVoiceActive?.value) {
       lastSpeechAt = Date.now()
       return
@@ -101,7 +143,7 @@ export function useVoiceCall(options) {
     }
   }
 
-  const startVoiceCall = () => {
+  const startVoiceCall = (startOptions = {}) => {
     error.value = ''
     if (!options.speech.isSupported.value) {
       error.value = UNSUPPORTED_SPEECH_ERROR_MESSAGE
@@ -116,12 +158,16 @@ export function useVoiceCall(options) {
     isMuted.value = false
     callDuration.value = 0
     resetSpeechState()
+    isInitialListeningDeferred = startOptions.startListening === false
     clearTimers()
     durationTimer = setInterval(() => {
       callDuration.value += 1
     }, 1000)
     silenceTimer = setInterval(checkSilence, CHECK_INTERVAL_MS)
-    resumeListening()
+    // 首轮需要先播报开场白时，允许页面进入通话态但暂不开麦，避免 STT 启动后立刻被 TTS 取消。
+    if (!isInitialListeningDeferred) {
+      resumeListening()
+    }
     return true
   }
 
@@ -134,16 +180,8 @@ export function useVoiceCall(options) {
     options.textToSpeech.stop()
   }
 
-  /**
-   * 切换静音状态。
-   * 返回值表示切换后是否处于静音 (true=已静音, false=未静音 / 未进入通话)，
-   * 这并非"操作是否成功"。调用方据此渲染麦克风图标与"已静音/已取消静音"toast。
-   * @returns {boolean} 切换后的 isMuted 状态
-   */
   const toggleMute = () => {
-    if (!isVoiceMode.value) {
-      return false
-    }
+    if (!isVoiceMode.value) return false
     if (!isMuted.value && isManualResumePending.value) {
       isManualResumePending.value = false
       resumeListening()
@@ -151,7 +189,7 @@ export function useVoiceCall(options) {
     }
     isMuted.value = !isMuted.value
     if (isMuted.value) {
-      options.speech.stop?.()
+      void options.speech.stop?.()
       return true
     }
     if (muteResumeMode === MUTE_RESUME_MODE_AUTO) {
@@ -165,16 +203,13 @@ export function useVoiceCall(options) {
   watch(
     [options.speech.finalTranscript, options.speech.interimTranscript],
     ([nextFinal, nextInterim]) => {
-      if (!isVoiceMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) {
-        return
-      }
+      if (!isVoiceMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
       const finalChanged = nextFinal !== lastFinal
       const interimChanged = nextInterim !== lastInterim
       if (!finalChanged && !interimChanged) return
 
       lastSpeechAt = Date.now()
       if (finalChanged) {
-        // Web Speech 的累计转写可能在英文单词边界包含空格，发送前再统一 trim。
         const appendedText = nextFinal.slice(lastFinal.length)
         if (appendedText.trim()) {
           pendingMessage.value = `${pendingMessage.value}${appendedText}`
@@ -186,9 +221,7 @@ export function useVoiceCall(options) {
   )
 
   watch(options.speech.voiceActivityAt || ref(0), (nextActivityAt) => {
-    if (!isVoiceMode.value || isMuted.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) {
-      return
-    }
+    if (!isVoiceMode.value || isMuted.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
     if (nextActivityAt) {
       lastSpeechAt = nextActivityAt
     }
@@ -197,6 +230,8 @@ export function useVoiceCall(options) {
   watch(options.textToSpeech.isSpeaking, (speaking) => {
     if (!isVoiceMode.value) return
     if (speaking) {
+      // TTS 开始播报时同步设置 flag，确保后续所有 resumeListening 路径都走延迟
+      ttsWasActive = true
       pauseListeningForAi()
       return
     }

@@ -68,6 +68,35 @@ describe('useTextToSpeech', () => {
     expect(spokenUtterances[0].voice.name).toBe('Microsoft Xiaoxiao Natural')
     expect(spokenUtterances[0].rate).toBe(0.92)
     expect(spokenUtterances[0].pitch).toBe(1.06)
+    expect(window.speechSynthesis.resume).toHaveBeenCalled()
+  })
+
+  it('waits for browser voices before speaking the first utterance', async () => {
+    vi.useFakeTimers()
+    let currentVoices = []
+    window.speechSynthesis.getVoices = vi.fn(() => currentVoices)
+    const tts = useTextToSpeech()
+
+    tts.speak('你好。')
+
+    expect(tts.isSpeaking.value).toBe(true)
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
+
+    currentVoices = [{ lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural' }]
+    window.speechSynthesis.onvoiceschanged()
+    await Promise.resolve()
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+    expect(spokenUtterances[0].text).toBe('你好。')
+    expect(spokenUtterances[0].voice.name).toBe('Microsoft Xiaoxiao Natural')
+    vi.useRealTimers()
+  })
+
+  it('exposes browser TTS engine status without requiring enhanced voice package', () => {
+    const tts = useTextToSpeech()
+
+    expect(tts.engineStatus.value).toBe('system-tts')
+    expect(tts.enhancedVoiceReady.value).toBe(false)
   })
 
   it('uses configured speaking style when provided', () => {
@@ -136,5 +165,44 @@ describe('useTextToSpeech', () => {
 
     expect(window.speechSynthesis.cancel).toHaveBeenCalled()
     expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
+  })
+
+  it('releases speaking state when browser TTS never emits end or error', () => {
+    vi.useFakeTimers()
+    const onEnd = vi.fn()
+    const tts = useTextToSpeech({ onEnd })
+
+    tts.speak('浣犲ソ锛岃浠嬬粛鑷繁銆?')
+
+    expect(tts.isSpeaking.value).toBe(true)
+    vi.advanceTimersByTime(20000)
+
+    expect(window.speechSynthesis.cancel).toHaveBeenCalled()
+    expect(tts.isSpeaking.value).toBe(false)
+    expect(onEnd).toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('does not cancel a long utterance while the browser is still speaking', () => {
+    vi.useFakeTimers()
+    const onEnd = vi.fn()
+    window.speechSynthesis.speaking = true
+    window.speechSynthesis.pending = false
+    const tts = useTextToSpeech({ onEnd })
+
+    tts.speak('This is a long interview response that should keep playing until the browser reports the utterance has ended.')
+    window.speechSynthesis.cancel.mockClear()
+
+    vi.advanceTimersByTime(20000)
+
+    expect(window.speechSynthesis.cancel).not.toHaveBeenCalled()
+    expect(tts.isSpeaking.value).toBe(true)
+
+    window.speechSynthesis.speaking = false
+    spokenUtterances[0].onend()
+
+    expect(tts.isSpeaking.value).toBe(false)
+    expect(onEnd).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 })

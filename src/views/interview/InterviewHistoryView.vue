@@ -63,7 +63,7 @@
         <InterviewEmpty :size="140" />
         <div class="empty-title">暂无面试记录</div>
         <div class="empty-desc">选择目标岗位后开始模拟面试，系统会在这里保留普通面试和岗位定向面试历史。</div>
-        <el-button type="primary" @click="goToEntry">开始面试</el-button>
+        <el-button type="primary" class="empty-action-btn" @click="goToEntry">开始面试</el-button>
       </div>
     </div>
 
@@ -458,6 +458,10 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   text-align: center;
+}
+
+.empty-action-btn {
+  margin-top: 24px;
 }
 
 .empty-title {

@@ -15,6 +15,7 @@ describe('settingsPreferences', () => {
 
   it('returns defaults when nothing is stored', () => {
     expect(getSettingsPreferences()).toEqual(DEFAULT_SETTINGS_PREFERENCES)
+    expect(getSettingsPreferences().voiceRecognitionEngine).toBe('system_local')
   })
 
   it('merges and persists saved preferences', () => {
@@ -33,6 +34,9 @@ describe('settingsPreferences', () => {
       voiceMuteResumeMode: 'manual',
       voiceAutoSubmitDelayMs: 5000,
       voiceRecognitionLanguage: 'en-US',
+      voiceRecognitionEngine: 'offline_sherpa',
+      offlineSttEngine: 'sherpa_onnx',
+      offlineTtsEngine: 'system',
       voicePreferredType: 'custom',
       voiceName: 'Microsoft Xiaoxiao Natural',
       voiceURI: 'xiaoxiao-uri',
@@ -57,6 +61,9 @@ describe('settingsPreferences', () => {
       voiceMuteResumeMode: 'manual',
       voiceAutoSubmitDelayMs: 5000,
       voiceRecognitionLanguage: 'en-US',
+      voiceRecognitionEngine: 'offline_sherpa',
+      offlineSttEngine: 'sherpa_onnx',
+      offlineTtsEngine: 'system',
       voicePreferredType: 'custom',
       voiceName: 'Microsoft Xiaoxiao Natural',
       voiceURI: 'xiaoxiao-uri',
@@ -80,6 +87,9 @@ describe('settingsPreferences', () => {
       voiceMuteResumeMode: 'invalid',
       voiceAutoSubmitDelayMs: 7000,
       voiceRecognitionLanguage: 'fr-FR',
+      voiceRecognitionEngine: 'remote',
+      offlineSttEngine: 'vosk',
+      offlineTtsEngine: 'kokoro',
       voicePreferredType: 'remote',
       voiceName: 123,
       voiceURI: null,

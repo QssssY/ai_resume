@@ -18,6 +18,8 @@ describe('useVoiceCall', () => {
       finalTranscript: ref(''),
       interimTranscript: ref(''),
       error: ref(''),
+      engineStatus: ref('offline-ready'),
+      isModelReady: ref(true),
       start: vi.fn(() => {
         speech.isRecording.value = true
       }),
@@ -49,6 +51,21 @@ describe('useVoiceCall', () => {
 
     expect(speech.start).toHaveBeenCalled()
     expect(call.callDuration.value).toBe(1)
+  })
+
+  it('can defer initial listening until opening speech finishes', () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+
+    expect(call.startVoiceCall({ startListening: false })).toBe(true)
+    vi.advanceTimersByTime(1000)
+
+    expect(call.isVoiceMode.value).toBe(true)
+    expect(call.callDuration.value).toBe(1)
+    expect(speech.start).not.toHaveBeenCalled()
+
+    call.resumeListening()
+
+    expect(speech.start).toHaveBeenCalledTimes(1)
   })
 
   it('auto sends after three seconds of silence', async () => {
@@ -123,6 +140,44 @@ describe('useVoiceCall', () => {
     expect(call.error.value).toBe('当前浏览器不支持语音识别，已降级为手动输入')
     expect(call.isVoiceMode.value).toBe(false)
     expect(speech.start).not.toHaveBeenCalled()
+  })
+
+  it('starts browser recognition when offline speech model is missing but speech is supported', () => {
+    speech.engineStatus.value = 'offline-missing'
+    speech.isModelReady.value = false
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+
+    expect(call.startVoiceCall()).toBe(true)
+
+    expect(call.error.value).toBe('')
+    expect(call.isVoiceMode.value).toBe(true)
+    expect(speech.start).toHaveBeenCalled()
+  })
+
+  it('does not enter voice mode when both offline and browser recognition are unavailable', () => {
+    speech.isSupported.value = false
+    speech.engineStatus.value = 'offline-missing'
+    speech.isModelReady.value = false
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+
+    expect(call.startVoiceCall()).toBe(false)
+
+    expect(call.error.value).toBe('当前浏览器不支持语音识别，已降级为手动输入')
+    expect(call.isVoiceMode.value).toBe(false)
+    expect(speech.start).not.toHaveBeenCalled()
+  })
+
+  it('ends voice mode when speech recognition reports an error', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+
+    speech.error.value = '系统语音引擎暂不可用，建议下载离线语音包'
+    await nextTick()
+
+    expect(call.error.value).toBe('系统语音引擎暂不可用，建议下载离线语音包')
+    expect(call.isVoiceMode.value).toBe(false)
+    expect(textToSpeech.stop).toHaveBeenCalled()
+    expect(speech.cancel).toHaveBeenCalled()
   })
 
   it('pauses recognition while muted and resumes after unmute', () => {

@@ -14,6 +14,7 @@ import { createUserFeedback } from '@/api/feedback'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { getSettingsPreferences, saveSettingsPreferences } from '@/utils/settingsPreferences'
+import { downloadModelFromManifest, clearModelCache } from '@/utils/offlineVoiceModelCache'
 
 const push = vi.fn()
 const fetchUserInfo = vi.fn(() => Promise.resolve())
@@ -92,6 +93,26 @@ vi.mock('@/stores/theme', () => ({
   useThemeStore: vi.fn()
 }))
 
+vi.mock('@/utils/offlineVoiceModelCache', async () => {
+  const actual = await vi.importActual('@/utils/offlineVoiceModelCache')
+  return {
+    ...actual,
+    getOfflineVoiceStorageSupport: vi.fn(() => ({ indexedDB: true, cacheApi: true, supported: true })),
+    getOfflineVoiceModelStatus: vi.fn((modelKey) => ({ modelKey, status: 'pending', progress: 0 })),
+    downloadModelFromManifest: vi.fn(() => Promise.resolve({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100,
+      version: '2026.05'
+    })),
+    clearModelCache: vi.fn((modelKey) => Promise.resolve({
+      modelKey,
+      status: 'pending',
+      progress: 0
+    }))
+  }
+})
+
 vi.mock('@/components/OnboardingGuide.vue', () => ({
   default: {
     name: 'OnboardingGuide',
@@ -163,6 +184,11 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('面试偏好')
     expect(wrapper.text()).toContain('默认交互方式')
     expect(wrapper.text()).toContain('语音通话偏好')
+    expect(wrapper.find('.offline-voice-enhance-block').exists()).toBe(true)
+    expect(wrapper.text()).toContain('sherpa-onnx')
+    expect(wrapper.text()).toContain('真实离线识别')
+    expect(wrapper.text()).toContain('默认先尝试浏览器/系统语音识别')
+    expect(wrapper.text()).toContain('Kokoro')
     expect(wrapper.text()).toContain('账号安全')
     expect(wrapper.text()).toContain('注销账号')
     expect(wrapper.find('.settings-nav').text()).not.toContain('注销账号')
@@ -179,12 +205,105 @@ describe('SettingsView', () => {
     const source = settingsViewSource()
 
     expect(source).toContain('<FeatureIcon :name="section.icon" size="md" class="settings-nav-icon" />')
-    expect(source).toContain('<FeatureIcon name="voice-interview" size="md" class="voice-preview-icon" />')
+    expect(source).toContain('<FeatureIcon name="announcement" size="md" class="voice-preview-icon" />')
     expect(source).toContain('<FeatureIcon name="account-security" size="md" class="settings-alert-icon" />')
     expect(source).toContain('<FeatureIcon name="growth-radar" size="md" class="settings-refresh-icon" />')
     expect(source).toContain('<FeatureIcon name="account-security" size="md" />')
     expect(source).toContain('.settings-nav-item:hover .settings-nav-icon')
     expect(source).toContain('width: 48px;')
+  })
+
+  it('downloads and deletes the offline STT resource package from settings center', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    wrapper.vm.activeSection = 'interview'
+    await flushPromises()
+
+    await wrapper.vm.handleOfflineSttDownload()
+    await flushPromises()
+
+    expect(downloadModelFromManifest).toHaveBeenCalledWith(
+      'stt:sherpa_onnx:zh_cn',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json',
+      expect.any(Function)
+    )
+    expect(wrapper.vm.offlineSttModelStatus.status).toBe('ready')
+    expect(wrapper.text()).toContain('删除资源包')
+
+    const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
+
+    await wrapper.vm.handleOfflineSttClearConfirm()
+    await flushPromises()
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      '将删除当前浏览器已缓存的 sherpa-onnx 离线语音识别资源包。删除后可继续使用浏览器/系统识别，也可以稍后重新下载。',
+      '删除离线语音识别资源包',
+      expect.objectContaining({
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+    )
+    expect(clearModelCache).toHaveBeenCalledWith('stt:sherpa_onnx:zh_cn')
+    expect(wrapper.vm.offlineSttModelStatus.status).toBe('pending')
+
+    confirmSpy.mockRestore()
+  })
+
+  it('allows users to delete failed offline STT package remnants and keeps them when cancelled', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    wrapper.vm.activeSection = 'interview'
+    wrapper.vm.offlineSttModelStatus = {
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'failed',
+      progress: 52
+    }
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('删除资源包')
+
+    const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockRejectedValue(new Error('cancelled'))
+    await wrapper.vm.handleOfflineSttClearConfirm()
+    await flushPromises()
+
+    expect(clearModelCache).not.toHaveBeenCalled()
+    expect(wrapper.vm.offlineSttModelStatus.status).toBe('failed')
+
+    confirmSpy.mockRestore()
+  })
+
+  it('allows users to delete a cached offline TTS package without enabling download', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    wrapper.vm.activeSection = 'interview'
+    wrapper.vm.offlineTtsModelStatus = {
+      modelKey: 'tts:kokoro',
+      status: 'ready',
+      progress: 100
+    }
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('删除音色包')
+    expect(wrapper.text()).toContain('下载高品质语音包')
+
+    const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
+    await wrapper.vm.handleOfflineTtsClearConfirm()
+    await flushPromises()
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      '将删除当前浏览器已缓存的 Kokoro 高品质离线音色包。删除后会继续使用浏览器系统 TTS 音色，后续可重新下载。',
+      '删除高品质离线音色包',
+      expect.objectContaining({
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+    )
+    expect(clearModelCache).toHaveBeenCalledWith('tts:kokoro')
+    expect(wrapper.vm.offlineTtsModelStatus.status).toBe('pending')
+
+    confirmSpy.mockRestore()
   })
 
   it('shows subscription plan name without exposing internal identifiers', async () => {
@@ -275,6 +394,9 @@ describe('SettingsView', () => {
     wrapper.vm.interviewPreferenceForm.voiceMuteResumeMode = 'manual'
     wrapper.vm.interviewPreferenceForm.voiceAutoSubmitDelayMs = 5000
     wrapper.vm.interviewPreferenceForm.voiceRecognitionLanguage = 'en-US'
+    wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine = 'offline_sherpa'
+    wrapper.vm.interviewPreferenceForm.offlineSttEngine = 'sherpa_onnx'
+    wrapper.vm.interviewPreferenceForm.offlineTtsEngine = 'system'
     wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
     wrapper.vm.interviewPreferenceForm.voiceName = 'Microsoft Xiaoxiao Natural'
     wrapper.vm.interviewPreferenceForm.voiceURI = 'xiaoxiao-uri'
@@ -299,6 +421,9 @@ describe('SettingsView', () => {
       voiceMuteResumeMode: 'manual',
       voiceAutoSubmitDelayMs: 5000,
       voiceRecognitionLanguage: 'en-US',
+      voiceRecognitionEngine: 'offline_sherpa',
+      offlineSttEngine: 'sherpa_onnx',
+      offlineTtsEngine: 'system',
       voicePreferredType: 'custom',
       voiceName: 'Microsoft Xiaoxiao Natural',
       voiceURI: 'xiaoxiao-uri',
@@ -319,6 +444,9 @@ describe('SettingsView', () => {
     wrapper.vm.interviewPreferenceForm.voiceMuteResumeMode = 'manual'
     wrapper.vm.interviewPreferenceForm.voiceAutoSubmitDelayMs = 5000
     wrapper.vm.interviewPreferenceForm.voiceRecognitionLanguage = 'en-US'
+    wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine = 'offline_sherpa'
+    wrapper.vm.interviewPreferenceForm.offlineSttEngine = 'sherpa_onnx'
+    wrapper.vm.interviewPreferenceForm.offlineTtsEngine = 'system'
     wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
     wrapper.vm.interviewPreferenceForm.voiceName = 'Microsoft Xiaoxiao Natural'
     wrapper.vm.interviewPreferenceForm.voiceURI = 'xiaoxiao-uri'
@@ -337,6 +465,9 @@ describe('SettingsView', () => {
       voiceMuteResumeMode: 'auto',
       voiceAutoSubmitDelayMs: 3000,
       voiceRecognitionLanguage: 'auto',
+      voiceRecognitionEngine: 'system_local',
+      offlineSttEngine: 'sherpa_onnx',
+      offlineTtsEngine: 'system',
       voicePreferredType: 'natural_zh',
       voiceName: '',
       voiceURI: '',

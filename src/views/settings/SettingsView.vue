@@ -23,7 +23,8 @@
       </aside>
 
       <main class="settings-content">
-        <section v-show="activeSection === 'profile'" class="settings-panel" aria-labelledby="profile-title">
+        <Transition name="section-fade" mode="out-in">
+        <section v-if="activeSection === 'profile'" key="profile" class="settings-panel" aria-labelledby="profile-title">
           <div class="panel-heading">
             <div>
               <h2 id="profile-title">账号资料</h2>
@@ -62,7 +63,7 @@
           </div>
         </section>
 
-        <section v-show="activeSection === 'interview'" class="settings-panel" aria-labelledby="interview-title">
+        <section v-else-if="activeSection === 'interview'" key="interview" class="settings-panel" aria-labelledby="interview-title">
           <div class="panel-heading">
             <div>
               <h2 id="interview-title">面试偏好</h2>
@@ -166,11 +167,17 @@
           </div>
 
           <div class="voice-preference-block">
-            <div class="voice-preference-heading">
-              <h3>语音通话偏好</h3>
-              <p>这些设置只影响当前浏览器里的语音面试收音、自动提交和 AI 播报。</p>
+            <div class="collapsible-section-header" @click="voicePrefsExpanded = !voicePrefsExpanded">
+              <div class="voice-preference-heading">
+                <h3>语音通话偏好</h3>
+                <p>这些设置只影响当前浏览器里的语音面试收音、自动提交和 AI 播报。</p>
+              </div>
+              <span class="collapse-toggle" :class="{ expanded: voicePrefsExpanded }">
+                <FeatureIcon name="collapse" size="xs" />
+              </span>
             </div>
 
+            <div v-show="voicePrefsExpanded" class="collapsible-content">
             <div class="preference-list">
               <div class="preference-row stacked">
                 <div>
@@ -199,7 +206,7 @@
                     :disabled="!previewTextToSpeech.isSupported.value"
                     @click="handleVoicePreview"
                   >
-                  <FeatureIcon name="voice-interview" size="md" class="voice-preview-icon" />
+                  <FeatureIcon name="announcement" size="md" class="voice-preview-icon" />
                   </el-button>
                 </div>
               </div>
@@ -328,10 +335,90 @@
                 </el-button>
               </div>
             </div>
+            </div>
+          </div>
+
+          <div class="voice-preference-block offline-voice-enhance-block">
+            <div class="collapsible-section-header" @click="offlineEnhanceExpanded = !offlineEnhanceExpanded">
+              <div class="voice-preference-heading">
+                <p class="offline-real-stt-note">真实离线识别：浏览器/系统识别不可用时，可下载 sherpa-onnx 中文模型到浏览器本地缓存。</p>
+                <h3>离线增强</h3>
+                <p>默认先尝试浏览器/系统语音识别；离线模型作为稳定兜底，不会在首屏自动下载。</p>
+              </div>
+              <span class="collapse-toggle" :class="{ expanded: offlineEnhanceExpanded }">
+                <FeatureIcon name="collapse" size="xs" />
+              </span>
+            </div>
+
+            <div v-show="offlineEnhanceExpanded" class="collapsible-content">
+
+            <div class="offline-voice-grid">
+              <div class="offline-voice-card">
+                <div>
+                  <strong>语音识别引擎</strong>
+                  <span>{{ recognitionEngineSummary }}</span>
+                </div>
+                <el-tag effect="plain">sherpa-onnx</el-tag>
+                <p>浏览器/系统识别不可用时，可下载 sherpa-onnx 中文离线语音包并缓存到浏览器本地。</p>
+                <div class="offline-model-status">
+                  <div class="offline-model-actions">
+                    <el-button
+                      plain
+                      class="preference-action"
+                      :loading="offlineSttDownloading"
+                      :disabled="!offlineVoiceStorageSupport.supported || offlineSttDeleting"
+                      @click="handleOfflineSttDownload"
+                    >
+                      下载离线语音引擎
+                    </el-button>
+                    <el-button
+                      v-if="canClearOfflineSttModel"
+                      plain
+                      type="danger"
+                      class="preference-action offline-delete-action"
+                      :loading="offlineSttDeleting"
+                      :disabled="offlineSttDownloading"
+                      @click="handleOfflineSttClearConfirm"
+                    >
+                      删除资源包
+                    </el-button>
+                  </div>
+                  <span>缓存能力：{{ offlineStorageSupportText }}</span>
+                  <span>模型状态：{{ offlineSttStatusText }}</span>
+                </div>
+              </div>
+
+              <div class="offline-voice-card">
+                <div>
+                  <strong>高品质离线音色包</strong>
+                  <span>{{ ttsEngineSummary }}</span>
+                </div>
+                <el-tag effect="plain">Kokoro</el-tag>
+                <p>当前继续使用浏览器系统音色；后续阶段再接入 Kokoro 本地合成，避免本轮引入约 90MB 模型包。</p>
+                <div class="offline-model-status">
+                  <span>系统 TTS：{{ previewTextToSpeech.engineStatus.value === 'system-tts' ? '可用' : '不可用' }}</span>
+                  <span>增强音色：{{ offlineTtsStatusText }}</span>
+                </div>
+                <div class="offline-model-actions">
+                  <el-button plain class="preference-action" disabled>下载高品质语音包</el-button>
+                  <el-button
+                    v-if="canClearOfflineTtsModel"
+                    plain
+                    type="danger"
+                    class="preference-action offline-delete-action"
+                    :loading="offlineTtsDeleting"
+                    @click="handleOfflineTtsClearConfirm"
+                  >
+                    删除音色包
+                  </el-button>
+                </div>
+              </div>
+            </div>
+            </div>
           </div>
         </section>
 
-        <section v-show="activeSection === 'security'" class="settings-panel" aria-labelledby="security-title">
+        <section v-else-if="activeSection === 'security'" key="security" class="settings-panel" aria-labelledby="security-title">
           <div class="panel-heading">
             <div>
               <h2 id="security-title">账号安全</h2>
@@ -548,7 +635,7 @@
 
         </section>
 
-        <section v-show="activeSection === 'privacy'" class="settings-panel" aria-labelledby="privacy-title">
+        <section v-else-if="activeSection === 'privacy'" key="privacy" class="settings-panel" aria-labelledby="privacy-title">
           <div class="panel-heading">
             <div>
               <h2 id="privacy-title">隐私与数据</h2>
@@ -618,7 +705,7 @@
           </div>
         </section>
 
-        <section v-show="activeSection === 'dataManagement'" class="settings-panel" aria-labelledby="data-management-title">
+        <section v-else-if="activeSection === 'dataManagement'" key="dataManagement" class="settings-panel" aria-labelledby="data-management-title">
           <div class="panel-heading">
             <div>
               <h2 id="data-management-title">数据管理</h2>
@@ -692,7 +779,7 @@
           </div>
         </section>
 
-        <section v-show="activeSection === 'feedback'" class="settings-panel" aria-labelledby="feedback-title">
+        <section v-else-if="activeSection === 'feedback'" key="feedback" class="settings-panel" aria-labelledby="feedback-title">
           <div class="panel-heading">
             <div>
               <h2 id="feedback-title">问题反馈</h2>
@@ -737,7 +824,7 @@
           </el-form>
         </section>
 
-        <section v-show="activeSection === 'appearance'" class="settings-panel" aria-labelledby="appearance-title">
+        <section v-else-if="activeSection === 'appearance'" key="appearance" class="settings-panel" aria-labelledby="appearance-title">
           <div class="panel-heading">
             <div>
               <h2 id="appearance-title">外观偏好</h2>
@@ -771,7 +858,7 @@
           </div>
         </section>
 
-        <section v-show="activeSection === 'notification'" class="settings-panel" aria-labelledby="notification-title">
+        <section v-else-if="activeSection === 'notification'" key="notification" class="settings-panel" aria-labelledby="notification-title">
           <div class="panel-heading">
             <div>
               <h2 id="notification-title">通知偏好</h2>
@@ -826,7 +913,7 @@
           </div>
         </section>
 
-        <section v-show="activeSection === 'onboarding'" class="settings-panel" aria-labelledby="onboarding-title">
+        <section v-else-if="activeSection === 'onboarding'" key="onboarding" class="settings-panel" aria-labelledby="onboarding-title">
           <div class="panel-heading">
             <div>
               <h2 id="onboarding-title">新手引导</h2>
@@ -839,7 +926,7 @@
           </el-button>
         </section>
 
-        <section v-show="activeSection === 'membership'" class="settings-panel" aria-labelledby="membership-title">
+        <section v-else-if="activeSection === 'membership'" key="membership" class="settings-panel" aria-labelledby="membership-title">
           <div class="panel-heading">
             <div>
               <h2 id="membership-title">会员与额度</h2>
@@ -877,6 +964,7 @@
             </div>
           </div>
         </section>
+        </Transition>
       </main>
     </div>
 
@@ -910,6 +998,12 @@ import {
   getSettingsPreferences,
   saveSettingsPreferences
 } from '@/utils/settingsPreferences'
+import {
+  clearModelCache,
+  downloadModelFromManifest,
+  getOfflineVoiceModelStatus,
+  getOfflineVoiceStorageSupport
+} from '@/utils/offlineVoiceModelCache'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -918,6 +1012,8 @@ const themeStore = useThemeStore()
 const activeSection = ref('profile')
 const showOnboarding = ref(false)
 const securityMode = ref('password')
+const voicePrefsExpanded = ref(true)
+const offlineEnhanceExpanded = ref(false)
 const passwordFormRef = ref(null)
 const securityFormRef = ref(null)
 const accountDeleteFormRef = ref(null)
@@ -1033,6 +1129,12 @@ const accountDeleteConfirmDialogVisible = ref(false)
 const notificationForm = ref(getSettingsPreferences())
 const interviewPreferenceForm = ref(getSettingsPreferences())
 const previewTextToSpeech = useTextToSpeech()
+const offlineVoiceStorageSupport = getOfflineVoiceStorageSupport()
+const offlineSttModelStatus = ref(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn'))
+const offlineTtsModelStatus = ref(getOfflineVoiceModelStatus('tts:kokoro'))
+const offlineSttDownloading = ref(false)
+const offlineSttDeleting = ref(false)
+const offlineTtsDeleting = ref(false)
 
 const themeChoice = ref(themeStore.followSystem ? 'system' : themeStore.manualTheme)
 const resolvedThemeText = computed(() => themeStore.resolvedTheme === 'dark' ? '暗色' : '亮色')
@@ -1091,6 +1193,40 @@ const formatSpeechRate = (value) => `${Number(value).toFixed(2)}x`
 const formatSpeechPitch = (value) => Number(value).toFixed(2)
 const formatSpeechVolume = (value) => `${Math.round(Number(value) * 100)}%`
 const buildVoiceKey = (voice) => `${voice.voiceURI || ''}|||${voice.name || ''}|||${voice.lang || ''}`
+
+const offlineStorageSupportText = computed(() => (
+  offlineVoiceStorageSupport.supported ? '可用' : '当前浏览器不支持持久化缓存'
+))
+
+const recognitionEngineSummary = computed(() => (
+  interviewPreferenceForm.value.voiceRecognitionEngine === 'system_local'
+    ? '默认先尝试浏览器/系统语音识别，失败时提示下载离线语音包。'
+    : '离线模型已安装时优先使用 sherpa-onnx；未安装时仍先尝试浏览器识别。'
+))
+
+const ttsEngineSummary = computed(() => (
+  previewTextToSpeech.engineStatus.value === 'system-tts'
+    ? '当前使用浏览器系统 TTS 音色。'
+    : '当前浏览器不支持系统 TTS。'
+))
+
+const formatOfflineModelStatus = (status) => {
+  if (status.status === 'ready') return '已缓存'
+  if (status.status === 'downloading') return `下载中 ${status.progress}%`
+  if (status.status === 'failed') return '下载失败'
+  return '未下载'
+}
+
+const offlineSttStatusText = computed(() => formatOfflineModelStatus(offlineSttModelStatus.value))
+const offlineTtsStatusText = computed(() => formatOfflineModelStatus(offlineTtsModelStatus.value))
+const canClearOfflineSttModel = computed(() => (
+  // 已安装资源包和下载失败残留都允许用户自主删除，避免浏览器缓存被动长期占用空间。
+  ['ready', 'failed'].includes(offlineSttModelStatus.value?.status)
+))
+const canClearOfflineTtsModel = computed(() => (
+  // Kokoro 下载本轮仍未开放；如果浏览器已有缓存状态，也必须提供删除入口。
+  ['ready', 'failed'].includes(offlineTtsModelStatus.value?.status)
+))
 
 const browserVoiceOptions = computed(() => previewTextToSpeech.voices.value.map((voice) => ({
   label: `${voice.name || 'Unknown'}${voice.lang ? ` (${voice.lang})` : ''}`,
@@ -1560,6 +1696,9 @@ const handleVoicePreferenceReset = () => {
     voiceMuteResumeMode: DEFAULT_SETTINGS_PREFERENCES.voiceMuteResumeMode,
     voiceAutoSubmitDelayMs: DEFAULT_SETTINGS_PREFERENCES.voiceAutoSubmitDelayMs,
     voiceRecognitionLanguage: DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionLanguage,
+    voiceRecognitionEngine: DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionEngine,
+    offlineSttEngine: DEFAULT_SETTINGS_PREFERENCES.offlineSttEngine,
+    offlineTtsEngine: DEFAULT_SETTINGS_PREFERENCES.offlineTtsEngine,
     voicePreferredType: DEFAULT_SETTINGS_PREFERENCES.voicePreferredType,
     voiceName: DEFAULT_SETTINGS_PREFERENCES.voiceName,
     voiceURI: DEFAULT_SETTINGS_PREFERENCES.voiceURI,
@@ -1571,6 +1710,89 @@ const handleVoicePreferenceReset = () => {
   }))
   previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
   ElMessage.success('语音偏好已恢复默认')
+}
+
+const handleOfflineSttDownload = async () => {
+  offlineSttDownloading.value = true
+  try {
+    offlineSttModelStatus.value = await downloadModelFromManifest(
+      'stt:sherpa_onnx:zh_cn',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json',
+      (progress) => {
+        offlineSttModelStatus.value = {
+          ...offlineSttModelStatus.value,
+          status: 'downloading',
+          progress
+        }
+      }
+    )
+    ElMessage.success('离线语音识别模型已缓存到当前浏览器')
+  } catch (err) {
+    offlineSttModelStatus.value = getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')
+    ElMessage.error(err?.message || '离线语音识别模型下载失败')
+  } finally {
+    offlineSttDownloading.value = false
+  }
+}
+
+const handleOfflineSttClear = async () => {
+  offlineSttDeleting.value = true
+  try {
+    offlineSttModelStatus.value = await clearModelCache('stt:sherpa_onnx:zh_cn')
+    ElMessage.success('离线语音识别资源包已删除')
+  } finally {
+    offlineSttDeleting.value = false
+  }
+}
+
+const handleOfflineSttClearConfirm = async () => {
+  let confirmed = false
+  try {
+    await ElMessageBox.confirm(
+      '将删除当前浏览器已缓存的 sherpa-onnx 离线语音识别资源包。删除后可继续使用浏览器/系统识别，也可以稍后重新下载。',
+      '删除离线语音识别资源包',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    confirmed = true
+    await handleOfflineSttClear()
+  } catch (err) {
+    if (!confirmed) return
+    ElMessage.error(err?.message || '离线语音识别资源包删除失败')
+  }
+}
+
+const handleOfflineTtsClear = async () => {
+  offlineTtsDeleting.value = true
+  try {
+    offlineTtsModelStatus.value = await clearModelCache('tts:kokoro')
+    ElMessage.success('高品质离线音色包已删除')
+  } finally {
+    offlineTtsDeleting.value = false
+  }
+}
+
+const handleOfflineTtsClearConfirm = async () => {
+  let confirmed = false
+  try {
+    await ElMessageBox.confirm(
+      '将删除当前浏览器已缓存的 Kokoro 高品质离线音色包。删除后会继续使用浏览器系统 TTS 音色，后续可重新下载。',
+      '删除高品质离线音色包',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    confirmed = true
+    await handleOfflineTtsClear()
+  } catch (err) {
+    if (!confirmed) return
+    ElMessage.error(err?.message || '高品质离线音色包删除失败')
+  }
 }
 
 const handleDataManagementSettingsSave = async () => {
@@ -1732,6 +1954,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--border-card);
   border-radius: 12px;
   background: var(--bg-card);
+  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
 }
 
 .settings-nav-item {
@@ -1748,12 +1971,22 @@ onBeforeUnmount(() => {
   font-size: 14px;
   text-align: left;
   cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.18s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.2s ease;
 }
 
 .settings-nav-item:hover,
 .settings-nav-item.active {
   background: var(--orange-light-bg);
   color: var(--orange-deep);
+}
+
+.settings-nav-item.active {
+  box-shadow: 0 1px 4px rgba(255, 140, 66, 0.08);
+  transform: translateX(2px);
 }
 
 .settings-nav-icon {
@@ -1774,6 +2007,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--border-card);
   border-radius: 12px;
   background: var(--bg-card);
+  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
 }
 
 .panel-heading {
@@ -1782,6 +2016,8 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-divider);
 }
 
 .panel-heading h2 {
@@ -2043,6 +2279,17 @@ onBeforeUnmount(() => {
 .security-panel-leave-to {
   opacity: 0;
   transform: translateY(6px);
+}
+
+.section-fade-enter-active,
+.section-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.section-fade-enter-from,
+.section-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 .appearance-status {
@@ -2349,6 +2596,95 @@ onBeforeUnmount(() => {
   line-height: 1.5;
 }
 
+.offline-voice-enhance-block {
+  margin-top: 22px;
+}
+
+.collapsible-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 12px 14px;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  background: var(--bg-page);
+  transition: background-color 0.2s ease;
+}
+
+.collapsible-section-header:hover {
+  background: var(--orange-light-bg);
+}
+
+.collapse-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg);
+}
+
+.collapse-toggle.expanded {
+  transform: rotate(0deg);
+}
+
+.collapsible-content {
+  padding-top: 12px;
+}
+
+.offline-voice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.offline-voice-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  background: var(--bg-page);
+}
+
+.offline-voice-card strong,
+.offline-voice-card span {
+  display: block;
+}
+
+.offline-voice-card strong {
+  color: var(--text-title);
+  font-size: 14px;
+}
+
+.offline-voice-card span,
+.offline-voice-card p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.offline-model-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.offline-model-status span {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  overflow-wrap: anywhere;
+}
+
 .danger-zone {
   margin-top: 24px;
   border: 1px solid color-mix(in srgb, var(--border-card) 72%, #f56c6c 28%);
@@ -2464,6 +2800,11 @@ onBeforeUnmount(() => {
     align-items: center;
   }
 
+  .offline-voice-grid,
+  .offline-model-status {
+    grid-template-columns: 1fr;
+  }
+
   .voice-preview-button {
     width: 52px;
     min-width: 52px;
@@ -2497,7 +2838,13 @@ onBeforeUnmount(() => {
   .voice-preview-button,
   .voice-preview-icon,
   .settings-nav-icon,
-  .settings-refresh-icon {
+  .settings-refresh-icon,
+  .settings-nav-item,
+  .settings-panel,
+  .section-fade-enter-active,
+  .section-fade-leave-active,
+  .collapse-toggle,
+  .collapsible-section-header {
     transition-duration: 0.01ms;
   }
 }

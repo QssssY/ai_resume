@@ -30,7 +30,7 @@
           aria-label="结束面试"
           @click="endInterview"
         >
-          <FeatureIcon name="interview-end" size="xs" class="end-btn-svg" />
+          <FeatureIcon name="close" size="xs" class="end-btn-svg" />
           <span class="end-btn-text">结束面试</span>
         </el-button>
         <el-button
@@ -206,6 +206,7 @@
 
           <div class="voice-call-title">{{ voiceCallTitle }}</div>
           <div class="voice-call-desc">{{ voiceCallDescription }}</div>
+          <div class="voice-engine-status">{{ voiceRecognitionEngineText }}</div>
           <div class="voice-call-time">{{ formatCallDuration(voiceCall.callDuration.value) }}</div>
 
           <div v-if="voiceCall.pendingMessage.value" class="voice-pending-text voice-pending-floating">
@@ -254,6 +255,7 @@
             <div>
               <div class="voice-call-title">{{ voiceCallTitle }}</div>
               <div class="voice-call-desc">{{ voiceCallDescription }}</div>
+              <div class="voice-engine-status">{{ voiceRecognitionEngineText }}</div>
             </div>
           </div>
           <div class="voice-call-time">{{ formatCallDuration(voiceCall.callDuration.value) }}</div>
@@ -388,6 +390,9 @@ import { optimizedImages } from "@/utils/optimizedImages";
 const router = useRouter();
 const route = useRoute();
 const settingsPreferences = getSettingsPreferences();
+const speechRecognitionOptions = {
+  preferOffline: settingsPreferences.voiceRecognitionEngine === 'offline_sherpa'
+};
 
 const sessionId = computed(() => route.params.sessionId);
 const chatContainer = ref(null);
@@ -409,6 +414,16 @@ const interactionType = computed(() => sessionData.value?.interactionType ?? INT
 const isVoiceSession = computed(() => interactionType.value === INTERACTION_TYPE_VOICE);
 const interactionModeText = computed(() => getInteractionTypeLabel(interactionType.value));
 const voiceFeatureSupported = computed(() => voiceSttSupported.value && textToSpeech.isSupported.value);
+const voiceRecognitionEngineText = computed(() => {
+  if (voiceSttEngineStatus?.value === 'offline-ready') return '识别引擎：离线 sherpa-onnx 已就绪';
+  if (voiceSttEngineStatus?.value === 'offline-loading') return '识别引擎：离线模型启动中';
+  if (voiceSttEngineStatus?.value === 'offline-missing') return '识别引擎：无可用识别引擎，建议下载离线模型';
+  if (!voiceSttSupported.value) return '识别引擎：当前浏览器不可用';
+  if (voiceSttEngineStatus?.value === 'system-local') return '识别引擎：系统本地优先';
+  if (voiceSttEngineStatus?.value === 'browser-service') return '识别引擎：浏览器/系统识别服务';
+  if (voiceSttOfflineSuggested?.value) return '识别引擎：不可用，建议下载离线语音包';
+  return '识别引擎：等待启动';
+});
 const voiceCallTitle = computed(() => {
   if (!voiceFeatureSupported.value) return "当前浏览器不支持语音通话";
   if (!voiceCall.isVoiceMode.value) return "语音面试待开始";
@@ -419,7 +434,7 @@ const voiceCallTitle = computed(() => {
   return "通话准备中";
 });
 const voiceCallDescription = computed(() => {
-  if (!voiceFeatureSupported.value) return "请切换到支持 Web Speech API 的 Chrome 浏览器，或返回创建文字面试。";
+  if (!voiceFeatureSupported.value) return "请切换到支持 Web Speech API 的浏览器，或先在设置中心下载离线语音识别模型。";
   if (!voiceCall.isVoiceMode.value) return "点击开始通话后再授权麦克风，页面刷新不会自动开麦。";
   if (voiceCall.isMuted.value) return "麦克风已关闭，取消静音后会继续收音。";
   if (voiceCall.isManualResumePending.value) return "已取消静音，再次点击麦克风后继续收音。";
@@ -438,7 +453,7 @@ const {
   language: sttLanguage,
   cancel: sttCancel,
   toggle: sttToggle,
-} = useSpeechToText();
+} = useSpeechToText(speechRecognitionOptions);
 
 const {
   isSupported: voiceSttSupported,
@@ -448,11 +463,14 @@ const {
   finalTranscript: voiceSttFinal,
   interimTranscript: voiceSttInterim,
   error: voiceSttError,
+  engineStatus: voiceSttEngineStatus,
+  isModelReady: voiceSttModelReady,
+  offlineEngineSuggested: voiceSttOfflineSuggested,
   language: voiceSttLanguage,
   start: voiceSttStart,
   stop: voiceSttStop,
   cancel: voiceSttCancel,
-} = useSpeechToText();
+} = useSpeechToText(speechRecognitionOptions);
 
 const textToSpeech = useTextToSpeech({
   rate: settingsPreferences.voiceSpeakingRate,
@@ -463,9 +481,6 @@ const textToSpeech = useTextToSpeech({
     name: settingsPreferences.voiceName,
     voiceURI: settingsPreferences.voiceURI,
     lang: settingsPreferences.voiceLang,
-  },
-  onEnd: () => {
-    voiceCall.resumeListening();
   },
 });
 
@@ -478,6 +493,8 @@ const voiceCall = useVoiceCall({
     finalTranscript: voiceSttFinal,
     interimTranscript: voiceSttInterim,
     error: voiceSttError,
+    engineStatus: voiceSttEngineStatus,
+    isModelReady: voiceSttModelReady,
     start: voiceSttStart,
     stop: voiceSttStop,
     cancel: voiceSttCancel,
@@ -657,6 +674,12 @@ const getOpeningSpeechContent = () => {
   return getAssistantDisplay(openingMessage).mainContent.trim();
 };
 
+const shouldDeferListeningForOpeningSpeech = () => Boolean(
+  !openingSpeechPlayed.value
+  && isVoiceSession.value
+  && getOpeningSpeechContent()
+);
+
 const speakOpeningMessageOnce = () => {
   if (openingSpeechPlayed.value || !isVoiceSession.value || !voiceCall.isVoiceMode.value) {
     return;
@@ -668,8 +691,10 @@ const speakOpeningMessageOnce = () => {
 
   // 语音通话首次启动时先播报已生成的开场白，避免用户进入通话后直接面对空白收音状态。
   openingSpeechPlayed.value = true;
-  // 播报开场白前必须关闭语音识别，避免浏览器把扬声器里的开场白误识别成用户回答。
-  voiceSttCancel();
+  // 如果开场白是在通话启动后才生成，播报前仍需关闭当前收音；首轮已延迟开麦时不再做无效取消。
+  if (voiceSttRecording.value) {
+    voiceSttCancel();
+  }
   textToSpeech.speak(openingContent);
 };
 
@@ -1073,7 +1098,8 @@ const formatCallDuration = (duration) => {
 };
 
 const handleStartVoiceCall = () => {
-  if (!voiceCall.startVoiceCall()) {
+  const shouldDeferListening = shouldDeferListeningForOpeningSpeech();
+  if (!voiceCall.startVoiceCall({ startListening: !shouldDeferListening })) {
     ElMessage.warning(voiceCall.error.value || "无法启动语音通话");
     return;
   }
@@ -1985,6 +2011,15 @@ onBeforeUnmount(() => {
   text-align: center;
   font-size: 15px;
   line-height: 1.7;
+}
+
+.voice-engine-status {
+  position: relative;
+  z-index: 1;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .voice-call-window .voice-call-time {

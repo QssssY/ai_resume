@@ -21,6 +21,9 @@ export const DEFAULT_SETTINGS_PREFERENCES = Object.freeze({
   voiceMuteResumeMode: 'auto',
   voiceAutoSubmitDelayMs: 3000,
   voiceRecognitionLanguage: 'auto',
+  voiceRecognitionEngine: 'system_local',
+  offlineSttEngine: 'sherpa_onnx',
+  offlineTtsEngine: 'system',
   voicePreferredType: 'natural_zh',
   voiceName: '',
   voiceURI: '',
@@ -47,6 +50,9 @@ const FEEDBACK_MODE_VALUES = Object.freeze(['after_interview', 'immediate'])
 const INTERACTION_TYPE_VALUES = Object.freeze([0, 1])
 const VOICE_MUTE_RESUME_MODE_VALUES = Object.freeze(['auto', 'manual'])
 const VOICE_RECOGNITION_LANGUAGE_VALUES = Object.freeze(['auto', 'zh-CN', 'en-US'])
+const VOICE_RECOGNITION_ENGINE_VALUES = Object.freeze(['offline_sherpa', 'system_local'])
+const OFFLINE_STT_ENGINE_VALUES = Object.freeze(['sherpa_onnx'])
+const OFFLINE_TTS_ENGINE_VALUES = Object.freeze(['system'])
 const VOICE_PREFERRED_TYPE_VALUES = Object.freeze(['natural_zh', 'female', 'male', 'system', 'custom'])
 
 const booleanOrDefault = (value, defaultValue) => (
@@ -154,6 +160,21 @@ export function normalizeSettingsPreferences(preferences = {}) {
       preferences.voiceRecognitionLanguage,
       VOICE_RECOGNITION_LANGUAGE_VALUES,
       DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionLanguage
+    ),
+    voiceRecognitionEngine: optionOrDefault(
+      preferences.voiceRecognitionEngine,
+      VOICE_RECOGNITION_ENGINE_VALUES,
+      DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionEngine
+    ),
+    offlineSttEngine: optionOrDefault(
+      preferences.offlineSttEngine,
+      OFFLINE_STT_ENGINE_VALUES,
+      DEFAULT_SETTINGS_PREFERENCES.offlineSttEngine
+    ),
+    offlineTtsEngine: optionOrDefault(
+      preferences.offlineTtsEngine,
+      OFFLINE_TTS_ENGINE_VALUES,
+      DEFAULT_SETTINGS_PREFERENCES.offlineTtsEngine
     ),
     voicePreferredType: optionOrDefault(
       preferences.voicePreferredType,

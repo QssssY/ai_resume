@@ -7,10 +7,12 @@ import ElementPlus from 'element-plus'
 import InterviewSessionView from '@/views/interview/InterviewSessionView.vue'
 import { getInterviewSession, streamInterviewMessage } from '@/api/interview'
 import { saveSettingsPreferences } from '@/utils/settingsPreferences'
+import { useSpeechToText } from '@/composables/useSpeechToText'
 
 const push = vi.fn()
 const back = vi.fn()
 let useSpeechToTextCall = 0
+let useSpeechToTextOptions = []
 let mountedWrappers = []
 
 const sttSupported = ref(true)
@@ -75,8 +77,9 @@ vi.mock('@/utils/auth', () => ({
 }))
 
 vi.mock('@/composables/useSpeechToText', () => ({
-  useSpeechToText: vi.fn(() => {
+  useSpeechToText: vi.fn((options = {}) => {
     useSpeechToTextCall += 1
+    useSpeechToTextOptions.push(options)
     if (useSpeechToTextCall % 2 === 1) {
       return {
       isSupported: sttSupported,
@@ -194,6 +197,7 @@ describe('InterviewSessionView', () => {
     localStorage.clear()
     mountedWrappers = []
     useSpeechToTextCall = 0
+    useSpeechToTextOptions = []
     sttSupported.value = true
     sttRecording.value = false
     sttFinal.value = ''
@@ -484,6 +488,19 @@ describe('InterviewSessionView', () => {
     expect(voiceSttLanguage.value).toBe('en-US')
   })
 
+  it('passes local recognition engine preference into both speech recognizers', async () => {
+    saveSettingsPreferences({
+      voiceRecognitionEngine: 'system_local'
+    })
+
+    mountView()
+    await flushPromises()
+
+    expect(useSpeechToText).toHaveBeenCalledTimes(2)
+    expect(useSpeechToTextOptions[0]).toMatchObject({ preferOffline: false })
+    expect(useSpeechToTextOptions[1]).toMatchObject({ preferOffline: false })
+  })
+
   it('speaks the opening message once when the first voice call starts', async () => {
     getInterviewSession.mockResolvedValue({
       data: {
@@ -540,7 +557,7 @@ describe('InterviewSessionView', () => {
     expect(utterance.volume).toBe(0.6)
   })
 
-  it('cancels voice recognition before speaking the opening message', async () => {
+  it('defers voice recognition until the opening message finishes speaking', async () => {
     getInterviewSession.mockResolvedValue({
       data: {
         ...baseSession,
@@ -557,10 +574,19 @@ describe('InterviewSessionView', () => {
     await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
     await wrapper.vm.$nextTick()
 
-    expect(voiceSttStart).toHaveBeenCalledTimes(1)
-    expect(voiceSttCancel).toHaveBeenCalledTimes(1)
+    expect(voiceSttStart).not.toHaveBeenCalled()
+    expect(voiceSttCancel).not.toHaveBeenCalled()
     expect(voiceSttRecording.value).toBe(false)
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+
+    vi.useFakeTimers()
+    window.speechSynthesis.speak.mock.calls[0][0].onend()
+    await wrapper.vm.$nextTick()
+    await vi.advanceTimersByTimeAsync(1500)
+    vi.useRealTimers()
+    await wrapper.vm.$nextTick()
+
+    expect(voiceSttStart).toHaveBeenCalledTimes(1)
   })
 
   it('does not speak opening message again when continuing a voice interview with user replies', async () => {
