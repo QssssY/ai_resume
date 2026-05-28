@@ -28,6 +28,16 @@ const resolveManifestRelativeUrl = (value = '', baseUrl = '') => {
     : `${baseUrl}${value}`
 }
 
+const isHtmlResponse = async (response) => {
+  const contentType = response.headers?.get?.('content-type') || ''
+  if (contentType.includes('text/html')) return true
+  const clonedResponse = response.clone?.()
+  if (!clonedResponse?.text) return false
+  const text = await clonedResponse.text()
+  const trimmed = text.trim()
+  return /^<!doctype\s+html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)
+}
+
 const clampProgress = (value) => {
   const progress = Number(value)
   if (!Number.isFinite(progress) || progress < 0 || progress > 100) return 0
@@ -170,9 +180,11 @@ export async function downloadModelFromManifest(modelKey, manifestUrl, onProgres
 
   const cache = await caches.open(OFFLINE_VOICE_CACHE_NAME)
   for (const file of files) {
-    const response = await fetch(file.url)
-    if (!response.ok) {
-      const failed = saveOfflineVoiceModelStatus(modelKey, {
+    let response
+    try {
+      response = await fetch(file.url)
+    } catch {
+      saveOfflineVoiceModelStatus(modelKey, {
         status: 'failed',
         progress: clampProgress(totalSize ? (loadedSize / totalSize) * 100 : 0),
         version: manifest.version,
@@ -180,7 +192,18 @@ export async function downloadModelFromManifest(modelKey, manifestUrl, onProgres
         runtime: manifest.runtime,
         files
       })
-      throw new Error(`离线语音模型文件下载失败: ${file.path}`)
+      throw new Error(`离线语音模型文件请求失败，请先将 ${file.path} 部署到同源静态目录`)
+    }
+    if (!response.ok || await isHtmlResponse(response)) {
+      saveOfflineVoiceModelStatus(modelKey, {
+        status: 'failed',
+        progress: clampProgress(totalSize ? (loadedSize / totalSize) * 100 : 0),
+        version: manifest.version,
+        manifestUrl,
+        runtime: manifest.runtime,
+        files
+      })
+      throw new Error(`离线语音模型文件不是有效模型资源，请确认已部署 ${file.path}`)
     }
     await cache.put(file.url, response.clone())
     loadedSize += Number(file.size || 0)

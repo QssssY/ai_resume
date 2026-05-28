@@ -7,7 +7,7 @@
       </div>
     </header>
 
-    <div class="settings-layout">
+    <div class="settings-layout settings-workspace">
       <aside class="settings-nav" aria-label="设置分组">
         <button
           v-for="section in sections"
@@ -17,7 +17,13 @@
           :class="{ active: activeSection === section.key }"
           @click="activeSection = section.key"
         >
-          <FeatureIcon :name="section.icon" size="md" class="settings-nav-icon" />
+          <FeatureIcon
+            :name="section.icon"
+            size="md"
+            class="settings-nav-icon"
+            loading="eager"
+            fetch-priority="auto"
+          />
           <span>{{ section.label }}</span>
         </button>
       </aside>
@@ -32,174 +38,147 @@
             </div>
           </div>
 
-          <div class="profile-summary">
-            <OptimizedImage :sources="optimizedImages.userAvatar" alt="用户头像" img-class="profile-avatar" />
-            <div class="profile-main">
-              <div class="profile-name-row">
-                <div class="profile-name">{{ displayName }}</div>
+          <div class="settings-panel-body profile-workspace">
+            <div class="profile-overview-card">
+              <OptimizedImage :sources="optimizedImages.userAvatar" alt="用户头像" img-class="profile-avatar" />
+              <div class="profile-main">
+                <div class="profile-name-row">
+                  <div class="profile-name">{{ displayName }}</div>
+                  <n-tag :type="roleTagType" round :bordered="false">{{ roleText }}</n-tag>
+                </div>
+                <div class="profile-meta">{{ userInfo?.username || '--' }}</div>
+                <p>当前账号已接入简历诊断、模拟面试、通知和成长数据能力，设置会保存在本机和账号配置中。</p>
               </div>
-              <div class="profile-meta">{{ userInfo?.username || '--' }}</div>
             </div>
-            <el-tag :type="roleTagType" effect="plain">{{ roleText }}</el-tag>
-          </div>
 
-          <div class="info-grid">
-            <div class="info-item">
-              <span>账号状态</span>
-              <strong>{{ statusText }}</strong>
-            </div>
-            <div class="info-item">
-              <span>当前身份</span>
-              <strong>{{ roleText }}</strong>
-            </div>
-            <div class="info-item">
-              <span>订阅套餐</span>
-              <strong>{{ membershipPlanText }}</strong>
-            </div>
-            <div class="info-item">
-              <span>注册时间</span>
-              <strong>{{ profileRegisterTimeText }}</strong>
+            <div class="info-grid profile-info-grid">
+              <div class="info-item">
+                <span>账号状态</span>
+                <strong>{{ statusText }}</strong>
+              </div>
+              <div class="info-item">
+                <span>当前身份</span>
+                <strong>{{ roleText }}</strong>
+              </div>
+              <div class="info-item">
+                <span>订阅套餐</span>
+                <strong>{{ membershipPlanText }}</strong>
+              </div>
+              <div class="info-item">
+                <span>注册时间</span>
+                <strong>{{ profileRegisterTimeText }}</strong>
+              </div>
             </div>
           </div>
         </section>
 
         <section v-else-if="activeSection === 'interview'" key="interview" class="settings-panel" aria-labelledby="interview-title">
           <div class="panel-heading">
-            <div>
+            <FeatureIcon name="ai-interviewer" size="lg" class="panel-heading-icon" />
+            <div class="panel-heading-copy">
               <h2 id="interview-title">面试偏好</h2>
               <p>设置进入模拟面试时优先带入的默认配置，偏好仅保存在当前浏览器。</p>
             </div>
           </div>
 
-          <div class="preference-list">
-            <div class="preference-row stacked">
-              <div>
-                <strong>默认面试岗位</strong>
-                <span>只在岗位仍处于启用状态时自动回填，避免旧岗位配置污染新会话。</span>
-              </div>
-              <el-select
-                v-model="interviewPreferenceForm.defaultInterviewJobRoleCode"
-                class="preference-select"
-                filterable
-                @change="handleDefaultJobChange"
+          <div class="settings-panel-body">
+            <div class="sub-nav-tabs" role="tablist" aria-label="面试偏好子分组">
+              <button
+                v-for="tab in interviewSubTabs"
+                :key="tab.key"
+                type="button"
+                class="sub-nav-tab"
+                :class="{ active: interviewSubTab === tab.key }"
+                role="tab"
+                :aria-selected="interviewSubTab === tab.key"
+                @click="interviewSubTab = tab.key"
               >
-                <el-option label="不设默认岗位" value="" />
-                <el-option
-                  v-for="job in interviewJobOptions"
-                  :key="job.value"
-                  :label="job.label"
-                  :value="job.value"
-                />
-              </el-select>
-            </div>
-            <div class="preference-row stacked">
-              <div>
-                <strong>默认面试级别</strong>
-                <span>进入面试入口页时默认选中的难度级别。</span>
-              </div>
-              <el-select
-                v-model="interviewPreferenceForm.defaultInterviewDifficulty"
-                class="preference-select"
-                @change="handleInterviewPreferenceSave"
-              >
-                <el-option
-                  v-for="item in difficultyPreferenceOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </div>
-            <div class="preference-row stacked">
-              <div>
-                <strong>默认面试模式</strong>
-                <span>进入面试入口页时默认选中的面试官模式。</span>
-              </div>
-              <el-select
-                v-model="interviewPreferenceForm.defaultInterviewMode"
-                class="preference-select"
-                @change="handleInterviewPreferenceSave"
-              >
-                <el-option
-                  v-for="item in interviewModeOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </div>
-            <div class="preference-row stacked">
-              <div>
-                <strong>默认反馈模式</strong>
-                <span>进入面试入口页时默认选中的反馈节奏。</span>
-              </div>
-              <el-select
-                v-model="interviewPreferenceForm.defaultFeedbackMode"
-                class="preference-select"
-                @change="handleInterviewPreferenceSave"
-              >
-                <el-option
-                  v-for="item in feedbackModeOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </div>
-            <div class="preference-row stacked">
-              <div>
-                <strong>默认交互方式</strong>
-                <span>进入模拟面试入口页时默认选择文字面试或语音面试；浏览器不支持语音能力时会保持文字面试。</span>
-              </div>
-              <el-select
-                v-model="interviewPreferenceForm.defaultInterviewInteractionType"
-                class="preference-select"
-                @change="handleInterviewPreferenceSave"
-              >
-                <el-option
-                  v-for="item in interactionModeOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </div>
-          </div>
-
-          <div class="voice-preference-block">
-            <div class="collapsible-section-header" @click="voicePrefsExpanded = !voicePrefsExpanded">
-              <div class="voice-preference-heading">
-                <h3>语音通话偏好</h3>
-                <p>这些设置只影响当前浏览器里的语音面试收音、自动提交和 AI 播报。</p>
-              </div>
-              <span class="collapse-toggle" :class="{ expanded: voicePrefsExpanded }">
-                <FeatureIcon name="collapse" size="xs" />
-              </span>
+                {{ tab.label }}
+              </button>
             </div>
 
-            <div v-show="voicePrefsExpanded" class="collapsible-content">
-            <div class="preference-list">
+            <Transition name="security-panel" mode="out-in">
+              <div :key="interviewSubTab" class="preference-list">
+              <template v-if="interviewSubTab === 'basic'">
+                <div class="preference-row stacked">
+                  <div>
+                    <strong>默认面试岗位</strong>
+                    <span>只在岗位仍处于启用状态时自动回填，避免旧岗位配置污染新会话。</span>
+                  </div>
+                  <n-select
+                    v-model:value="interviewPreferenceForm.defaultInterviewJobRoleCode"
+                    class="preference-select"
+                    filterable
+                    :options="defaultInterviewJobSelectOptions"
+                    @update:value="handleDefaultJobChange"
+                  />
+                </div>
+                <div class="preference-row stacked">
+                  <div>
+                    <strong>默认面试级别</strong>
+                    <span>进入面试入口页时默认选中的难度级别。</span>
+                  </div>
+                  <n-select
+                    v-model:value="interviewPreferenceForm.defaultInterviewDifficulty"
+                    class="preference-select"
+                    :options="difficultyPreferenceOptions"
+                    @update:value="handleInterviewPreferenceSave"
+                  />
+                </div>
+                <div class="preference-row stacked">
+                  <div>
+                    <strong>默认面试模式</strong>
+                    <span>进入面试入口页时默认选中的面试官模式。</span>
+                  </div>
+                  <n-select
+                    v-model:value="interviewPreferenceForm.defaultInterviewMode"
+                    class="preference-select"
+                    :options="interviewModeOptions"
+                    @update:value="handleInterviewPreferenceSave"
+                  />
+                </div>
+                <div class="preference-row stacked">
+                  <div>
+                    <strong>默认反馈模式</strong>
+                    <span>进入面试入口页时默认选中的反馈节奏。</span>
+                  </div>
+                  <n-select
+                    v-model:value="interviewPreferenceForm.defaultFeedbackMode"
+                    class="preference-select"
+                    :options="feedbackModeOptions"
+                    @update:value="handleInterviewPreferenceSave"
+                  />
+                </div>
+                <div class="preference-row stacked">
+                  <div>
+                    <strong>默认交互方式</strong>
+                    <span>进入模拟面试入口页时默认选择文字面试或语音面试；浏览器不支持语音能力时会保持文字面试。</span>
+                  </div>
+                  <n-select
+                    v-model:value="interviewPreferenceForm.defaultInterviewInteractionType"
+                    class="preference-select"
+                    :options="interactionModeOptions"
+                    @update:value="handleInterviewPreferenceSave"
+                  />
+                </div>
+              </template>
+
+              <template v-else-if="interviewSubTab === 'voice'">
               <div class="preference-row stacked">
                 <div>
                   <strong>AI 播报声音</strong>
                   <span>使用当前浏览器可用的系统语音，音色偏好只保存在本机。</span>
                 </div>
                 <div class="voice-control">
-                  <el-select
-                    v-model="interviewPreferenceForm.voicePreferredType"
+                  <n-select
+                    v-model:value="interviewPreferenceForm.voicePreferredType"
                     class="preference-select"
-                    @change="handleVoicePreferredTypeChange"
-                  >
-                    <el-option
-                      v-for="item in voicePreferredTypeOptions"
-                      :key="item.value"
-                      :label="item.label"
-                      :value="item.value"
-                    />
-                  </el-select>
-                  <el-button
+                    :options="voicePreferredTypeOptions"
+                    @update:value="handleVoicePreferredTypeChange"
+                  />
+                  <n-button
                     type="primary"
-                    plain
+                    secondary
                     class="voice-preview-button"
                     title="试听"
                     aria-label="试听当前 AI 播报声音"
@@ -207,7 +186,7 @@
                     @click="handleVoicePreview"
                   >
                   <FeatureIcon name="announcement" size="md" class="voice-preview-icon" />
-                  </el-button>
+                  </n-button>
                 </div>
               </div>
               <div
@@ -218,36 +197,28 @@
                   <strong>浏览器 voice 列表</strong>
                   <span>不同浏览器和系统安装的语音包不同，找不到已选音色时会回到默认中文自然音色。</span>
                 </div>
-                <el-select
-                  v-model="selectedBrowserVoiceKey"
+                <n-select
+                  v-model:value="selectedBrowserVoiceKey"
                   class="preference-select browser-voice-select"
                   filterable
-                  fit-input-width
-                  popper-class="browser-voice-select-popper"
+                  :options="browserVoiceOptions"
                   :disabled="browserVoiceOptions.length === 0"
                   placeholder="当前浏览器暂无可用 voice"
-                >
-                  <el-option
-                    v-for="item in browserVoiceOptions"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value"
-                  />
-                </el-select>
+                />
               </div>
               <div class="preference-row stacked">
                 <div>
                   <strong>AI 播报语速</strong>
                   <span>默认略慢，便于听清面试官问题。</span>
                 </div>
-                <el-slider
-                  v-model="interviewPreferenceForm.voiceSpeakingRate"
+                <n-slider
+                  v-model:value="interviewPreferenceForm.voiceSpeakingRate"
                   class="preference-slider"
                   :min="0.7"
                   :max="1.2"
                   :step="0.01"
                   :format-tooltip="formatSpeechRate"
-                  @change="handleInterviewPreferenceSave"
+                  @update:value="handleInterviewPreferenceSave"
                 />
               </div>
               <div class="preference-row stacked">
@@ -255,14 +226,14 @@
                   <strong>AI 播报音调</strong>
                   <span>控制浏览器语音合成的音调高低。</span>
                 </div>
-                <el-slider
-                  v-model="interviewPreferenceForm.voicePitch"
+                <n-slider
+                  v-model:value="interviewPreferenceForm.voicePitch"
                   class="preference-slider"
                   :min="0.8"
                   :max="1.3"
                   :step="0.01"
                   :format-tooltip="formatSpeechPitch"
-                  @change="handleInterviewPreferenceSave"
+                  @update:value="handleInterviewPreferenceSave"
                 />
               </div>
               <div class="preference-row stacked">
@@ -270,14 +241,14 @@
                   <strong>AI 播报音量</strong>
                   <span>只影响浏览器 TTS 播报音量，不改变系统音量。</span>
                 </div>
-                <el-slider
-                  v-model="interviewPreferenceForm.voiceVolume"
+                <n-slider
+                  v-model:value="interviewPreferenceForm.voiceVolume"
                   class="preference-slider"
                   :min="0"
                   :max="1"
                   :step="0.01"
                   :format-tooltip="formatSpeechVolume"
-                  @change="handleInterviewPreferenceSave"
+                  @update:value="handleInterviewPreferenceSave"
                 />
               </div>
               <div class="preference-row stacked">
@@ -285,95 +256,71 @@
                   <strong>取消静音后恢复</strong>
                   <span>选择取消静音后是否立即继续收音。</span>
                 </div>
-                <el-select
-                  v-model="interviewPreferenceForm.voiceMuteResumeMode"
+                <n-select
+                  v-model:value="interviewPreferenceForm.voiceMuteResumeMode"
                   class="preference-select"
-                  @change="handleInterviewPreferenceSave"
-                >
-                  <el-option label="自动继续识别" value="auto" />
-                  <el-option label="再次点击麦克风后继续" value="manual" />
-                </el-select>
+                  :options="voiceMuteResumeOptions"
+                  @update:value="handleInterviewPreferenceSave"
+                />
               </div>
               <div class="preference-row stacked">
                 <div>
                   <strong>自动提交等待时间</strong>
                   <span>用户停止说话后等待多久自动发送本轮回答。</span>
                 </div>
-                <el-select
-                  v-model="interviewPreferenceForm.voiceAutoSubmitDelayMs"
+                <n-select
+                  v-model:value="interviewPreferenceForm.voiceAutoSubmitDelayMs"
                   class="preference-select"
-                  @change="handleInterviewPreferenceSave"
-                >
-                  <el-option label="不自动提交" :value="0" />
-                  <el-option label="等待 2 秒" :value="2000" />
-                  <el-option label="等待 3 秒" :value="3000" />
-                  <el-option label="等待 5 秒" :value="5000" />
-                </el-select>
+                  :options="voiceAutoSubmitDelayOptions"
+                  @update:value="handleInterviewPreferenceSave"
+                />
               </div>
               <div class="preference-row stacked">
                 <div>
                   <strong>语音识别语言</strong>
                   <span>自动模式会在外企面试官使用英文，其它面试模式使用中文普通话。</span>
                 </div>
-                <el-select
-                  v-model="interviewPreferenceForm.voiceRecognitionLanguage"
+                <n-select
+                  v-model:value="interviewPreferenceForm.voiceRecognitionLanguage"
                   class="preference-select"
-                  @change="handleInterviewPreferenceSave"
-                >
-                  <el-option label="自动匹配面试模式" value="auto" />
-                  <el-option label="中文普通话" value="zh-CN" />
-                  <el-option label="英文" value="en-US" />
-                </el-select>
+                  :options="voiceRecognitionLanguageOptions"
+                  @update:value="handleInterviewPreferenceSave"
+                />
               </div>
               <div class="preference-row stacked">
                 <div>
                   <strong>重置语音偏好</strong>
                   <span>恢复 AI 播报声音、语速、音调、音量、静音恢复、自动提交和识别语言的默认值。</span>
                 </div>
-                <el-button plain class="preference-action" @click="handleVoicePreferenceReset">
+                <n-button secondary class="preference-action" @click="handleVoicePreferenceReset">
                   重置偏好
-                </el-button>
+                </n-button>
               </div>
-            </div>
-            </div>
-          </div>
+              </template>
 
-          <div class="voice-preference-block offline-voice-enhance-block">
-            <div class="collapsible-section-header" @click="offlineEnhanceExpanded = !offlineEnhanceExpanded">
-              <div class="voice-preference-heading">
+              <template v-else>
                 <p class="offline-real-stt-note">真实离线识别：浏览器/系统识别不可用时，可下载 sherpa-onnx 中文模型到浏览器本地缓存。</p>
-                <h3>离线增强</h3>
-                <p>默认先尝试浏览器/系统语音识别；离线模型作为稳定兜底，不会在首屏自动下载。</p>
-              </div>
-              <span class="collapse-toggle" :class="{ expanded: offlineEnhanceExpanded }">
-                <FeatureIcon name="collapse" size="xs" />
-              </span>
-            </div>
-
-            <div v-show="offlineEnhanceExpanded" class="collapsible-content">
-
             <div class="offline-voice-grid">
               <div class="offline-voice-card">
                 <div>
                   <strong>语音识别引擎</strong>
                   <span>{{ recognitionEngineSummary }}</span>
                 </div>
-                <el-tag effect="plain">sherpa-onnx</el-tag>
+                <n-tag round :bordered="false">sherpa-onnx</n-tag>
                 <p>浏览器/系统识别不可用时，可下载 sherpa-onnx 中文离线语音包并缓存到浏览器本地。</p>
                 <div class="offline-model-status">
                   <div class="offline-model-actions">
-                    <el-button
-                      plain
+                    <n-button
+                      secondary
                       class="preference-action"
                       :loading="offlineSttDownloading"
                       :disabled="!offlineVoiceStorageSupport.supported || offlineSttDeleting"
                       @click="handleOfflineSttDownload"
                     >
                       下载离线语音引擎
-                    </el-button>
+                    </n-button>
                     <el-button
                       v-if="canClearOfflineSttModel"
-                      plain
                       type="danger"
                       class="preference-action offline-delete-action"
                       :loading="offlineSttDeleting"
@@ -393,17 +340,16 @@
                   <strong>高品质离线音色包</strong>
                   <span>{{ ttsEngineSummary }}</span>
                 </div>
-                <el-tag effect="plain">Kokoro</el-tag>
+                <n-tag round :bordered="false">Kokoro</n-tag>
                 <p>当前继续使用浏览器系统音色；后续阶段再接入 Kokoro 本地合成，避免本轮引入约 90MB 模型包。</p>
                 <div class="offline-model-status">
                   <span>系统 TTS：{{ previewTextToSpeech.engineStatus.value === 'system-tts' ? '可用' : '不可用' }}</span>
                   <span>增强音色：{{ offlineTtsStatusText }}</span>
                 </div>
                 <div class="offline-model-actions">
-                  <el-button plain class="preference-action" disabled>下载高品质语音包</el-button>
+                  <n-button secondary class="preference-action" disabled>下载高品质语音包</n-button>
                   <el-button
                     v-if="canClearOfflineTtsModel"
-                    plain
                     type="danger"
                     class="preference-action offline-delete-action"
                     :loading="offlineTtsDeleting"
@@ -414,7 +360,9 @@
                 </div>
               </div>
             </div>
-            </div>
+              </template>
+              </div>
+            </Transition>
           </div>
         </section>
 
@@ -426,6 +374,7 @@
             </div>
           </div>
 
+          <div class="settings-panel-body">
           <div class="security-mode-tabs" role="tablist" aria-label="账号安全操作类型">
             <button
               type="button"
@@ -632,6 +581,7 @@
               </el-button>
             </template>
           </el-dialog>
+          </div>
 
         </section>
 
@@ -641,9 +591,10 @@
               <h2 id="privacy-title">隐私与数据</h2>
               <p>查看账号数据概览，管理当前浏览器保存的本机设置缓存。</p>
             </div>
-            <el-tooltip content="刷新数据" placement="top" :show-after="400">
-              <el-button
-                plain
+            <n-tooltip trigger="hover" placement="top">
+              <template #trigger>
+              <n-button
+                secondary
                 circle
                 class="data-overview-refresh-btn"
                 :class="{ 'is-refreshing': growthOverviewLoading }"
@@ -651,10 +602,13 @@
                 @click="fetchGrowthOverview"
               >
               <FeatureIcon name="growth-radar" size="md" class="settings-refresh-icon" />
-              </el-button>
-            </el-tooltip>
+              </n-button>
+              </template>
+              刷新数据
+            </n-tooltip>
           </div>
 
+          <div class="settings-panel-body">
           <div class="info-grid data-overview-grid">
             <div class="info-item">
               <span>登录账号</span>
@@ -692,9 +646,9 @@
                 <strong>清空本地缓存</strong>
                 <span>仅清理设置偏好、主题偏好和通知筛选缓存；不会清理用户登录态或管理端登录态。</span>
               </div>
-              <el-button type="warning" plain @click="handleClearLocalCacheConfirm">
+              <n-button type="warning" secondary @click="handleClearLocalCacheConfirm">
                 清空本地缓存
-              </el-button>
+              </n-button>
             </div>
             <div class="preference-row data-retention-row">
               <div>
@@ -702,6 +656,7 @@
                 <span>账号数据由服务端按当前策略保留；面试记录和简历诊断记录可在数据管理中设置自动清理天数，手动清理仍需二次确认。</span>
               </div>
             </div>
+          </div>
           </div>
         </section>
 
@@ -713,69 +668,59 @@
             </div>
           </div>
 
+          <div class="settings-panel-body">
           <div class="preference-list">
             <div class="preference-row danger-row">
               <div>
                 <strong>面试记录清理</strong>
                 <span>批量清理当前账号下的历史面试会话、聊天记录和岗位定向上下文。</span>
               </div>
-              <el-button type="danger" plain :loading="interviewHistoryClearing" @click="handleInterviewHistoryClearConfirm">
+              <n-button type="error" secondary :loading="interviewHistoryClearing" @click="handleInterviewHistoryClearConfirm">
                 清理记录
-              </el-button>
+              </n-button>
             </div>
             <div class="preference-row danger-row">
               <div>
                 <strong>简历诊断清理</strong>
                 <span>批量清理当前账号下的简历诊断、JD 匹配、AI 润色记录和上传文件。</span>
               </div>
-              <el-button type="danger" plain :loading="resumeHistoryClearing" @click="handleResumeHistoryClearConfirm">
+              <n-button type="error" secondary :loading="resumeHistoryClearing" @click="handleResumeHistoryClearConfirm">
                 清理记录
-              </el-button>
+              </n-button>
             </div>
             <div class="preference-row stacked">
               <div>
                 <strong>面试记录保留天数</strong>
                 <span>{{ retentionPreferenceText }}</span>
               </div>
-              <el-select
-                v-model="interviewPreferenceForm.interviewRetentionDays"
+              <n-select
+                v-model:value="interviewPreferenceForm.interviewRetentionDays"
                 class="preference-select"
-              >
-                <el-option
-                  v-for="item in retentionDayOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
+                :options="retentionDayOptions"
+              />
             </div>
             <div class="preference-row stacked">
               <div>
                 <strong>简历诊断保留天数</strong>
                 <span>{{ resumeRetentionPreferenceText }}</span>
               </div>
-              <el-select
-                v-model="interviewPreferenceForm.resumeRetentionDays"
+              <n-select
+                v-model:value="interviewPreferenceForm.resumeRetentionDays"
                 class="preference-select"
                 :loading="userSettingsSaving"
-              >
-                <el-option
-                  v-for="item in retentionDayOptions"
-                  :key="`resume-${item.value}`"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
+                :options="retentionDayOptions"
+              />
             </div>
             <div class="preference-row data-management-save-row">
               <div>
                 <strong>保存数据管理设置</strong>
                 <span>保留天数只在点击保存后同步到服务端，避免修改面试偏好时触发后端写入。</span>
               </div>
-              <el-button type="primary" :loading="userSettingsSaving" @click="handleDataManagementSettingsSave">
+              <n-button type="primary" :loading="userSettingsSaving" @click="handleDataManagementSettingsSave">
                 保存设置
-              </el-button>
+              </n-button>
             </div>
+          </div>
           </div>
         </section>
 
@@ -787,6 +732,7 @@
             </div>
           </div>
 
+          <div class="settings-panel-body">
           <el-form
             ref="feedbackFormRef"
             :model="feedbackForm"
@@ -822,6 +768,11 @@
               提交反馈
             </el-button>
           </el-form>
+          <div class="settings-fill-note">
+            <strong>反馈会进入后台集中处理</strong>
+            <span>请尽量描述页面、操作步骤和期望结果，便于定位问题。</span>
+          </div>
+          </div>
         </section>
 
         <section v-else-if="activeSection === 'appearance'" key="appearance" class="settings-panel" aria-labelledby="appearance-title">
@@ -831,11 +782,12 @@
               <p>选择当前浏览器使用的显示模式，偏好会自动保存在本机。</p>
             </div>
             <div class="appearance-status">
-              <el-tag effect="plain">当前：{{ resolvedThemeText }}</el-tag>
+              <n-tag round :bordered="false">当前：{{ resolvedThemeText }}</n-tag>
               <span>已保存到当前浏览器</span>
             </div>
           </div>
 
+          <div class="settings-panel-body">
           <div class="appearance-options" role="radiogroup" aria-label="外观模式">
             <button
               v-for="option in themeOptions"
@@ -856,6 +808,11 @@
               <em>{{ option.description }}</em>
             </button>
           </div>
+          <div class="settings-fill-note">
+            <strong>主题会立即同步到用户端页面</strong>
+            <span>当前设置保存在浏览器，本页控件会跟随亮色、暗色或系统主题切换。</span>
+          </div>
+          </div>
         </section>
 
         <section v-else-if="activeSection === 'notification'" key="notification" class="settings-panel" aria-labelledby="notification-title">
@@ -866,16 +823,17 @@
             </div>
           </div>
 
+          <div class="settings-panel-body">
           <div class="preference-list">
             <div class="preference-row">
               <div>
                 <strong>顶部实时通知提醒</strong>
                 <span>关闭后不建立实时通知连接，也不显示顶部通知铃铛。</span>
               </div>
-              <el-switch
-                v-model="notificationForm.notificationRealtimeEnabled"
+              <n-switch
+                v-model:value="notificationForm.notificationRealtimeEnabled"
                 aria-label="顶部实时通知提醒"
-                @change="handleNotificationPreferenceSave"
+                @update:value="handleNotificationPreferenceSave"
               />
             </div>
             <div class="preference-row">
@@ -883,10 +841,10 @@
                 <strong>进入通知中心默认只看未读</strong>
                 <span>打开通知中心时自动带入未读筛选。</span>
               </div>
-              <el-switch
-                v-model="notificationForm.notificationDefaultUnreadOnly"
+              <n-switch
+                v-model:value="notificationForm.notificationDefaultUnreadOnly"
                 aria-label="进入通知中心默认只看未读"
-                @change="handleNotificationPreferenceSave"
+                @update:value="handleNotificationPreferenceSave"
               />
             </div>
             <div class="preference-row stacked">
@@ -894,22 +852,18 @@
                 <strong>通知中心默认类型</strong>
                 <span>进入通知中心时自动选择对应类型。</span>
               </div>
-              <el-select
-                v-model="notificationForm.notificationDefaultType"
+              <n-select
+                v-model:value="notificationForm.notificationDefaultType"
                 class="notification-type-select"
-                @change="handleNotificationPreferenceSave"
-              >
-                <el-option label="全部类型" value="" />
-                <el-option label="简历诊断" value="resume" />
-                <el-option label="AI 润色" value="polish" />
-                <el-option label="模拟面试" value="interview" />
-                <el-option label="额度提醒" value="quota" />
-                <el-option label="系统通知" value="system" />
-                <el-option label="活动公告" value="activity" />
-                <el-option label="版本公告" value="update" />
-                <el-option label="维护公告" value="maintenance" />
-              </el-select>
+                :options="notificationTypeOptions"
+                @update:value="handleNotificationPreferenceSave"
+              />
             </div>
+          </div>
+          <div class="settings-fill-note">
+            <strong>通知显示只影响当前浏览器</strong>
+            <span>关闭实时提醒不会删除通知记录，你仍然可以进入通知中心查看历史消息。</span>
+          </div>
           </div>
         </section>
 
@@ -921,9 +875,15 @@
             </div>
           </div>
 
-          <el-button type="primary" plain @click="showOnboarding = true">
-            重新查看新手引导
-          </el-button>
+          <div class="settings-panel-body compact-action-panel">
+            <div class="settings-fill-note">
+              <strong>重新熟悉功能入口</strong>
+              <span>新手引导会覆盖简历诊断、模拟面试、模板库、社区和会员额度等常用路径。</span>
+            </div>
+            <n-button type="primary" secondary @click="showOnboarding = true">
+              重新查看新手引导
+            </n-button>
+          </div>
         </section>
 
         <section v-else-if="activeSection === 'membership'" key="membership" class="settings-panel" aria-labelledby="membership-title">
@@ -932,9 +892,15 @@
               <h2 id="membership-title">会员与额度</h2>
               <p>查看当前身份、到期时间和可用额度。</p>
             </div>
-            <el-button type="primary" plain @click="router.push('/membership')">
+            <n-button type="primary" secondary @click="router.push('/membership')">
               查看会员中心
-            </el-button>
+            </n-button>
+          </div>
+
+          <div class="settings-panel-body">
+          <div class="settings-fill-note membership-note">
+            <strong>{{ membershipPlanText }}</strong>
+            <span>额度信息来自当前账号资料，进入会员中心可查看套餐权益和续费入口。</span>
           </div>
 
           <div class="info-grid quota-grid">
@@ -963,6 +929,7 @@
               <strong>{{ userInfo?.vipDailyInterviewQuota ?? 0 }}</strong>
             </div>
           </div>
+          </div>
         </section>
         </Transition>
       </main>
@@ -976,6 +943,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { NButton, NSelect, NSlider, NSwitch, NTag, NTooltip } from 'naive-ui'
 import { deleteAccount, getCurrentAccountSecurityQuestion, updatePassword, updateSecurityQuestion } from '@/api/auth'
 import { createUserFeedback } from '@/api/feedback'
 import { getGrowthOverview } from '@/api/growth'
@@ -1012,8 +980,7 @@ const themeStore = useThemeStore()
 const activeSection = ref('profile')
 const showOnboarding = ref(false)
 const securityMode = ref('password')
-const voicePrefsExpanded = ref(true)
-const offlineEnhanceExpanded = ref(false)
+const interviewSubTab = ref('basic')
 const passwordFormRef = ref(null)
 const securityFormRef = ref(null)
 const accountDeleteFormRef = ref(null)
@@ -1037,6 +1004,12 @@ const sections = [
   { key: 'notification', label: '通知偏好', icon: 'notification-center' },
   { key: 'onboarding', label: '新手引导', icon: 'onboarding-task' },
   { key: 'membership', label: '会员与额度', icon: 'membership-credits' }
+]
+
+const interviewSubTabs = [
+  { key: 'basic', label: '面试偏好' },
+  { key: 'voice', label: '语音通话' },
+  { key: 'offline', label: '离线增强' }
 ]
 
 const themeOptions = [
@@ -1161,6 +1134,44 @@ const retentionDayOptions = [
   { label: '保留 90 天', value: 90 },
   { label: '保留 180 天', value: 180 },
   { label: '保留 365 天', value: 365 }
+]
+
+const defaultInterviewJobSelectOptions = computed(() => [
+  { label: '不设默认岗位', value: '' },
+  ...interviewJobOptions.value.map((job) => ({
+    label: job.label,
+    value: job.value
+  }))
+])
+
+const voiceMuteResumeOptions = [
+  { label: '自动继续识别', value: 'auto' },
+  { label: '再次点击麦克风后继续', value: 'manual' }
+]
+
+const voiceAutoSubmitDelayOptions = [
+  { label: '不自动提交', value: 0 },
+  { label: '等待 2 秒', value: 2000 },
+  { label: '等待 3 秒', value: 3000 },
+  { label: '等待 5 秒', value: 5000 }
+]
+
+const voiceRecognitionLanguageOptions = [
+  { label: '自动匹配面试模式', value: 'auto' },
+  { label: '中文普通话', value: 'zh-CN' },
+  { label: '英文', value: 'en-US' }
+]
+
+const notificationTypeOptions = [
+  { label: '全部类型', value: '' },
+  { label: '简历诊断', value: 'resume' },
+  { label: 'AI 润色', value: 'polish' },
+  { label: '模拟面试', value: 'interview' },
+  { label: '额度提醒', value: 'quota' },
+  { label: '系统通知', value: 'system' },
+  { label: '活动公告', value: 'activity' },
+  { label: '版本公告', value: 'update' },
+  { label: '维护公告', value: 'maintenance' }
 ]
 
 const growthSummary = computed(() => {
@@ -1907,9 +1918,12 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .settings-view {
+  --settings-ease: cubic-bezier(0.25, 1, 0.5, 1);
+  --settings-panel-shadow: 0 18px 48px rgba(255, 140, 66, 0.09);
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
+  min-height: calc(100dvh - 178px);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -1941,23 +1955,33 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   gap: 20px;
-  align-items: flex-start;
+  align-items: stretch;
+  flex: 1;
+}
+
+.settings-workspace {
+  min-height: 0;
+  width: 100%;
 }
 
 .settings-nav {
   position: sticky;
   top: 84px;
+  align-self: start;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   padding: 10px;
+  min-height: min(720px, calc(100dvh - 210px));
   border: 1px solid var(--border-card);
-  border-radius: 12px;
-  background: var(--bg-card);
-  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 96%, var(--orange-main) 4%), var(--bg-card));
+  box-shadow: 0 12px 34px rgba(255, 140, 66, 0.07);
 }
 
 .settings-nav-item {
+  position: relative;
   width: 100%;
   min-height: 50px;
   display: flex;
@@ -1972,21 +1996,46 @@ onBeforeUnmount(() => {
   text-align: left;
   cursor: pointer;
   transition:
-    background-color 0.2s ease,
-    color 0.2s ease,
-    transform 0.18s cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 0.2s ease;
+    background-color 0.18s var(--settings-ease),
+    color 0.18s var(--settings-ease),
+    transform 0.15s var(--settings-ease),
+    box-shadow 0.18s var(--settings-ease);
+}
+
+.settings-nav-item::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--orange-main);
+  opacity: 0;
+  transform: translateY(-50%) scale(0.6);
+  transition:
+    opacity 0.18s var(--settings-ease),
+    transform 0.18s var(--settings-ease);
 }
 
 .settings-nav-item:hover,
 .settings-nav-item.active {
-  background: var(--orange-light-bg);
+  background: linear-gradient(135deg, var(--orange-light-bg), color-mix(in srgb, var(--bg-card) 88%, var(--orange-main) 12%));
   color: var(--orange-deep);
 }
 
+.settings-nav-item:hover {
+  box-shadow: 0 8px 20px rgba(255, 140, 66, 0.1);
+  transform: translateY(-1px);
+}
+
 .settings-nav-item.active {
-  box-shadow: 0 1px 4px rgba(255, 140, 66, 0.08);
-  transform: translateX(2px);
+  box-shadow: 0 1px 8px rgba(255, 140, 66, 0.1);
+}
+
+.settings-nav-item.active::after {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
 }
 
 .settings-nav-icon {
@@ -2000,24 +2049,55 @@ onBeforeUnmount(() => {
 
 .settings-content {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .settings-panel {
+  min-height: min(720px, calc(100dvh - 210px));
+  display: flex;
+  flex-direction: column;
   padding: 24px;
   border: 1px solid var(--border-card);
-  border-radius: 12px;
-  background: var(--bg-card);
-  box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--orange-main) 2%), var(--bg-card));
+  box-shadow: var(--settings-panel-shadow);
+}
+
+.settings-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .panel-heading {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 22px;
+  justify-content: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--border-divider);
+}
+
+.panel-heading > div {
+  min-width: 0;
+}
+
+.panel-heading > div:first-of-type {
+  flex: 1;
+}
+
+.panel-heading-copy {
+  flex: 1;
+}
+
+.panel-heading-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
 }
 
 .panel-heading h2 {
@@ -2080,19 +2160,86 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+.profile-workspace {
+  gap: 18px;
+}
+
+.profile-overview-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--border-card) 82%, var(--orange-main) 18%);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-page) 82%, var(--orange-main) 18%), var(--bg-card));
+}
+
+.profile-overview-card :deep(.profile-avatar) {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-main p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.profile-info-grid {
+  margin-bottom: 0;
+}
+
 .info-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .info-item {
+  position: relative;
   min-width: 0;
   padding: 14px;
   border: 1px solid var(--border-card);
   border-radius: 10px;
   background: var(--bg-page);
+  overflow: hidden;
+  transition:
+    border-color 0.2s var(--settings-ease),
+    box-shadow 0.2s var(--settings-ease),
+    transform 0.16s var(--settings-ease);
+}
+
+.info-item::before {
+  content: "";
+  position: absolute;
+  inset: auto 14px 12px auto;
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--orange-main);
+  opacity: 0;
+  transform: scaleX(0.45);
+  transform-origin: right center;
+  transition:
+    opacity 0.2s var(--settings-ease),
+    transform 0.2s var(--settings-ease);
+}
+
+.info-item:hover {
+  border-color: var(--orange-border);
+  box-shadow: 0 8px 22px rgba(255, 140, 66, 0.08);
+  transform: translateY(-1px);
+}
+
+.info-item:hover::before {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .info-item span {
@@ -2222,7 +2369,8 @@ onBeforeUnmount(() => {
   outline-offset: 2px;
 }
 
-.security-mode-tabs {
+.security-mode-tabs,
+.sub-nav-tabs {
   max-width: 100%;
   display: inline-flex;
   align-items: center;
@@ -2232,7 +2380,8 @@ onBeforeUnmount(() => {
   overflow-x: auto;
 }
 
-.security-mode-tab {
+.security-mode-tab,
+.sub-nav-tab {
   position: relative;
   flex: 0 0 auto;
   min-height: 40px;
@@ -2243,11 +2392,17 @@ onBeforeUnmount(() => {
   color: var(--text-body);
   font-size: 14px;
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+  transition:
+    color 0.2s var(--settings-ease),
+    border-color 0.2s var(--settings-ease),
+    background-color 0.2s var(--settings-ease),
+    transform 0.16s var(--settings-ease);
 }
 
 .security-mode-tab:hover,
-.security-mode-tab.active {
+.security-mode-tab.active,
+.sub-nav-tab:hover,
+.sub-nav-tab.active {
   color: var(--orange-main);
 }
 
@@ -2255,7 +2410,8 @@ onBeforeUnmount(() => {
   color: #b42318;
 }
 
-.security-mode-tab.active {
+.security-mode-tab.active,
+.sub-nav-tab.active {
   border-bottom-color: var(--orange-main);
   font-weight: 600;
 }
@@ -2265,14 +2421,17 @@ onBeforeUnmount(() => {
   color: #b42318;
 }
 
-.security-mode-tab:focus-visible {
+.security-mode-tab:focus-visible,
+.sub-nav-tab:focus-visible {
   outline: 2px solid var(--orange-main);
   outline-offset: 2px;
 }
 
 .security-panel-enter-active,
 .security-panel-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition:
+    opacity 0.2s var(--settings-ease),
+    transform 0.2s var(--settings-ease);
 }
 
 .security-panel-enter-from,
@@ -2283,7 +2442,9 @@ onBeforeUnmount(() => {
 
 .section-fade-enter-active,
 .section-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.25s var(--settings-ease),
+    transform 0.25s var(--settings-ease);
 }
 
 .section-fade-enter-from,
@@ -2321,7 +2482,11 @@ onBeforeUnmount(() => {
   color: var(--text-body);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s var(--settings-ease),
+    background-color 0.2s var(--settings-ease),
+    box-shadow 0.2s var(--settings-ease),
+    transform 0.16s var(--settings-ease);
 }
 
 .appearance-option:hover,
@@ -2332,6 +2497,10 @@ onBeforeUnmount(() => {
 
 .appearance-option.active {
   box-shadow: 0 0 0 2px rgba(255, 140, 66, 0.14);
+}
+
+.appearance-option:hover {
+  transform: translateY(-1px);
 }
 
 .appearance-option:focus-visible {
@@ -2425,9 +2594,7 @@ onBeforeUnmount(() => {
 .preference-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-card);
-  border-radius: 10px;
-  overflow: hidden;
+  gap: 8px;
 }
 
 .preference-row {
@@ -2435,13 +2602,21 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 18px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-card);
+  padding: 16px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(255, 140, 66, 0.04);
+  transition:
+    border-color 0.2s var(--settings-ease),
+    box-shadow 0.2s var(--settings-ease),
+    transform 0.16s var(--settings-ease);
 }
 
-.preference-row:last-child {
-  border-bottom: 0;
+.preference-row:hover {
+  border-color: var(--orange-border);
+  box-shadow: 0 10px 26px rgba(255, 140, 66, 0.08);
+  transform: translateY(-1px);
 }
 
 .preference-row.stacked {
@@ -2503,6 +2678,11 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
 }
 
+.preference-action:active,
+.voice-preview-button:active:not(.is-disabled) {
+  transform: scale(0.97);
+}
+
 .voice-control {
   flex: 0 0 auto;
   display: flex;
@@ -2528,7 +2708,7 @@ onBeforeUnmount(() => {
     transform 0.16s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.voice-preview-button:hover:not(.is-disabled) {
+.voice-preview-button:hover:not(.is-disabled):not(.n-button--disabled) {
   color: #fff;
   background: var(--orange-main);
   border-color: var(--orange-main);
@@ -2536,7 +2716,7 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
-.voice-preview-button:active:not(.is-disabled) {
+.voice-preview-button:active:not(.is-disabled):not(.n-button--disabled) {
   box-shadow: 0 4px 10px rgba(255, 140, 66, 0.18);
   transform: translateY(0) scale(0.96);
 }
@@ -2546,12 +2726,13 @@ onBeforeUnmount(() => {
   outline-offset: 2px;
 }
 
-.voice-preview-button.is-disabled {
+.voice-preview-button.is-disabled,
+.voice-preview-button.n-button--disabled {
   box-shadow: none;
   transform: none;
 }
 
-.voice-preview-button:hover:not(.is-disabled) .voice-preview-icon {
+.voice-preview-button:hover:not(.is-disabled):not(.n-button--disabled) .voice-preview-icon {
   transform: scale(1.08);
 }
 
@@ -2575,10 +2756,6 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.voice-preference-block {
-  margin-top: 22px;
-}
-
 .voice-preference-heading {
   margin-bottom: 12px;
 }
@@ -2594,46 +2771,6 @@ onBeforeUnmount(() => {
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.5;
-}
-
-.offline-voice-enhance-block {
-  margin-top: 22px;
-}
-
-.collapsible-section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  cursor: pointer;
-  padding: 12px 14px;
-  border: 1px solid var(--border-card);
-  border-radius: 10px;
-  background: var(--bg-page);
-  transition: background-color 0.2s ease;
-}
-
-.collapsible-section-header:hover {
-  background: var(--orange-light-bg);
-}
-
-.collapse-toggle {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  transition: transform 0.2s ease;
-  transform: rotate(-90deg);
-}
-
-.collapse-toggle.expanded {
-  transform: rotate(0deg);
-}
-
-.collapsible-content {
-  padding-top: 12px;
 }
 
 .offline-voice-grid {
@@ -2722,11 +2859,10 @@ onBeforeUnmount(() => {
 }
 
 .data-overview-grid {
-  margin-bottom: 18px;
+  margin-bottom: 0;
 }
 
 .inline-warning {
-  margin-bottom: 18px;
   padding: 12px 14px;
   border: 1px solid var(--orange-border);
   border-radius: 10px;
@@ -2740,15 +2876,58 @@ onBeforeUnmount(() => {
   margin-bottom: 0;
 }
 
+.settings-fill-note {
+  margin-top: auto;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-card) 86%, var(--orange-main) 14%);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-page) 88%, var(--orange-main) 12%);
+}
+
+.settings-fill-note strong,
+.settings-fill-note span {
+  display: block;
+}
+
+.settings-fill-note strong {
+  color: var(--text-title);
+  font-size: 14px;
+}
+
+.settings-fill-note span {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.compact-action-panel {
+  justify-content: center;
+}
+
+.membership-note {
+  margin-top: 0;
+}
+
 @media (max-width: 900px) {
+  .settings-view {
+    min-height: 0;
+  }
+
   .settings-layout {
     grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .settings-nav {
     position: static;
+    min-height: 0;
     overflow-x: auto;
     flex-direction: row;
+  }
+
+  .settings-panel {
+    min-height: 0;
   }
 
   .settings-nav-item {
@@ -2840,12 +3019,27 @@ onBeforeUnmount(() => {
   .settings-nav-icon,
   .settings-refresh-icon,
   .settings-nav-item,
+  .settings-nav-item::after,
+  .info-item,
+  .info-item::before,
+  .appearance-option,
+  .preference-row,
+  .sub-nav-tab,
+  .security-mode-tab,
   .settings-panel,
+  .security-panel-enter-active,
+  .security-panel-leave-active,
   .section-fade-enter-active,
-  .section-fade-leave-active,
-  .collapse-toggle,
-  .collapsible-section-header {
+  .section-fade-leave-active {
     transition-duration: 0.01ms;
+  }
+
+  .section-fade-enter-from,
+  .section-fade-leave-to,
+  .security-panel-enter-from,
+  .security-panel-leave-to {
+    opacity: 1;
+    transform: none;
   }
 }
 </style>

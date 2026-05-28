@@ -1,19 +1,20 @@
 <template>
   <!-- 骨架屏 -->
   <div v-if="pageLoading" class="dashboard-skeleton">
-    <el-skeleton :rows="8" animated />
+    <n-skeleton :height="160" round animated />
+    <n-skeleton text :repeat="4" animated />
   </div>
   <!-- 错误状态 -->
   <div v-else-if="loadError" class="dashboard-error">
     <FeatureIcon name="error" size="lg" class="error-icon" />
     <h3>加载失败</h3>
     <p>获取数据时出现问题，请重试</p>
-    <el-button type="primary" @click="fetchData">重新加载</el-button>
+    <n-button type="primary" @click="fetchData">重新加载</n-button>
   </div>
   <!-- 正常内容 -->
   <div v-else class="dashboard-view">
     <!-- 顶部区域 -->
-    <div class="top-section">
+    <div class="top-section profile-workbench">
       <!-- 左侧：身份欢迎卡 -->
       <div class="identity-card">
         <div class="card-bg-decoration"></div>
@@ -37,7 +38,7 @@
           </div>
           <div class="identity-right">
             <div class="vip-badge">
-              <FeatureIcon name="membership-center" size="xs" class="vip-icon" />
+              <FeatureIcon name="membership-center" size="sm" class="vip-icon" />
               <span>注册时间</span>
             </div>
             <div class="vip-expire-time">{{ formatRegisterTime }}</div>
@@ -46,10 +47,10 @@
       </div>
 
       <!-- 右侧：权益配额卡 -->
-      <div class="quota-card">
+      <div class="quota-card quota-overview">
         <div class="quota-item resume">
           <div class="quota-icon-wrap">
-            <FeatureIcon name="resume-analysis" size="sm" class="quota-icon" />
+            <FeatureIcon name="resume-analysis" size="lg" class="quota-icon" />
           </div>
           <div class="quota-info">
             <div class="quota-number">{{ resumeQuotaLeft }}</div>
@@ -63,7 +64,7 @@
         <div class="quota-divider"></div>
         <div class="quota-item interview">
           <div class="quota-icon-wrap">
-            <FeatureIcon name="mock-interview" size="sm" class="quota-icon" />
+            <FeatureIcon name="mock-interview" size="lg" class="quota-icon" />
           </div>
           <div class="quota-info">
             <div class="quota-number">{{ interviewQuotaLeft }}</div>
@@ -81,7 +82,7 @@
     <div class="stats-section">
       <div class="stat-card">
         <div class="stat-icon resume">
-          <FeatureIcon name="resume-score" size="sm" />
+          <FeatureIcon name="resume-score" size="lg" />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ resumeCountThisMonth }}</div>
@@ -90,7 +91,7 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon interview">
-          <FeatureIcon name="interview-replay" size="sm" />
+          <FeatureIcon name="interview-replay" size="lg" />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ interviewCountThisMonth }}</div>
@@ -99,7 +100,7 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon resume-left">
-          <FeatureIcon name="membership-credits" size="sm" />
+          <FeatureIcon name="membership-credits" size="lg" />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ isVipUser ? vipDailyResumeQuotaLeft : resumeQuotaLeft }}</div>
@@ -108,7 +109,7 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon interview-left">
-          <FeatureIcon name="membership-credits" size="sm" />
+          <FeatureIcon name="membership-credits" size="lg" />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ isVipUser ? vipDailyInterviewQuotaLeft : interviewQuotaLeft }}</div>
@@ -128,13 +129,13 @@
     <!-- 成长中心入口 -->
     <div class="growth-entry-card" @click="router.push('/growth')">
       <div class="growth-entry-icon">
-        <FeatureIcon name="growth-radar" size="sm" />
+        <FeatureIcon name="growth-radar" size="lg" />
       </div>
       <div class="growth-entry-content">
         <div class="growth-entry-title">个人成长中心</div>
         <div class="growth-entry-desc">查看你的成长轨迹与个性化建议</div>
       </div>
-      <FeatureIcon name="next" size="xs" class="growth-entry-arrow" />
+      <FeatureIcon name="next" size="md" class="growth-entry-arrow" />
     </div>
 
     <!-- 最近记录区 -->
@@ -147,15 +148,10 @@
             </div>
             <h3 class="column-title">最近简历诊断</h3>
           </div>
-          <el-button
-            link
-            type="primary"
-            class="view-all-btn"
-            @click="viewAllResume"
-          >
+          <button class="view-all-btn" type="button" @click="viewAllResume">
             查看全部
-            <FeatureIcon name="next" size="xs" class="arrow-icon" />
-          </el-button>
+            <FeatureIcon name="next" size="md" class="arrow-icon" />
+          </button>
         </div>
         <div class="record-list">
           <template v-if="recentResumeRecords.length > 0">
@@ -184,9 +180,9 @@
             <div class="empty-state">
               <FeatureIcon name="resume-upload" size="lg" class="empty-icon" />
               <div class="empty-text">暂无简历诊断记录</div>
-              <el-button link type="primary" @click="startResumeDiagnosis"
-                >上传简历</el-button
-              >
+              <n-button text type="primary" @click="startResumeDiagnosis">
+                上传简历
+              </n-button>
             </div>
           </template>
         </div>
@@ -200,15 +196,10 @@
             </div>
             <h3 class="column-title">最近模拟面试</h3>
           </div>
-          <el-button
-            link
-            type="primary"
-            class="view-all-btn"
-            @click="viewAllInterview"
-          >
+          <button class="view-all-btn" type="button" @click="viewAllInterview">
             查看全部
-            <FeatureIcon name="next" size="xs" class="arrow-icon" />
-          </el-button>
+            <FeatureIcon name="next" size="md" class="arrow-icon" />
+          </button>
         </div>
         <div class="record-list">
           <template v-if="recentInterviewRecords.length > 0">
@@ -228,7 +219,7 @@
                   <div class="record-time">{{ record.time }}</div>
                 </div>
               </div>
-              <div class="record-score-tag" v-if="record.score">
+              <div class="record-score-tag" v-if="record.score !== null && record.score !== undefined">
                 <span class="score-value">{{ record.score }}</span>
                 <span class="score-unit">分</span>
               </div>
@@ -238,9 +229,9 @@
             <div class="empty-state">
               <FeatureIcon name="mock-interview" size="lg" class="empty-icon" />
               <div class="empty-text">暂无模拟面试记录</div>
-              <el-button link type="primary" @click="startInterview"
-                >开始面试</el-button
-              >
+              <n-button text type="primary" @click="startInterview">
+                开始面试
+              </n-button>
             </div>
           </template>
         </div>
@@ -257,6 +248,7 @@ import { getResumeHistory, extractFileName } from "@/api/resume";
 import { getInterviewHistory } from "@/api/interview";
 import { getMonthlyStats } from "@/api/stats";
 import { getOnboardingTasks } from "@/api/onboarding";
+import { NButton, NSkeleton } from "naive-ui";
 import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import OptimizedImage from "@/components/common/OptimizedImage.vue";
 import OnboardingTaskCard from "@/components/OnboardingTaskCard.vue";
@@ -578,6 +570,7 @@ const viewAllInterview = () => {
 }
 
 .dashboard-view {
+  --dashboard-ease: cubic-bezier(0.25, 1, 0.5, 1);
   min-height: 100%;
   padding: 0;
 }
@@ -589,14 +582,20 @@ const viewAllInterview = () => {
   margin-bottom: 24px;
 }
 
+.profile-workbench {
+  align-items: stretch;
+}
+
 .identity-card {
   position: relative;
-  background: var(--el-color-primary);
-  background: linear-gradient(135deg, #ff9a5c 0%, var(--el-color-primary) 40%, var(--el-color-primary-dark-2) 100%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 86%, var(--orange-main) 14%), var(--bg-card));
   border-radius: 20px;
   padding: 28px 32px;
-  color: #ffffff;
+  color: var(--text-title);
   overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-card) 78%, var(--orange-main) 22%);
+  box-shadow: 0 16px 42px rgba(255, 140, 66, 0.08);
 }
 
 .card-bg-decoration {
@@ -658,7 +657,8 @@ const viewAllInterview = () => {
   gap: 6px;
   font-size: 12px;
   padding: 4px 12px;
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--bg-card) 74%, var(--orange-main) 26%);
+  color: var(--orange-deep);
   border-radius: 20px;
   margin-top: 6px;
   width: fit-content;
@@ -685,8 +685,9 @@ const viewAllInterview = () => {
 }
 
 .vip-icon {
-  width: 14px;
-  height: 14px;
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 4px 8px rgba(255, 140, 66, 0.18));
 }
 
 .vip-expire-time {
@@ -718,6 +719,10 @@ const viewAllInterview = () => {
   border: 1px solid var(--border-card);
 }
 
+.quota-overview {
+  align-content: center;
+}
+
 .quota-item {
   flex: 1;
   display: flex;
@@ -726,26 +731,16 @@ const viewAllInterview = () => {
 }
 
 .quota-icon-wrap {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 70px;
+  height: 70px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, var(--bg-page) 100%);
-}
-
-.quota-item.resume .quota-icon-wrap {
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, rgba(255, 140, 66, 0.08) 100%);
-}
-
-.quota-item.interview .quota-icon-wrap {
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, rgba(255, 140, 66, 0.06) 100%);
+  filter: drop-shadow(0 10px 18px rgba(255, 140, 66, 0.16));
 }
 
 .quota-icon {
-  width: 24px;
-  height: 24px;
   color: var(--orange-main);
 }
 
@@ -804,13 +799,16 @@ const viewAllInterview = () => {
 .stat-card {
   background: var(--bg-card);
   border-radius: 16px;
-  padding: 20px 22px;
+  padding: 22px 22px;
   display: flex;
   align-items: center;
   gap: 16px;
   box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
   border: 1px solid rgba(243, 216, 199, 0.4);
-  transition: all 0.2s ease;
+  transition:
+    transform 0.18s var(--dashboard-ease),
+    box-shadow 0.2s var(--dashboard-ease),
+    border-color 0.2s var(--dashboard-ease);
 }
 
 .stat-card:hover {
@@ -819,37 +817,28 @@ const viewAllInterview = () => {
 }
 
 .stat-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  width: 72px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.stat-icon svg {
-  width: 22px;
-  height: 22px;
+  filter: drop-shadow(0 10px 18px rgba(255, 140, 66, 0.14));
 }
 
 .stat-icon.resume {
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, rgba(255, 140, 66, 0.08) 100%);
   color: var(--orange-deep);
 }
 
 .stat-icon.interview {
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, rgba(255, 140, 66, 0.06) 100%);
   color: var(--orange-main);
 }
 
 .stat-icon.resume-left {
-  background: var(--icon-bg-success);
   color: var(--color-success);
 }
 
 .stat-icon.interview-left {
-  background: var(--icon-bg-warning);
   color: var(--color-warning);
 }
 
@@ -881,7 +870,10 @@ const viewAllInterview = () => {
   background: linear-gradient(135deg, #ff9a5c 0%, var(--el-color-primary) 40%, var(--el-color-primary-dark-2) 100%);
   border-radius: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s var(--dashboard-ease),
+    box-shadow 0.2s var(--dashboard-ease),
+    border-color 0.2s var(--dashboard-ease);
   box-shadow: 0 4px 16px rgba(255, 140, 66, 0.2);
 }
 
@@ -891,20 +883,13 @@ const viewAllInterview = () => {
 }
 
 .growth-entry-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.2);
+  width: 76px;
+  height: 76px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.growth-entry-icon svg {
-  width: 22px;
-  height: 22px;
-  color: #ffffff;
+  filter: drop-shadow(0 12px 20px rgba(255, 255, 255, 0.18));
 }
 
 .growth-entry-content {
@@ -924,10 +909,13 @@ const viewAllInterview = () => {
 }
 
 .growth-entry-arrow {
-  width: 20px;
-  height: 20px;
   color: rgba(255, 255, 255, 0.7);
   flex-shrink: 0;
+  transition: transform 0.18s var(--dashboard-ease);
+}
+
+.growth-entry-card:hover .growth-entry-arrow {
+  transform: translateX(4px);
 }
 
 .records-section {
@@ -993,14 +981,35 @@ const viewAllInterview = () => {
 .view-all-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   font-size: 13px;
+  font-family: inherit;
+  line-height: 1;
   color: var(--orange-main);
+  cursor: pointer;
+  transition: color 0.18s var(--dashboard-ease);
+}
+
+.view-all-btn:hover {
+  color: var(--orange-deep);
+}
+
+.view-all-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--orange-main) 64%, transparent);
+  outline-offset: 4px;
+  border-radius: 999px;
 }
 
 .arrow-icon {
-  width: 14px;
-  height: 14px;
+  color: var(--orange-main);
+  transition: transform 0.18s var(--dashboard-ease);
+}
+
+.view-all-btn:hover .arrow-icon {
+  transform: translateX(3px);
 }
 
 .record-list {
@@ -1015,7 +1024,9 @@ const viewAllInterview = () => {
   align-items: center;
   padding: 12px 14px;
   border-radius: 10px;
-  transition: all 0.15s ease;
+  transition:
+    background-color 0.15s var(--dashboard-ease),
+    transform 0.15s var(--dashboard-ease);
   user-select: none;
 }
 
@@ -1172,12 +1183,8 @@ const viewAllInterview = () => {
     font-size: 20px;
   }
   .quota-icon-wrap {
-    width: 48px;
-    height: 48px;
-  }
-  .quota-icon {
-    width: 22px;
-    height: 22px;
+    width: 64px;
+    height: 64px;
   }
 }
 
@@ -1223,12 +1230,8 @@ const viewAllInterview = () => {
     padding: 16px 18px;
   }
   .stat-icon {
-    width: 42px;
-    height: 42px;
-  }
-  .stat-icon svg {
-    width: 20px;
-    height: 20px;
+    width: 64px;
+    height: 64px;
   }
   .stat-value {
     font-size: 22px;
@@ -1254,12 +1257,8 @@ const viewAllInterview = () => {
     gap: 12px;
   }
   .stat-icon {
-    width: 36px;
-    height: 36px;
-  }
-  .stat-icon svg {
-    width: 18px;
-    height: 18px;
+    width: 56px;
+    height: 56px;
   }
   .stat-value {
     font-size: 20px;
@@ -1287,5 +1286,22 @@ const viewAllInterview = () => {
 /* ===== 暗色模式适配 ===== */
 .quota-divider {
   background: linear-gradient(180deg, transparent 0%, var(--border-card) 50%, transparent 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card,
+  .growth-entry-card,
+  .growth-entry-arrow,
+  .view-all-btn .arrow-icon,
+  .record-item {
+    transition-duration: 0.01ms;
+  }
+
+  .stat-card:hover,
+  .growth-entry-card:hover,
+  .growth-entry-card:hover .growth-entry-arrow,
+  .view-all-btn:hover .arrow-icon {
+    transform: none;
+  }
 }
 </style>

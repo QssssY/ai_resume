@@ -1,865 +1,617 @@
 <template>
-  <div class="membership-view">
-    <!-- 页面顶部 Banner：简洁说明会员价值，不含技术细节 -->
-    <section class="hero-card">
-      <div class="hero-content">
-        <div class="hero-badge">
-          <FeatureIcon name="membership-center" size="xs" />
-          会员中心
-        </div>
-        <h1 class="hero-title">解锁全部功能</h1>
-        <p class="hero-subtitle">
-          升级后立即生效，可享受每日 5 次简历诊断、每日 10 次模拟面试，到期时间自动顺延。
-        </p>
-      </div>
-      <div class="hero-decoration">
-        <div class="hero-orb hero-orb-large"></div>
-        <div class="hero-orb hero-orb-small"></div>
-      </div>
-    </section>
-
-    <!-- 状态区：左侧会员信息卡 + 右侧额度卡 -->
-    <section class="status-grid">
-      <!-- 当前会员信息卡 -->
-      <article class="status-card">
-        <div class="status-header">
-          <div>
-            <div class="section-eyebrow">当前状态</div>
-            <h2 class="section-title">
-              <FeatureIcon name="membership-center" size="sm" />
-              我的会员
-            </h2>
-          </div>
-          <div class="status-badge" :class="statusBadgeClass">
-            {{ memberIdentityText }}
-          </div>
+  <main class="membership-view">
+    <section class="membership-workbench-hero" aria-labelledby="membership-title">
+      <article class="membership-status-panel">
+        <div class="hero-kicker">
+          <FeatureIcon name="membership-center" size="md" class="hero-kicker-icon" />
+          <span>会员中心</span>
         </div>
 
-        <div class="status-body">
-          <div class="status-name">{{ userName }}</div>
-          <div class="status-plan">
-            当前套餐：<span>{{ currentPlanName }}</span>
+        <div class="hero-copy">
+          <h1 id="membership-title">会员与额度工作台</h1>
+          <p>{{ membershipTipText }}</p>
+        </div>
+
+        <div class="status-meta-grid">
+          <div class="status-meta-item">
+            <span class="meta-label">当前身份</span>
+            <n-tag round :bordered="false" :type="isVipUser ? 'warning' : 'default'" class="status-tag">
+              {{ memberIdentityText }}
+            </n-tag>
           </div>
-          <div class="status-expire">
-            到期时间：<span>{{ vipExpireTimeText }}</span>
+          <div class="status-meta-item">
+            <span class="meta-label">当前套餐</span>
+            <strong>{{ currentPlanName }}</strong>
           </div>
-          <p class="status-tip">{{ membershipTipText }}</p>
+          <div class="status-meta-item">
+            <span class="meta-label">到期时间</span>
+            <strong>{{ vipExpireTimeText }}</strong>
+          </div>
         </div>
       </article>
 
-      <!-- 额度展示卡：用户关心的使用数据，无技术注释 -->
-      <section class="quota-panel">
-        <article class="quota-card">
-          <FeatureIcon name="membership-credits" size="sm" class="quota-icon" />
-          <div class="quota-label">身份</div>
-          <div class="quota-value">{{ memberIdentityText }}</div>
+      <aside class="membership-quota-strip" aria-label="会员额度概览">
+        <article class="quota-tile identity">
+          <FeatureIcon name="membership-credits" size="lg" class="quota-icon" />
+          <span class="quota-label">身份</span>
+          <strong class="quota-value">{{ memberIdentityText }}</strong>
         </article>
-
-        <article class="quota-card">
-          <FeatureIcon name="membership-center" size="sm" class="quota-icon" />
-          <div class="quota-label">当前套餐</div>
-          <div class="quota-value">{{ currentPlanName }}</div>
+        <article class="quota-tile">
+          <FeatureIcon name="resume-score" size="lg" class="quota-icon" />
+          <span class="quota-label">{{ resumeQuotaLabel }}</span>
+          <strong class="quota-value">{{ resumeQuotaText }}</strong>
         </article>
-
-        <article class="quota-card">
-          <FeatureIcon name="resume-score" size="sm" class="quota-icon" />
-          <div class="quota-label">{{ resumeQuotaLabel }}</div>
-          <div class="quota-value">{{ resumeQuotaText }}</div>
+        <article class="quota-tile">
+          <FeatureIcon name="ai-interviewer" size="lg" class="quota-icon" />
+          <span class="quota-label">{{ interviewQuotaLabel }}</span>
+          <strong class="quota-value">{{ interviewQuotaText }}</strong>
         </article>
-
-        <article class="quota-card">
-          <FeatureIcon name="ai-interviewer" size="sm" class="quota-icon" />
-          <div class="quota-label">{{ interviewQuotaLabel }}</div>
-          <div class="quota-value">{{ interviewQuotaText }}</div>
-        </article>
-      </section>
+      </aside>
     </section>
 
-    <!-- 套餐列表区 -->
-    <section class="plans-section">
-      <div class="plans-header">
+    <section class="plan-comparison-section" aria-labelledby="plans-title">
+      <div class="section-heading">
         <div>
-          <div class="section-eyebrow">套餐列表</div>
-          <h2 class="section-title">
-            <FeatureIcon name="membership-credits" size="sm" />
-            选择适合你的方案
-          </h2>
+          <p class="section-eyebrow">套餐对比</p>
+          <h2 id="plans-title">选择适合当前求职节奏的方案</h2>
         </div>
+        <p class="section-note">开通后立即生效，当前套餐再次购买会按现有规则续费顺延。</p>
       </div>
 
-      <!-- 加载骨架屏：保持布局稳定 -->
-      <div v-if="plansLoading" class="plans-grid">
-        <article v-for="item in 3" :key="item" class="plan-card skeleton-card">
-          <div class="skeleton-line skeleton-title"></div>
-          <div class="skeleton-line skeleton-subtitle"></div>
-          <div class="skeleton-line skeleton-price"></div>
-          <div class="skeleton-metrics">
-            <div class="skeleton-line skeleton-metric"></div>
-            <div class="skeleton-line skeleton-metric"></div>
-            <div class="skeleton-line skeleton-metric"></div>
+      <div v-if="plansLoading" class="plans-grid" aria-label="套餐加载中">
+        <article v-for="item in 3" :key="item" class="plan-card plan-skeleton-card">
+          <n-skeleton text width="42%" />
+          <n-skeleton text width="72%" />
+          <n-skeleton :height="44" round />
+          <div class="skeleton-metric-grid">
+            <n-skeleton :height="72" round />
+            <n-skeleton :height="72" round />
           </div>
-          <div class="skeleton-button"></div>
+          <n-skeleton :height="46" round />
         </article>
       </div>
 
-      <!-- 套餐卡片列表 -->
       <div v-else-if="plans.length > 0" class="plans-grid">
         <article
-          v-for="plan in plans"
+          v-for="(plan, index) in plans"
           :key="plan.planCode"
           class="plan-card"
           :class="{ current: isCurrentPlan(plan) }"
+          :style="{ '--plan-index': index }"
         >
-          <!-- 套餐标签：轻量开启 / 热门推荐 / 高频推荐 -->
-          <div class="plan-tag" v-if="getPlanTag(plan)">
-            {{ getPlanTag(plan) }}
-          </div>
-
-          <div class="plan-top">
-            <div>
-              <!-- 套餐名称：中文化，后端返回英文名时做本地映射 -->
-              <div class="plan-name">
-                <FeatureIcon name="membership-center" size="sm" />
-                {{ getPlanNameCn(plan.planName) }}
-              </div>
-              <div class="plan-desc">
-                开通后立即生效，每日 5 次简历诊断、每日 10 次模拟面试
+          <div class="plan-card-head">
+            <div class="plan-title-line">
+              <FeatureIcon name="membership-center" size="md" class="plan-icon" />
+              <div>
+                <h3>{{ getPlanNameCn(plan.planName) }}</h3>
+                <p>{{ getPlanDescription(plan) }}</p>
               </div>
             </div>
-            <div v-if="isCurrentPlan(plan)" class="current-tag">当前套餐</div>
+
+            <div class="plan-tags">
+              <n-tag v-if="isCurrentPlan(plan)" round :bordered="false" type="warning">当前套餐</n-tag>
+            </div>
           </div>
 
           <div class="plan-price-row">
             <span class="plan-price">{{ formatPrice(plan.priceAmount) }}</span>
-            <span class="plan-duration"
-              >/{{ formatDuration(plan.durationDays) }}</span
-            >
+            <span class="plan-duration">/ {{ formatDuration(plan.durationDays) }}</span>
           </div>
 
-          <!-- 权益亮点列表：丰富卡片中部视觉，降低空白感 -->
-          <div class="plan-benefits">
-            <div
-              v-for="benefit in getPlanBenefits(plan)"
-              :key="benefit"
-              class="benefit-item"
-            >
-              <span class="benefit-dot"></span>
-              <span class="benefit-text">{{ benefit }}</span>
+          <div class="plan-benefits" aria-label="套餐权益">
+            <div v-for="benefit in getPlanBenefits(plan)" :key="benefit" class="benefit-item">
+              <FeatureIcon name="success" size="sm" class="benefit-icon" />
+              <span>{{ benefit }}</span>
             </div>
           </div>
 
-          <!-- 指标区：4个指标块，填满中下区域 -->
           <div class="plan-metrics">
             <div class="metric-item">
-              <span class="metric-label">时长</span>
-              <span class="metric-value">{{
-                formatDuration(plan.durationDays)
-              }}</span>
+              <span>每日简历诊断</span>
+              <strong>{{ plan.resumeQuota }}</strong>
             </div>
             <div class="metric-item">
-              <span class="metric-label">每日简历次数</span>
-              <span class="metric-value">{{ plan.resumeQuota }}</span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">每日面试次数</span>
-              <span class="metric-value">{{ plan.interviewQuota }}</span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">权益周期</span>
-              <span class="metric-value">每日刷新</span>
+              <span>每日模拟面试</span>
+              <strong>{{ plan.interviewQuota }}</strong>
             </div>
           </div>
 
-          <!-- 场景说明：制造"有人适合"的感知 -->
-          <div class="plan-scene">{{ getPlanScene(plan) }}</div>
+          <p v-if="isCurrentPlan(plan)" class="renewal-note">
+            该方案已生效，点击续费后将继续顺延会员到期时间。
+          </p>
 
-          <!-- 操作区：当前套餐显示状态说明+续费，非当前显示立即升级 -->
-          <div class="plan-action">
-            <div v-if="isCurrentPlan(plan)" class="action-status">
-              该方案已生效，点击续费后将继续顺延会员到期时间
-            </div>
-            <el-button
-              class="upgrade-btn"
-              type="primary"
-              size="large"
-              :disabled="isUpgradeBusy"
-              :loading="upgradingPlanCode === plan.planCode"
-              @click="handleUpgrade(plan)"
-            >
-              {{ isCurrentPlan(plan) ? "续费" : "立即升级" }}
-            </el-button>
-          </div>
+          <n-button
+            type="primary"
+            size="large"
+            round
+            block
+            class="upgrade-btn"
+            :disabled="isUpgradeBusy"
+            :loading="upgradingPlanCode === plan.planCode"
+            @click="handleUpgrade(plan)"
+          >
+            {{ isCurrentPlan(plan) ? '续费' : '立即升级' }}
+          </n-button>
         </article>
       </div>
 
-      <!-- 空状态 -->
       <div v-else class="empty-card">
         <FeatureIcon name="membership-credits" size="lg" class="empty-icon" />
-        <div class="empty-title">暂无可用套餐</div>
-        <div class="empty-desc">请稍后再试</div>
+        <h3>暂无可用套餐</h3>
+        <p>请稍后再试</p>
       </div>
     </section>
-  </div>
+  </main>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { getMembershipPlans, mockUpgradeMembership } from "@/api/membership";
-import FeatureIcon from "@/components/common/FeatureIcon.vue";
-import { useUserStore } from "@/stores/user";
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { NButton, NSkeleton, NTag } from 'naive-ui'
+import { getMembershipPlans, mockUpgradeMembership } from '@/api/membership'
+import FeatureIcon from '@/components/common/FeatureIcon.vue'
+import { useUserStore } from '@/stores/user'
 
-const userStore = useUserStore();
+const userStore = useUserStore()
 
-/* ========================
-   状态
-   ======================== */
-const plans = ref([]);
-const plansLoading = ref(false);
-const upgradingPlanCode = ref("");
+const plans = ref([])
+const plansLoading = ref(false)
+const upgradingPlanCode = ref('')
 
-/* ========================
-   用户信息派生状态
-   ======================== */
-const userInfo = computed(() => userStore.userInfo);
-const userName = computed(() => userInfo.value?.nickname || userInfo.value?.username || "用户");
-const resumeQuotaText = computed(() => Number(userInfo.value?.resumeQuota ?? 0));
-const interviewQuotaText = computed(() => Number(userInfo.value?.interviewQuota ?? 0));
+const userInfo = computed(() => userStore.userInfo)
+const resumeQuotaText = computed(() => Number(userInfo.value?.vipDailyResumeQuota ?? userInfo.value?.resumeQuota ?? 0))
+const interviewQuotaText = computed(() => Number(userInfo.value?.vipDailyInterviewQuota ?? userInfo.value?.interviewQuota ?? 0))
 
-/* ========================
-   剩余次数标签
-   作用：把会员中心里的次数展示改成和后端当前规则一致的文案。
-   原来的“剩余次数”会让用户误解为购买套餐后的累计剩余总次数，
-   但当前项目里 /api/auth/me 返回的 resumeQuota / interviewQuota 已经不是累计赠送次数：
-   普通用户对应总免费额度剩余，VIP 对应后端基于 daily_resume_used / daily_interview_used 计算出的今日剩余。
-   所以前端必须显式区分“今日剩余”和“免费剩余”。
-   ======================== */
-const resumeQuotaLabel = computed(() => {
-  return isVipUser.value ? "总剩余简历次数" : "剩余免费简历次数";
-});
-
-const interviewQuotaLabel = computed(() => {
-  return isVipUser.value ? "总剩余面试次数" : "剩余免费面试次数";
-});
-
-/* ========================
-   会员状态判断
-   ======================== */
 const isVipUser = computed(() => {
-  const role = userInfo.value?.role;
-  const vipExpireTime = userInfo.value?.vipExpireTime;
-  if (role !== 1) return false;
-  if (!vipExpireTime) return false;
-  return new Date(vipExpireTime) > new Date();
-});
+  const role = userInfo.value?.role
+  const vipExpireTime = userInfo.value?.vipExpireTime
 
-/* ========================
-   当前套餐
-   ======================== */
+  if (role !== 1) return false
+  if (!vipExpireTime) return false
+
+  return new Date(vipExpireTime) > new Date()
+})
+
 const currentPlanCode = computed(() => {
-  if (!isVipUser.value) return "";
-  return userInfo.value?.membershipPlanCode || "";
-});
+  if (!isVipUser.value) return ''
+  return userInfo.value?.membershipPlanCode || ''
+})
 
-/* ========================
-   身份文字（中文化）
-   ======================== */
-const memberIdentityText = computed(() => {
-  return isVipUser.value ? "会员用户" : "普通用户";
-});
+const memberIdentityText = computed(() => (isVipUser.value ? '会员用户' : '普通用户'))
 
-/* ========================
-   状态徽章样式
-   ======================== */
-const statusBadgeClass = computed(() => {
-  return isVipUser.value ? "badge-vip" : "badge-normal";
-});
-
-/* ========================
-   当前套餐名称：优先从套餐列表匹配，否则显示套餐代码
-   ======================== */
 const currentPlanName = computed(() => {
-  if (!isVipUser.value) return "未开通会员";
-  const matchedPlan = plans.value.find(
-    (plan) => plan.planCode === currentPlanCode.value
-  );
-  if (matchedPlan) return getPlanNameCn(matchedPlan.planName);
-  return currentPlanCode.value || "会员用户";
-});
+  if (!isVipUser.value) return '未开通会员'
 
-/* ========================
-   到期时间：格式化为 YYYY-MM-DD HH:mm
-   ======================== */
+  const matchedPlan = plans.value.find((plan) => plan.planCode === currentPlanCode.value)
+  if (matchedPlan) return getPlanNameCn(matchedPlan.planName)
+
+  return currentPlanCode.value || '会员用户'
+})
+
 const vipExpireTimeText = computed(() => {
-  if (!isVipUser.value || !userInfo.value?.vipExpireTime) {
-    return "--";
-  }
-  return formatDateTime(userInfo.value.vipExpireTime);
-});
+  if (!isVipUser.value || !userInfo.value?.vipExpireTime) return '--'
+  return formatDateTime(userInfo.value.vipExpireTime)
+})
 
-/* ========================
-   会员提示文案（用户语言，不含技术细节）
-   ======================== */
+const resumeQuotaLabel = computed(() => (
+  isVipUser.value ? '今日简历额度' : '免费简历额度'
+))
+
+const interviewQuotaLabel = computed(() => (
+  isVipUser.value ? '今日面试额度' : '免费面试额度'
+))
+
 const membershipTipText = computed(() => {
   if (isVipUser.value) {
-    return "会员有效期内可使用每日 5 次简历诊断、每日 10 次模拟面试，次日自动刷新。";
+    return '会员有效期内可使用每日 5 次简历诊断、每日 10 次模拟面试，次日自动刷新。'
   }
-  return "普通用户总免费 1 次简历诊断、3 次模拟面试，用完即止。";
-});
 
-/* ========================
-   忙碌状态
-   ======================== */
-const isUpgradeBusy = computed(() => upgradingPlanCode.value !== "");
+  return '普通用户总免费 1 次简历诊断、3 次模拟面试，用完后可升级会员继续使用。'
+})
 
-/* ========================
-   套餐名称中文化映射表
-   ======================== */
+const isUpgradeBusy = computed(() => upgradingPlanCode.value !== '')
+
 const getPlanNameCn = (planName) => {
   const nameMap = {
-    "Monthly VIP": "月度会员",
-    "Quarterly VIP": "季度会员",
-    "Yearly VIP": "年度会员",
-  };
-  return nameMap[planName] || planName;
-};
+    'Monthly VIP': '月度会员',
+    'Quarterly VIP': '季度会员',
+    'Yearly VIP': '年度会员'
+  }
 
-/* ========================
-   套餐标签：每张卡片的推荐标识，非当前套餐时显示推荐标签
-   ======================== */
+  return nameMap[planName] || planName
+}
+
 const getPlanTag = (plan) => {
-  if (isCurrentPlan(plan)) return "";
+  if (isCurrentPlan(plan)) return ''
+
   const nameMap = {
-    "Monthly VIP": "轻量开启",
-    "Quarterly VIP": "热门推荐",
-    "Yearly VIP": "高频推荐",
-  };
-  return nameMap[plan.planName] || "";
-};
+    'Monthly VIP': '轻量开启',
+    'Quarterly VIP': '热门推荐',
+    'Yearly VIP': '高频推荐'
+  }
 
-/* ========================
-   权益亮点：根据时长推导2~3条用户视角权益
-   ======================== */
-const getPlanBenefits = (plan) => {
-  const days = plan.durationDays || 0;
-  if (plan.planName === "Monthly VIP") {
-    return [
-      `${days}天内有效`,
-      `每日 ${plan.resumeQuota} 次简历诊断`,
-      `每日 ${plan.interviewQuota} 次模拟面试`,
-    ];
-  }
-  if (plan.planName === "Quarterly VIP") {
-    return [
-      `${days}天内有效`,
-      `每日 ${plan.resumeQuota} 次简历诊断`,
-      `每日 ${plan.interviewQuota} 次模拟面试`,
-    ];
-  }
-  if (plan.planName === "Yearly VIP") {
-    return [
-      `${days}天内有效`,
-      `每日 ${plan.resumeQuota} 次简历诊断`,
-      `每日 ${plan.interviewQuota} 次模拟面试`,
-    ];
-  }
-  return [];
-};
+  return nameMap[plan.planName] || ''
+}
 
-/* ========================
-   场景说明：制造"有人适合"的感知，提升产品感
-   ======================== */
+const getPlanBenefits = (plan) => [
+  `${plan.durationDays || 0} 天内有效`,
+  `每日 ${plan.resumeQuota} 次简历诊断`,
+  `每日 ${plan.interviewQuota} 次模拟面试`
+]
+
 const getPlanScene = (plan) => {
-  if (plan.planName === "Monthly VIP") return "适合想要快速体验完整功能的用户";
-  if (plan.planName === "Quarterly VIP") return "适合有稳定求职需求的用户";
-  if (plan.planName === "Yearly VIP") return "适合高频使用者，一步到位最划算";
-  return "";
-};
+  if (plan.planName === 'Monthly VIP') return '适合短期集中投递和快速体验完整功能。'
+  if (plan.planName === 'Quarterly VIP') return '适合持续求职、反复打磨简历和面试表达。'
+  if (plan.planName === 'Yearly VIP') return '适合高频使用和长期职业成长管理。'
 
-/* ========================
-   获取套餐列表
-   ======================== */
+  return '适合需要更高额度和完整求职辅助的用户。'
+}
+
+const getPlanDescription = (plan) => plan.description || getPlanScene(plan)
+
 const fetchPlans = async () => {
-  plansLoading.value = true;
-  try {
-    const res = await getMembershipPlans();
-    plans.value = (Array.isArray(res.data) ? res.data : []).map(p => ({
-      ...p,
-      priceAmount: Number(p.priceAmount ?? 0),
-      durationDays: Number(p.durationDays ?? 0),
-      resumeQuota: Number(p.resumeQuota ?? 0),
-      interviewQuota: Number(p.interviewQuota ?? 0),
-    }));
-  } catch {
-    plans.value = [];
-    // 拦截器已弹出错误提示
-  } finally {
-    plansLoading.value = false;
-  }
-};
+  plansLoading.value = true
 
-/* ========================
-   确保用户信息已加载
-   ======================== */
+  try {
+    const res = await getMembershipPlans()
+    plans.value = (Array.isArray(res.data) ? res.data : []).slice(0, 6).map((plan) => ({
+      ...plan,
+      priceAmount: Number(plan.priceAmount ?? 0),
+      durationDays: Number(plan.durationDays ?? 0),
+      resumeQuota: Number(plan.resumeQuota ?? 0),
+      interviewQuota: Number(plan.interviewQuota ?? 0)
+    }))
+  } catch {
+    plans.value = []
+  } finally {
+    plansLoading.value = false
+  }
+}
+
 const ensureUserInfo = async () => {
-  if (userStore.userInfo) return;
+  if (userStore.userInfo) return
+
   try {
-    await userStore.fetchUserInfo();
+    await userStore.fetchUserInfo()
   } catch {
-    // 拦截器已弹出错误提示
+    // Request interceptor owns user-facing error handling.
   }
-};
+}
 
-/* ========================
-   是否为当前套餐
-   ======================== */
-const isCurrentPlan = (plan) => {
-  return isVipUser.value && currentPlanCode.value === plan.planCode;
-};
+const isCurrentPlan = (plan) => isVipUser.value && currentPlanCode.value === plan.planCode
 
-/* ========================
-   升级操作
-   作用：统一处理“立即升级”和“续费”。
-   当前套餐不能再被前端拦截，因为同套餐再次购买在当前业务里不是无效操作，
-   而是需要继续调用原有升级接口，让后端基于现有 vipExpireTime 做顺延。
-   会员并不是购买累计总次数，所以续费只延长有效期，不叠加累计次数。
-   ======================== */
 const handleUpgrade = async (plan) => {
-  if (isUpgradeBusy.value) return;
-  const isRenewal = isCurrentPlan(plan);
-  upgradingPlanCode.value = plan.planCode;
+  if (isUpgradeBusy.value) return
+
+  const isRenewal = isCurrentPlan(plan)
+  upgradingPlanCode.value = plan.planCode
+
   try {
-    await mockUpgradeMembership({ planCode: plan.planCode });
-    await userStore.fetchUserInfo();
-    ElMessage.success(
-      `${getPlanNameCn(plan.planName)}${isRenewal ? "续费" : "升级"}成功`
-    );
+    await mockUpgradeMembership({ planCode: plan.planCode })
+    await userStore.fetchUserInfo()
+    ElMessage.success(`${getPlanNameCn(plan.planName)}${isRenewal ? '续费' : '升级'}成功`)
   } catch {
-    // 拦截器已弹出错误提示
+    // Request interceptor owns user-facing error handling.
   } finally {
-    upgradingPlanCode.value = "";
+    upgradingPlanCode.value = ''
   }
-};
+}
 
-/* ========================
-   日期时间格式化：YYYY-MM-DD HH:mm
-   ======================== */
 const formatDateTime = (value) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "--";
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d} ${h}:${min}`;
-};
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
 
-/* ========================
-   价格格式化
-   ======================== */
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
 const formatPrice = (value) => {
-  const numberValue = Number(value ?? 0);
-  return `¥${numberValue.toFixed(2)}`;
-};
+  const numberValue = Number(value ?? 0)
+  return `¥${numberValue.toFixed(2)}`
+}
 
-/* ========================
-   时长格式化
-   ======================== */
-const formatDuration = (days) => {
-  return `${days} 天`;
-};
+const formatDuration = (days) => `${days} 天`
 
-/* ========================
-   页面初始化
-   ======================== */
 onMounted(async () => {
-  await Promise.all([ensureUserInfo(), fetchPlans()]);
-});
+  await Promise.all([ensureUserInfo(), fetchPlans()])
+})
 </script>
 
 <style scoped>
-/* ========================
-   页面容器
-   ======================== */
 .membership-view {
-  max-width: 1180px;
+  --membership-ease: cubic-bezier(0.25, 1, 0.5, 1);
+  --membership-surface: color-mix(in srgb, var(--bg-card) 88%, var(--orange-light-bg) 12%);
+  --membership-soft: color-mix(in srgb, var(--bg-page) 78%, var(--orange-light-bg) 22%);
+  --membership-shadow: 0 18px 46px rgba(132, 75, 32, 0.09);
+  width: min(1180px, 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  animation: membership-page-enter 0.42s var(--membership-ease) both;
 }
 
-/* ========================
-   顶部 Banner
-   ======================== */
-.hero-card {
-  position: relative;
-  overflow: hidden;
-  padding: 32px 36px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #ff9a5c 0%, #ff8c42 42%, #e67a35 100%);
-  color: var(--bg-card, #ffffff);
-  box-shadow: 0 10px 28px rgba(255, 140, 66, 0.22);
-}
-
-.hero-content {
-  position: relative;
-  z-index: 1;
-  max-width: 620px;
-}
-
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.hero-title {
-  margin: 18px 0 12px;
-  font-size: 34px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.hero-subtitle {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.75;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.hero-decoration {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.hero-orb {
-  position: absolute;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.hero-orb-large {
-  top: -36px;
-  right: -24px;
-  width: 220px;
-  height: 220px;
-}
-
-.hero-orb-small {
-  right: 150px;
-  bottom: -30px;
-  width: 120px;
-  height: 120px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* ========================
-   状态区网格
-   ======================== */
-.status-grid {
+.membership-workbench-hero {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
+  grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.82fr);
   gap: 20px;
+  align-items: stretch;
 }
 
-.status-card,
-.quota-panel,
+.membership-status-panel,
+.membership-quota-strip,
 .plan-card,
 .empty-card {
-  background: var(--bg-card, #ffffff);
-  border-radius: 20px;
-  border: 1px solid var(--border-card, rgba(243, 216, 199, 0.55));
-  box-shadow: 0 4px 18px rgba(255, 140, 66, 0.08);
+  border: 1px solid var(--border-card);
+  background: var(--membership-surface);
+  box-shadow: var(--membership-shadow);
 }
 
-.status-card {
-  padding: 28px 30px;
-}
-
-.status-header,
-.plans-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.section-eyebrow {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--orange-main);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.section-title {
-  margin: 8px 0 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-title, #2f2f2f);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hero-badge :deep(.feature-icon),
-.section-title :deep(.feature-icon),
-.quota-icon,
-.plan-name :deep(.feature-icon),
-.empty-icon {
-  flex-shrink: 0;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.status-badge.badge-vip {
-  background: linear-gradient(135deg, #fff1e5 0%, #ffe0c7 100%);
-  color: #d56e2f;
-}
-
-.status-badge.badge-normal {
-  background: var(--bg-elevated, #f5f7fa);
-  color: var(--text-body);
-}
-
-.status-body {
-  margin-top: 28px;
+.membership-status-panel {
+  min-height: 280px;
+  padding: clamp(24px, 4vw, 38px);
+  border-radius: 22px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.hero-kicker {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-}
-
-.status-name {
-  font-size: 30px;
+  width: fit-content;
+  color: var(--orange-deep);
+  font-size: 13px;
   font-weight: 700;
-  color: var(--text-title, #2f2f2f);
-  line-height: 1.1;
 }
 
-.status-plan,
-.status-expire {
+.hero-kicker-icon,
+.plan-icon,
+.benefit-icon,
+.quota-icon,
+.empty-icon {
+  filter: drop-shadow(0 7px 12px rgba(255, 140, 66, 0.15));
+}
+
+.hero-copy h1,
+.section-heading h2,
+.plan-card h3,
+.empty-card h3 {
+  margin: 0;
+  color: var(--text-title);
+}
+
+.hero-copy h1 {
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.hero-copy p,
+.section-note,
+.plan-title-line p,
+.renewal-note,
+.empty-card p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.hero-copy p {
+  max-width: 650px;
+  margin-top: 14px;
   font-size: 15px;
-  color: var(--text-muted);
 }
 
-.status-plan span,
-.status-expire span {
-  color: var(--text-title, #2f2f2f);
-  font-weight: 600;
-}
-
-.status-tip {
-  margin: 10px 0 0;
-  max-width: 560px;
-  font-size: 14px;
-  line-height: 1.75;
-  color: var(--text-muted);
-}
-
-/* ========================
-   额度面板
-   ======================== */
-.quota-panel {
-  padding: 18px;
+.status-meta-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.quota-card {
-  padding: 18px 18px 16px;
+.status-meta-item {
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--membership-soft);
+  border: 1px solid color-mix(in srgb, var(--border-card) 78%, transparent);
+}
+
+.status-meta-item strong,
+.quota-value,
+.metric-item strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-title);
+  font-size: 17px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.meta-label,
+.quota-label,
+.metric-item span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.membership-quota-strip {
+  min-height: 280px;
+  padding: 18px;
+  border-radius: 22px;
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.quota-tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'icon label'
+    'icon value';
+  column-gap: 14px;
+  align-items: center;
+  padding: 16px;
   border-radius: 16px;
-  background: linear-gradient(180deg, var(--bg-page) 0%, var(--bg-card) 100%);
-  border: 1px solid var(--border-card);
+  background: color-mix(in srgb, var(--bg-card) 72%, var(--orange-light-bg) 28%);
+  border: 1px solid color-mix(in srgb, var(--border-card) 72%, transparent);
+  transition:
+    transform 0.2s var(--membership-ease),
+    border-color 0.2s var(--membership-ease),
+    box-shadow 0.2s var(--membership-ease);
+}
+
+.quota-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--orange-border);
+  box-shadow: 0 10px 24px rgba(255, 140, 66, 0.1);
+}
+
+.quota-icon {
+  grid-area: icon;
 }
 
 .quota-label {
-  font-size: 13px;
-  color: var(--text-muted);
+  grid-area: label;
 }
 
 .quota-value {
-  margin-top: 10px;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-title, #2f2f2f);
-  line-height: 1.2;
+  grid-area: value;
+  margin-top: 2px;
+  font-size: 20px;
 }
 
-/* ========================
-   套餐区
-   ======================== */
-.plans-section {
+.plan-comparison-section {
   display: flex;
   flex-direction: column;
+  gap: 18px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
   gap: 20px;
+  align-items: flex-end;
+}
+
+.section-eyebrow {
+  margin: 0 0 8px;
+  color: var(--orange-main);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.section-heading h2 {
+  font-size: clamp(22px, 3vw, 30px);
+}
+
+.section-note {
+  max-width: 360px;
+  font-size: 13px;
+  text-align: right;
 }
 
 .plans-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  gap: 18px;
 }
 
 .plan-card {
-  padding: 24px;
+  min-height: 520px;
+  padding: 22px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  transition: transform 0.22s ease, box-shadow 0.22s ease,
-    border-color 0.22s ease;
+  gap: 18px;
+  animation: plan-card-enter 0.42s var(--membership-ease) both;
+  animation-delay: calc(var(--plan-index, 0) * 70ms);
+  transition:
+    transform 0.22s var(--membership-ease),
+    box-shadow 0.22s var(--membership-ease),
+    border-color 0.22s var(--membership-ease);
 }
 
 .plan-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 26px rgba(255, 140, 66, 0.12);
-  border-color: rgba(255, 140, 66, 0.28);
+  border-color: color-mix(in srgb, var(--orange-main) 36%, var(--border-card));
+  box-shadow: 0 20px 52px rgba(132, 75, 32, 0.13);
 }
 
 .plan-card.current {
-  border-color: rgba(255, 140, 66, 0.34);
-  box-shadow: 0 10px 28px rgba(255, 140, 66, 0.14);
+  border-color: color-mix(in srgb, var(--orange-main) 44%, var(--border-card));
+  background: color-mix(in srgb, var(--bg-card) 82%, var(--orange-light-bg) 18%);
 }
 
-/* 套餐标签：左上角推荐标识，吸引注意力 */
-.plan-tag {
-  display: inline-flex;
-  align-self: flex-start;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ff9c60 0%, #ff8c42 100%);
-  color: var(--bg-card, #ffffff);
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.plan-top {
+.plan-card-head {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
+  align-items: flex-start;
 }
 
-.plan-name {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-title, #2f2f2f);
+.plan-title-line {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 12px;
+  min-width: 0;
 }
 
-.plan-desc {
-  margin-top: 8px;
-  min-height: 42px;
+.plan-title-line h3 {
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.plan-title-line p {
+  margin-top: 6px;
   font-size: 13px;
-  line-height: 1.6;
-  color: #8e7c6d;
 }
 
-.current-tag {
-  flex-shrink: 0;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ff9c60 0%, #ff8c42 100%);
-  color: var(--bg-card, #ffffff);
-  font-size: 12px;
-  font-weight: 600;
+.plan-tags {
+  flex: 0 0 auto;
 }
 
 .plan-price-row {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .plan-price {
-  font-size: 38px;
-  font-weight: 700;
-  color: var(--orange-deep, #e67a35);
+  color: var(--orange-deep);
+  font-size: clamp(34px, 4vw, 44px);
+  font-weight: 800;
   line-height: 1;
 }
 
 .plan-duration {
+  color: var(--text-muted);
   font-size: 14px;
-  color: #9b8a7c;
 }
 
-/* 权益亮点列表：填充卡片中部，降低空白感 */
 .plan-benefits {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
-  border-radius: 14px;
-  background: var(--orange-light-bg);
-  border: 1px solid rgba(243, 216, 199, 0.45);
+  gap: 10px;
 }
 
 .benefit-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.benefit-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--orange-main);
-  flex-shrink: 0;
-}
-
-.benefit-text {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
-/* 场景说明：制造"有人适合"的感知 */
-.plan-scene {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.6;
-  padding: 0 2px;
-}
-
-/* 操作区：统一包裹按钮，当前套餐含状态说明 */
-.plan-action {
-  display: flex;
-  flex-direction: column;
   gap: 10px;
-  margin-top: auto;
-}
-
-/* 状态说明：制造"方案已生效"感知，非禁用感 */
-.action-status {
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, var(--bg-page) 100%);
-  border: 1px solid var(--orange-border);
-  font-size: 13px;
-  color: var(--orange-deep);
+  color: var(--text-body);
+  font-size: 14px;
   line-height: 1.5;
-  text-align: center;
 }
 
 .plan-metrics {
@@ -871,119 +623,100 @@ onMounted(async () => {
 .metric-item {
   padding: 14px;
   border-radius: 14px;
-  background: var(--orange-light-bg);
-  border: 1px solid rgba(243, 216, 199, 0.45);
+  background: var(--membership-soft);
+  border: 1px solid color-mix(in srgb, var(--border-card) 74%, transparent);
 }
 
-.metric-label {
-  display: block;
-  font-size: 12px;
-  color: var(--text-muted);
+.metric-item strong {
+  font-size: 22px;
 }
 
-.metric-value {
-  display: block;
-  margin-top: 8px;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-title, #2f2f2f);
+.renewal-note {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--orange-border);
+  background: color-mix(in srgb, var(--orange-light-bg) 72%, var(--bg-card) 28%);
+  color: var(--orange-deep);
+  font-size: 13px;
 }
 
 .upgrade-btn {
   margin-top: auto;
-  height: 46px;
-  border: none;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #ff9a5c 0%, #ff8c42 100%);
-  box-shadow: 0 6px 18px rgba(255, 140, 66, 0.22);
-}
-
-.upgrade-btn.is-disabled,
-.upgrade-btn.is-disabled:hover {
-  background: var(--bg-elevated);
-  box-shadow: none;
-  color: var(--text-muted);
-}
-
-.empty-card {
-  padding: 32px 24px;
-  text-align: center;
-}
-
-.empty-title {
-  font-size: 18px;
+  min-height: 46px;
   font-weight: 700;
-  color: var(--text-title, #2f2f2f);
+  transition:
+    transform 0.14s var(--membership-ease),
+    box-shadow 0.2s var(--membership-ease);
 }
 
-.empty-desc {
-  margin-top: 8px;
-  font-size: 14px;
-  color: var(--text-muted);
+.upgrade-btn:active {
+  transform: scale(0.98);
 }
 
-/* ========================
-   骨架屏
-   ======================== */
-.skeleton-card {
+.plan-skeleton-card {
   pointer-events: none;
 }
 
-.skeleton-line,
-.skeleton-button {
-  border-radius: 999px;
-  background: linear-gradient(90deg, #f8e9de 25%, #fff6f0 50%, #f8e9de 75%);
-  background-size: 200% 100%;
-  animation: skeleton-loading 1.4s infinite linear;
-}
-
-.skeleton-title {
-  width: 42%;
-  height: 26px;
-}
-
-.skeleton-subtitle {
-  width: 76%;
-  height: 14px;
-}
-
-.skeleton-price {
-  width: 52%;
-  height: 40px;
-}
-
-.skeleton-metrics {
+.skeleton-metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
-.skeleton-metric {
-  height: 76px;
-  border-radius: 14px;
+.empty-card {
+  min-height: 260px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
 }
 
-.skeleton-button {
-  width: 100%;
-  height: 46px;
+.empty-card h3 {
+  font-size: 20px;
 }
 
-@keyframes skeleton-loading {
-  0% {
-    background-position: 200% 0;
+@keyframes membership-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
   }
-  100% {
-    background-position: -200% 0;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* ========================
-   响应式
-   ======================== */
+@keyframes plan-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:global(html[data-theme='dark']) .membership-view {
+  --membership-surface: color-mix(in srgb, var(--bg-card) 90%, rgba(255, 140, 66, 0.08) 10%);
+  --membership-soft: color-mix(in srgb, var(--bg-page) 76%, rgba(255, 140, 66, 0.12) 24%);
+  --membership-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
+}
+
 @media (max-width: 1100px) {
-  .status-grid {
+  .membership-workbench-hero {
     grid-template-columns: 1fr;
   }
+
+  .membership-quota-strip {
+    min-height: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+
   .plans-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -993,32 +726,66 @@ onMounted(async () => {
   .membership-view {
     gap: 18px;
   }
-  .hero-card,
-  .status-card {
-    padding: 22px 20px;
+
+  .membership-status-panel,
+  .membership-quota-strip,
+  .plan-card {
+    border-radius: 16px;
   }
-  .hero-title {
-    font-size: 28px;
+
+  .status-meta-grid,
+  .membership-quota-strip,
+  .plans-grid,
+  .section-heading {
+    grid-template-columns: 1fr;
   }
-  .status-header,
-  .plans-header {
+
+  .section-heading {
+    display: grid;
+    align-items: start;
+  }
+
+  .section-note {
+    max-width: none;
+    text-align: left;
+  }
+
+  .plan-card {
+    min-height: auto;
+    padding: 18px;
+  }
+
+  .plan-card-head {
     flex-direction: column;
   }
-  .status-name {
-    font-size: 24px;
-  }
-  .quota-panel {
-    grid-template-columns: 1fr;
-    padding: 16px;
-  }
-  .plans-grid {
+}
+
+@media (max-width: 480px) {
+  .plan-metrics {
     grid-template-columns: 1fr;
   }
+
+  .quota-tile {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .membership-view,
   .plan-card {
-    padding: 20px;
+    animation: none;
   }
-  .plan-price {
-    font-size: 32px;
+
+  .quota-tile,
+  .plan-card,
+  .upgrade-btn {
+    transition-duration: 0.01ms;
+  }
+
+  .quota-tile:hover,
+  .plan-card:hover,
+  .upgrade-btn:active {
+    transform: none;
   }
 }
 </style>

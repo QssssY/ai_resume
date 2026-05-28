@@ -73,7 +73,7 @@ describe('FeatureIcon', () => {
   it('loads non-critical feature icon sources asynchronously without high priority', async () => {
     const lazyIcon = mount(FeatureIcon, {
       props: {
-        name: 'growth-radar'
+        name: 'resume-score'
       }
     })
 
@@ -82,10 +82,10 @@ describe('FeatureIcon', () => {
 
     await flushPromises()
     await vi.waitFor(() => {
-      expect(lazyIcon.find('img').attributes('src')).toContain('growth-radar.png')
+      expect(lazyIcon.find('img').attributes('src')).toContain('resume-score.png')
     })
 
-    expect(lazyIcon.find('source[type="image/webp"]').attributes('srcset')).toContain('growth-radar.webp')
+    expect(lazyIcon.find('source[type="image/webp"]').attributes('srcset')).toContain('resume-score.webp')
   })
 
   it('keeps halo styling transparent, motion-safe, and larger than the old icon scale', () => {

@@ -1,26 +1,22 @@
 {
-  "version": "k2-fsa-web-assembly-asr-sherpa-onnx-zh-en-main",
+  "version": "speech-asr-1pass-20260527",
   "runtime": "runtime.js",
   "files": [
     {
       "path": "sherpa-onnx-asr.js",
-      "url": "https://huggingface.co/spaces/k2-fsa/web-assembly-asr-sherpa-onnx-zh-en/resolve/main/sherpa-onnx-asr.js",
-      "size": 40960
+      "size": 43606
     },
     {
       "path": "sherpa-onnx-wasm-main-asr.js",
-      "url": "https://huggingface.co/spaces/k2-fsa/web-assembly-asr-sherpa-onnx-zh-en/resolve/main/sherpa-onnx-wasm-main-asr.js",
-      "size": 1048576
+      "size": 100495
     },
     {
       "path": "sherpa-onnx-wasm-main-asr.wasm",
-      "url": "https://huggingface.co/spaces/k2-fsa/web-assembly-asr-sherpa-onnx-zh-en/resolve/main/sherpa-onnx-wasm-main-asr.wasm",
-      "size": 26214400
+      "size": 11861462
     },
     {
       "path": "sherpa-onnx-wasm-main-asr.data",
-      "url": "https://huggingface.co/spaces/k2-fsa/web-assembly-asr-sherpa-onnx-zh-en/resolve/main/sherpa-onnx-wasm-main-asr.data",
-      "size": 230686720
+      "size": 281105165
     }
   ]
 }

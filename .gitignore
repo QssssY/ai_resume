@@ -9,6 +9,11 @@ node_modules/
 # =========================
 dist/
 dist-ssr/
+.tmp-sherpa-pack/
+public/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-asr.js
+public/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-wasm-main-asr.js
+public/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-wasm-main-asr.wasm
+public/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-wasm-main-asr.data
 
 # =========================
 # Local environment files

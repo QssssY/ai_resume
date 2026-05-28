@@ -1,6 +1,6 @@
 (() => {
   const CACHE_NAME = 'ai-resume-offline-voice-models-v1'
-  const MODEL_BASE_URL = 'https://huggingface.co/spaces/k2-fsa/web-assembly-asr-sherpa-onnx-zh-en/resolve/main/'
+  const MODEL_BASE_URL = '/voice-models/sherpa-onnx/zh-cn-streaming/'
   const MODEL_FILES = Object.freeze({
     'sherpa-onnx-asr.js': `${MODEL_BASE_URL}sherpa-onnx-asr.js`,
     'sherpa-onnx-wasm-main-asr.js': `${MODEL_BASE_URL}sherpa-onnx-wasm-main-asr.js`,

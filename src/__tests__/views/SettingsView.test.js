@@ -132,7 +132,13 @@ const mountView = () => {
   return currentWrapper
 }
 
-const waitForSecurityTransition = () => new Promise((resolve) => setTimeout(resolve, 220))
+const waitForSecurityTransition = () => new Promise((resolve) => setTimeout(resolve, 320))
+
+const switchSection = async (wrapper, section) => {
+  wrapper.vm.activeSection = section
+  await flushPromises()
+  await waitForSecurityTransition()
+}
 
 const settingsViewSource = () =>
   readFileSync(resolve(process.cwd(), 'src/views/settings/SettingsView.vue'), 'utf8')
@@ -182,16 +188,7 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('设置中心')
     expect(wrapper.text()).toContain('账号资料')
     expect(wrapper.text()).toContain('面试偏好')
-    expect(wrapper.text()).toContain('默认交互方式')
-    expect(wrapper.text()).toContain('语音通话偏好')
-    expect(wrapper.find('.offline-voice-enhance-block').exists()).toBe(true)
-    expect(wrapper.text()).toContain('sherpa-onnx')
-    expect(wrapper.text()).toContain('真实离线识别')
-    expect(wrapper.text()).toContain('默认先尝试浏览器/系统语音识别')
-    expect(wrapper.text()).toContain('Kokoro')
     expect(wrapper.text()).toContain('账号安全')
-    expect(wrapper.text()).toContain('注销账号')
-    expect(wrapper.find('.settings-nav').text()).not.toContain('注销账号')
     expect(wrapper.text()).toContain('隐私与数据')
     expect(wrapper.text()).toContain('数据管理')
     expect(wrapper.text()).toContain('问题反馈')
@@ -199,12 +196,43 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('通知偏好')
     expect(wrapper.text()).toContain('新手引导')
     expect(wrapper.text()).toContain('会员与额度')
+
+    await switchSection(wrapper, 'interview')
+    expect(wrapper.text()).toContain('默认交互方式')
+    expect(wrapper.find('.sub-nav-tabs').exists()).toBe(true)
+    expect(wrapper.findAll('.sub-nav-tab').map((tab) => tab.text())).toEqual(['面试偏好', '语音通话', '离线增强'])
+
+    await switchSection(wrapper, 'security')
+    expect(wrapper.text()).toContain('账号安全')
+    expect(wrapper.text()).toContain('注销账号')
+    expect(wrapper.find('.settings-nav').text()).not.toContain('注销账号')
+
+    await switchSection(wrapper, 'dataManagement')
+    expect(wrapper.text()).toContain('隐私与数据')
+    expect(wrapper.text()).toContain('数据管理')
+
+    await switchSection(wrapper, 'feedback')
+    expect(wrapper.text()).toContain('问题反馈')
+
+    await switchSection(wrapper, 'appearance')
+    expect(wrapper.text()).toContain('外观偏好')
+
+    await switchSection(wrapper, 'notification')
+    expect(wrapper.text()).toContain('通知偏好')
+
+    await switchSection(wrapper, 'onboarding')
+    expect(wrapper.text()).toContain('新手引导')
+
+    await switchSection(wrapper, 'membership')
+    expect(wrapper.text()).toContain('会员与额度')
   }, 15000)
 
   it('uses readable local feature icon sizes inside the personal settings center', () => {
     const source = settingsViewSource()
 
-    expect(source).toContain('<FeatureIcon :name="section.icon" size="md" class="settings-nav-icon" />')
+    expect(source).toContain('loading="eager"')
+    expect(source).toContain('fetch-priority="auto"')
+    expect(source).toContain('class="settings-nav-icon"')
     expect(source).toContain('<FeatureIcon name="announcement" size="md" class="voice-preview-icon" />')
     expect(source).toContain('<FeatureIcon name="account-security" size="md" class="settings-alert-icon" />')
     expect(source).toContain('<FeatureIcon name="growth-radar" size="md" class="settings-refresh-icon" />')
@@ -213,11 +241,97 @@ describe('SettingsView', () => {
     expect(source).toContain('width: 48px;')
   })
 
+  it('uses a balanced workspace layout for short settings panels', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    const source = settingsViewSource()
+
+    expect(source).toContain('min-height: calc(100dvh - 178px)')
+    expect(source).toContain('.settings-workspace')
+    expect(source).toContain('.settings-panel-body')
+    expect(source).toContain('.settings-fill-note')
+    expect(source).toContain('.profile-overview-card')
+    expect(source).toContain('.settings-nav-item.active::after')
+    expect(source).not.toMatch(/\.settings-nav-item::before[\s\S]*?width:\s*3px/)
+    expect(source).not.toMatch(/\.info-item::before[\s\S]*?width:\s*3px/)
+    expect(source).not.toContain('transition: all')
+
+    expect(wrapper.find('.settings-workspace').exists()).toBe(true)
+    expect(wrapper.find('.settings-panel-body').exists()).toBe(true)
+    expect(wrapper.find('.profile-overview-card').exists()).toBe(true)
+
+    await switchSection(wrapper, 'notification')
+    expect(wrapper.text()).toContain('通知偏好')
+    expect(wrapper.find('.settings-fill-note').exists()).toBe(true)
+
+    await switchSection(wrapper, 'membership')
+    expect(wrapper.text()).toContain('会员与额度')
+    expect(wrapper.find('.settings-fill-note').exists()).toBe(true)
+
+    await switchSection(wrapper, 'onboarding')
+    expect(wrapper.text()).toContain('新手引导')
+    expect(wrapper.find('.settings-fill-note').exists()).toBe(true)
+  }, 15000)
+
+  it('uses settings sub navigation, Naive UI controls, and route-safe motion contracts', () => {
+    const source = settingsViewSource()
+    const layoutSource = readFileSync(resolve(process.cwd(), 'src/layouts/MainLayout.vue'), 'utf8')
+    const appSource = readFileSync(resolve(process.cwd(), 'src/App.vue'), 'utf8')
+
+    expect(source).toContain("const interviewSubTab = ref('basic')")
+    expect(source).toContain('const interviewSubTabs = [')
+    expect(source).not.toContain('voicePrefsExpanded')
+    expect(source).not.toContain('offlineEnhanceExpanded')
+    expect(source).toContain('<n-select')
+    expect(source).toContain('<n-slider')
+    expect(source).toContain('<n-switch')
+    expect(source).toContain('<n-button')
+    expect(source).toContain('.sub-nav-tabs')
+    expect(source).toContain('prefers-reduced-motion: reduce')
+    expect(source).not.toContain('transition: all')
+    expect(layoutSource).toContain('<Transition name="page-fade" mode="out-in">')
+    expect(layoutSource).toContain('class="page-fade-route"')
+    expect(layoutSource).toContain('transform: translateY(12px)')
+    expect(layoutSource).toContain('prefers-reduced-motion: reduce')
+    expect(appSource).toContain('Switch: {')
+    expect(appSource).toContain('Slider: {')
+  })
+
+  it('switches interview preference sub tabs without the old long collapsible layout', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+
+    expect(wrapper.vm.interviewSubTab).toBe('basic')
+    expect(wrapper.text()).toContain('默认面试岗位')
+    expect(wrapper.text()).not.toContain('浏览器 voice 列表')
+
+    await wrapper.findAll('.sub-nav-tab')[1].trigger('click')
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    expect(wrapper.vm.interviewSubTab).toBe('voice')
+    expect(wrapper.text()).toContain('AI 播报声音')
+    expect(wrapper.text()).toContain('重置语音偏好')
+
+    await wrapper.findAll('.sub-nav-tab')[2].trigger('click')
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    expect(wrapper.vm.interviewSubTab).toBe('offline')
+    expect(wrapper.text()).toContain('真实离线识别')
+    expect(wrapper.text()).toContain('sherpa-onnx')
+    expect(wrapper.text()).toContain('Kokoro')
+  }, 15000)
+
   it('downloads and deletes the offline STT resource package from settings center', async () => {
     const wrapper = mountView()
     await flushPromises()
-    wrapper.vm.activeSection = 'interview'
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'offline'
     await flushPromises()
+    await waitForSecurityTransition()
 
     await wrapper.vm.handleOfflineSttDownload()
     await flushPromises()
@@ -253,13 +367,15 @@ describe('SettingsView', () => {
   it('allows users to delete failed offline STT package remnants and keeps them when cancelled', async () => {
     const wrapper = mountView()
     await flushPromises()
-    wrapper.vm.activeSection = 'interview'
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'offline'
     wrapper.vm.offlineSttModelStatus = {
       modelKey: 'stt:sherpa_onnx:zh_cn',
       status: 'failed',
       progress: 52
     }
-    await wrapper.vm.$nextTick()
+    await flushPromises()
+    await waitForSecurityTransition()
 
     expect(wrapper.text()).toContain('删除资源包')
 
@@ -276,13 +392,15 @@ describe('SettingsView', () => {
   it('allows users to delete a cached offline TTS package without enabling download', async () => {
     const wrapper = mountView()
     await flushPromises()
-    wrapper.vm.activeSection = 'interview'
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'offline'
     wrapper.vm.offlineTtsModelStatus = {
       modelKey: 'tts:kokoro',
       status: 'ready',
       progress: 100
     }
-    await wrapper.vm.$nextTick()
+    await flushPromises()
+    await waitForSecurityTransition()
 
     expect(wrapper.text()).toContain('删除音色包')
     expect(wrapper.text()).toContain('下载高品质语音包')
@@ -332,6 +450,7 @@ describe('SettingsView', () => {
   it('switches account security forms with one form visible at a time', async () => {
     const wrapper = mountView()
     await flushPromises()
+    await switchSection(wrapper, 'security')
 
     expect(wrapper.vm.securityMode).toBe('password')
     expect(wrapper.find('input[autocomplete="new-password"]').exists()).toBe(true)
@@ -349,7 +468,7 @@ describe('SettingsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    wrapper.vm.activeSection = 'security'
+    await switchSection(wrapper, 'security')
     wrapper.vm.handleSecurityModeChange('accountDeletion')
     await flushPromises()
     await waitForSecurityTransition()
@@ -372,6 +491,7 @@ describe('SettingsView', () => {
   it('updates theme via theme store handlers', async () => {
     const wrapper = mountView()
     await flushPromises()
+    await switchSection(wrapper, 'appearance')
 
     expect(wrapper.text()).toContain('已保存到当前浏览器')
     wrapper.vm.handleThemeChange('dark')
@@ -479,23 +599,27 @@ describe('SettingsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    wrapper.vm.activeSection = 'interview'
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
     wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
     await flushPromises()
+    await waitForSecurityTransition()
 
     expect(wrapper.find('.browser-voice-select').exists()).toBe(true)
-    const browserVoiceSelect = wrapper.findAllComponents({ name: 'ElSelect' })
+    const browserVoiceSelect = wrapper.findAllComponents({ name: 'Select' })
       .find((select) => select.classes().includes('browser-voice-select'))
-    expect(browserVoiceSelect.props('fitInputWidth')).toBe(true)
-    expect(browserVoiceSelect.props('popperClass')).toBe('browser-voice-select-popper')
+    expect(browserVoiceSelect.props('filterable')).toBe(true)
+    expect(browserVoiceSelect.props('disabled')).toBe(true)
   }, 15000)
 
   it('renders voice preview as an accessible icon button', async () => {
     const wrapper = mountView()
     await flushPromises()
 
-    wrapper.vm.activeSection = 'interview'
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
     await flushPromises()
+    await waitForSecurityTransition()
 
     const previewButton = wrapper.find('.voice-preview-button')
     expect(previewButton.exists()).toBe(true)
@@ -513,6 +637,7 @@ describe('SettingsView', () => {
 
     const wrapper = mountView()
     await flushPromises()
+    await switchSection(wrapper, 'dataManagement')
 
     expect(getUserSettings).toHaveBeenCalled()
     expect(wrapper.text()).toContain('简历诊断保留天数')
@@ -566,8 +691,10 @@ describe('SettingsView', () => {
   it('renders enabled destructive backend actions', async () => {
     const wrapper = mountView()
     await flushPromises()
-
+    await switchSection(wrapper, 'security')
     expect(wrapper.text()).toContain('注销账号')
+
+    await switchSection(wrapper, 'dataManagement')
     expect(wrapper.text()).toContain('面试记录清理')
     expect(wrapper.text()).toContain('简历诊断清理')
     expect(wrapper.findAll('button').some((button) => button.text().includes('待后端接入'))).toBe(false)
@@ -631,7 +758,7 @@ describe('SettingsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    wrapper.vm.activeSection = 'security'
+    await switchSection(wrapper, 'security')
     wrapper.vm.handleSecurityModeChange('accountDeletion')
     await flushPromises()
     await waitForSecurityTransition()
@@ -668,7 +795,7 @@ describe('SettingsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    wrapper.vm.activeSection = 'security'
+    await switchSection(wrapper, 'security')
     wrapper.vm.handleSecurityModeChange('accountDeletion')
     await flushPromises()
     await waitForSecurityTransition()
@@ -697,7 +824,7 @@ describe('SettingsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    wrapper.vm.activeSection = 'security'
+    await switchSection(wrapper, 'security')
     wrapper.vm.handleSecurityModeChange('accountDeletion')
     await flushPromises()
     await waitForSecurityTransition()
@@ -718,7 +845,7 @@ describe('SettingsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    wrapper.vm.activeSection = 'security'
+    await switchSection(wrapper, 'security')
     wrapper.vm.handleSecurityModeChange('accountDeletion')
     await flushPromises()
     await waitForSecurityTransition()
@@ -741,6 +868,7 @@ describe('SettingsView', () => {
   it('shows account data overview from existing growth overview api', async () => {
     const wrapper = mountView()
     await flushPromises()
+    await switchSection(wrapper, 'privacy')
 
     expect(getGrowthOverview).toHaveBeenCalled()
     expect(wrapper.text()).toContain('简历诊断次数')
@@ -772,8 +900,8 @@ describe('SettingsView', () => {
   it('submits user feedback from settings center and resets form', async () => {
     const wrapper = mountView()
     await flushPromises()
+    await switchSection(wrapper, 'feedback')
 
-    wrapper.vm.activeSection = 'feedback'
     wrapper.vm.feedbackForm = {
       type: 'suggestion',
       title: ' 增加导出提示 ',

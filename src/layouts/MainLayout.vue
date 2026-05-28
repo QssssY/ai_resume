@@ -13,11 +13,15 @@
                 :key="route.name"
               />
             </KeepAlive>
-            <component
-              v-if="!route.meta.keepAlive"
-              :is="Component"
-              :key="route.fullPath"
-            />
+            <Transition name="page-fade" mode="out-in">
+              <div
+                v-if="!route.meta.keepAlive"
+                class="page-fade-route"
+                :key="route.fullPath"
+              >
+                <component :is="Component" />
+              </div>
+            </Transition>
           </router-view>
         </n-message-provider>
       </section>
@@ -151,6 +155,37 @@ onUnmounted(() => {
   animation: route-loading-sweep 0.9s ease-in-out infinite;
 }
 
+.page-fade-route {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-fade-enter-active {
+  transition:
+    opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.page-fade-leave-active {
+  transition:
+    opacity 0.2s cubic-bezier(0.7, 0, 0.84, 0),
+    transform 0.2s cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
 @keyframes route-loading-sweep {
   from {
     transform: translateX(-110%);
@@ -161,6 +196,17 @@ onUnmounted(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .page-fade-enter-active,
+  .page-fade-leave-active {
+    transition-duration: 0.01ms;
+  }
+
+  .page-fade-enter-from,
+  .page-fade-leave-to {
+    opacity: 1;
+    transform: none;
+  }
+
   .route-loading-bar::before {
     animation: none;
     width: 100%;

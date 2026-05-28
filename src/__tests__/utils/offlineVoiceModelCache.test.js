@@ -68,12 +68,7 @@ describe('offlineVoiceModelCache', () => {
         runtime: 'runtime.js',
         files: [
           { path: 'tokens.txt', size: 10 },
-          { path: 'model.onnx', size: 30 },
-          {
-            path: 'remote-runtime.js',
-            url: 'https://example.com/sherpa/runtime.js',
-            size: 20
-          }
+          { path: 'model.onnx', size: 30 }
         ]
       })),
       json: () => Promise.resolve({
@@ -95,7 +90,6 @@ describe('offlineVoiceModelCache', () => {
       runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js'
     })
     expect(manifest.files[1].url).toBe('/voice-models/sherpa-onnx/zh-cn-streaming/model.onnx')
-    expect(manifest.files[2].url).toBe('https://example.com/sherpa/runtime.js')
   })
 
   it('reports a friendly deployment error when manifest url returns the SPA html fallback', async () => {
@@ -164,6 +158,59 @@ describe('offlineVoiceModelCache', () => {
       runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js'
     })
     expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn').status).toBe('ready')
+  })
+
+  it('fails clearly when a model file request returns the SPA html fallback', async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        text: () => Promise.resolve(JSON.stringify({
+          version: '2026.05',
+          runtime: 'runtime.js',
+          files: [{ path: 'sherpa-onnx-wasm-main-asr.data', size: 30 }]
+        }))
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        text: () => Promise.resolve('<!DOCTYPE html><html></html>'),
+        clone: () => ({})
+      })
+
+    await expect(downloadModelFromManifest(
+      'stt:sherpa_onnx:zh_cn',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
+    )).rejects.toThrow('离线语音模型文件不是有效模型资源，请确认已部署 sherpa-onnx-wasm-main-asr.data')
+
+    expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')).toMatchObject({
+      status: 'failed',
+      progress: 0
+    })
+  })
+
+  it('marks failed with a deployment hint when model file fetch is blocked by network', async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        text: () => Promise.resolve(JSON.stringify({
+          version: '2026.05',
+          runtime: 'runtime.js',
+          files: [{ path: 'sherpa-onnx-asr.js', size: 10 }]
+        }))
+      })
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+    await expect(downloadModelFromManifest(
+      'stt:sherpa_onnx:zh_cn',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
+    )).rejects.toThrow('离线语音模型文件请求失败，请先将 sherpa-onnx-asr.js 部署到同源静态目录')
+
+    expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')).toMatchObject({
+      status: 'failed',
+      progress: 0
+    })
   })
 
   it('marks model status failed when manifest download resolves to invalid html', async () => {

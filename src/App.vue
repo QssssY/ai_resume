@@ -59,6 +59,16 @@ const naiveThemeOverrides = computed(() => {
     Tag: {
       borderRadius: '999px'
     },
+    Switch: {
+      railColorActive: '#FF8C42',
+      loadingColor: '#FF8C42'
+    },
+    Slider: {
+      fillColor: '#FF8C42',
+      fillColorHover: '#FF6B1A',
+      handleColor: '#FF8C42',
+      handleColorHover: '#FF6B1A'
+    },
     Skeleton: {
       color: isDark ? 'rgba(255, 140, 66, 0.12)' : '#F3D8C7',
       colorEnd: isDark ? 'rgba(255, 176, 122, 0.18)' : '#FFF3E8'

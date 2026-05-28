@@ -15,7 +15,16 @@ const criticalFeatureIconNames = [
   'settings',
   'ai-loading',
   'ai-interviewer',
-  'system-notifications'
+  'system-notifications',
+  'user-profile',
+  'account-security',
+  'data-cleanup',
+  'data-management',
+  'feedback-center',
+  'onboarding-task',
+  'membership-credits',
+  'growth-radar',
+  'announcement'
 ]
 
 const criticalPngIconModules = import.meta.glob([
@@ -30,12 +39,21 @@ const criticalPngIconModules = import.meta.glob([
   '/src/assets/feature-icons/png-fallback/old/history-records.png',
   '/src/assets/feature-icons/png-fallback/old/settings.png',
   '/src/assets/feature-icons/png-fallback/old/system-notifications.png',
+  '/src/assets/feature-icons/png-fallback/old/user-profile.png',
+  '/src/assets/feature-icons/png-fallback/old/data-management.png',
+  '/src/assets/feature-icons/png-fallback/old/membership-credits.png',
   '/src/assets/feature-icons/png-fallback/new/menu.png',
   '/src/assets/feature-icons/png-fallback/new/dark-mode.png',
   '/src/assets/feature-icons/png-fallback/new/light-mode.png',
   '/src/assets/feature-icons/png-fallback/new/notification-center.png',
   '/src/assets/feature-icons/png-fallback/new/ai-loading.png',
-  '/src/assets/feature-icons/png-fallback/new/ai-interviewer.png'
+  '/src/assets/feature-icons/png-fallback/new/ai-interviewer.png',
+  '/src/assets/feature-icons/png-fallback/new/account-security.png',
+  '/src/assets/feature-icons/png-fallback/new/data-cleanup.png',
+  '/src/assets/feature-icons/png-fallback/new/feedback-center.png',
+  '/src/assets/feature-icons/png-fallback/new/onboarding-task.png',
+  '/src/assets/feature-icons/png-fallback/new/growth-radar.png',
+  '/src/assets/feature-icons/png-fallback/new/announcement.png'
 ], {
   eager: true,
   import: 'default'
@@ -53,12 +71,21 @@ const criticalWebpIconModules = import.meta.glob([
   '/src/assets/feature-icons/old/history-records.webp',
   '/src/assets/feature-icons/old/settings.webp',
   '/src/assets/feature-icons/old/system-notifications.webp',
+  '/src/assets/feature-icons/old/user-profile.webp',
+  '/src/assets/feature-icons/old/data-management.webp',
+  '/src/assets/feature-icons/old/membership-credits.webp',
   '/src/assets/feature-icons/new/menu.webp',
   '/src/assets/feature-icons/new/dark-mode.webp',
   '/src/assets/feature-icons/new/light-mode.webp',
   '/src/assets/feature-icons/new/notification-center.webp',
   '/src/assets/feature-icons/new/ai-loading.webp',
-  '/src/assets/feature-icons/new/ai-interviewer.webp'
+  '/src/assets/feature-icons/new/ai-interviewer.webp',
+  '/src/assets/feature-icons/new/account-security.webp',
+  '/src/assets/feature-icons/new/data-cleanup.webp',
+  '/src/assets/feature-icons/new/feedback-center.webp',
+  '/src/assets/feature-icons/new/onboarding-task.webp',
+  '/src/assets/feature-icons/new/growth-radar.webp',
+  '/src/assets/feature-icons/new/announcement.webp'
 ], {
   eager: true,
   import: 'default'
@@ -77,12 +104,21 @@ const pngIconModules = import.meta.glob([
   '!/src/assets/feature-icons/png-fallback/old/history-records.png',
   '!/src/assets/feature-icons/png-fallback/old/settings.png',
   '!/src/assets/feature-icons/png-fallback/old/system-notifications.png',
+  '!/src/assets/feature-icons/png-fallback/old/user-profile.png',
+  '!/src/assets/feature-icons/png-fallback/old/data-management.png',
+  '!/src/assets/feature-icons/png-fallback/old/membership-credits.png',
   '!/src/assets/feature-icons/png-fallback/new/menu.png',
   '!/src/assets/feature-icons/png-fallback/new/dark-mode.png',
   '!/src/assets/feature-icons/png-fallback/new/light-mode.png',
   '!/src/assets/feature-icons/png-fallback/new/notification-center.png',
   '!/src/assets/feature-icons/png-fallback/new/ai-loading.png',
-  '!/src/assets/feature-icons/png-fallback/new/ai-interviewer.png'
+  '!/src/assets/feature-icons/png-fallback/new/ai-interviewer.png',
+  '!/src/assets/feature-icons/png-fallback/new/account-security.png',
+  '!/src/assets/feature-icons/png-fallback/new/data-cleanup.png',
+  '!/src/assets/feature-icons/png-fallback/new/feedback-center.png',
+  '!/src/assets/feature-icons/png-fallback/new/onboarding-task.png',
+  '!/src/assets/feature-icons/png-fallback/new/growth-radar.png',
+  '!/src/assets/feature-icons/png-fallback/new/announcement.png'
 ], {
   import: 'default'
 })
@@ -99,12 +135,21 @@ const webpIconModules = import.meta.glob([
   '!/src/assets/feature-icons/old/history-records.webp',
   '!/src/assets/feature-icons/old/settings.webp',
   '!/src/assets/feature-icons/old/system-notifications.webp',
+  '!/src/assets/feature-icons/old/user-profile.webp',
+  '!/src/assets/feature-icons/old/data-management.webp',
+  '!/src/assets/feature-icons/old/membership-credits.webp',
   '!/src/assets/feature-icons/new/menu.webp',
   '!/src/assets/feature-icons/new/dark-mode.webp',
   '!/src/assets/feature-icons/new/light-mode.webp',
   '!/src/assets/feature-icons/new/notification-center.webp',
   '!/src/assets/feature-icons/new/ai-loading.webp',
-  '!/src/assets/feature-icons/new/ai-interviewer.webp'
+  '!/src/assets/feature-icons/new/ai-interviewer.webp',
+  '!/src/assets/feature-icons/new/account-security.webp',
+  '!/src/assets/feature-icons/new/data-cleanup.webp',
+  '!/src/assets/feature-icons/new/feedback-center.webp',
+  '!/src/assets/feature-icons/new/onboarding-task.webp',
+  '!/src/assets/feature-icons/new/growth-radar.webp',
+  '!/src/assets/feature-icons/new/announcement.webp'
 ], {
   import: 'default'
 })

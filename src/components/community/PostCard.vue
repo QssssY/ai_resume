@@ -39,11 +39,11 @@
         :class="{ liked: post.liked }"
         @click.stop="$emit('like')"
       >
-        <FeatureIcon :name="post.liked ? 'liked' : 'favorite'" size="xs" />
+        <FeatureIcon :name="post.liked ? 'liked' : 'favorite'" size="sm" />
         <span>{{ post.likeCount || 0 }}</span>
       </button>
       <button class="action-btn" @click.stop="$emit('click')">
-        <FeatureIcon name="comment" size="xs" />
+        <FeatureIcon name="comment" size="sm" />
         <span>{{ post.commentCount || 0 }}</span>
       </button>
       <button
@@ -51,11 +51,11 @@
         :class="{ favorited: post.favorited }"
         @click.stop="$emit('favorite')"
       >
-        <FeatureIcon name="favorite" size="xs" />
+        <FeatureIcon name="favorite" size="sm" />
         <span>收藏</span>
       </button>
       <button class="action-btn" @click.stop="$emit('share')">
-        <FeatureIcon name="share" size="xs" />
+        <FeatureIcon name="share" size="sm" />
         <span>分享</span>
       </button>
     </div>
@@ -93,7 +93,10 @@ defineEmits(['click', 'like', 'favorite', 'share'])
   border: 1px solid var(--border-card);
   border-left: none;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 0.24s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.24s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.24s cubic-bezier(0.25, 1, 0.5, 1);
   overflow: hidden;
 }
 
@@ -265,20 +268,36 @@ defineEmits(['click', 'like', 'favorite', 'share'])
 .action-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  border: none;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
   background: none;
   color: var(--text-muted);
   font-size: 13px;
   cursor: pointer;
-  border-radius: 20px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 999px;
+  transition:
+    transform 0.16s cubic-bezier(0.25, 1, 0.5, 1),
+    color 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+    background-color 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .action-btn:hover {
   background: var(--orange-light-bg);
   color: var(--orange-main);
+  transform: translateY(-1px);
+}
+
+.action-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.action-btn:focus-visible {
+  outline: 2px solid var(--orange-main);
+  outline-offset: 2px;
 }
 
 /* 【已点赞状态】红色高亮 */
@@ -293,16 +312,41 @@ defineEmits(['click', 'like', 'favorite', 'share'])
 
 /* 【已收藏状态】金色高亮 */
 .action-btn.favorited {
-  color: #f5a623;
+  color: #b45309;
+  background: color-mix(in srgb, var(--bg-card) 68%, #f5a623 32%);
+  border-color: color-mix(in srgb, var(--border-card) 45%, #f5a623 55%);
+  box-shadow: 0 8px 20px rgba(245, 166, 35, 0.16);
+  font-weight: 700;
 }
 
 .action-btn.favorited:hover {
-  color: #f5a623;
-  background: rgba(245, 166, 35, 0.08);
+  color: #92400e;
+  background: color-mix(in srgb, var(--bg-card) 58%, #f5a623 42%);
+  border-color: #f5a623;
+  box-shadow: 0 10px 24px rgba(245, 166, 35, 0.22);
 }
 
 .action-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 22px;
+}
+
+.action-btn.favorited svg {
+  filter: drop-shadow(0 4px 8px rgba(245, 166, 35, 0.24));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-card,
+  .card-accent,
+  .avatar-ring-sm,
+  .action-btn {
+    transition-duration: 0.01ms;
+  }
+
+  .post-card:hover,
+  .action-btn:hover,
+  .action-btn:active {
+    transform: none;
+  }
 }
 </style>

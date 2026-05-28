@@ -1200,25 +1200,8 @@ onUnmounted(() => {
 }
 
 /* 响应式断点 */
-/* 中屏：1024px - 1279px */
+/* 中屏及以下：≤1279px 使用汉堡菜单 */
 @media (max-width: 1279px) {
-  .nav-link {
-    padding: 8px 9px;
-    font-size: 13px;
-  }
-
-  .header-nav {
-    gap: 3px;
-  }
-
-  .nav-link :deep(.feature-icon.size-xs) {
-    width: 22px;
-    height: 22px;
-  }
-}
-
-/* 小屏：≤1023px */
-@media (max-width: 1023px) {
   .hamburger-btn {
     display: flex;
     align-items: center;
