@@ -265,20 +265,20 @@ ol {
   --scrollbar-thumb-hover: #FF8C42;
 }
 
-/* 主题切换过渡：作用于所有变色属性，让暗黑模式切换更平滑
-   仅在有 [data-theme] 时才启用，避免初始化时的额外开销 */
-html[data-theme] *,
-html[data-theme] *::before,
-html[data-theme] *::after {
+/* 主题切换过渡：仅在切换过程中短暂启用，避免常驻全局 transition 导致性能开销。
+   JS 在切换主题时添加 .theme-transition class，300ms 后自动移除。 */
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
   transition-property: background-color, border-color, box-shadow, color;
   transition-duration: 0.2s;
   transition-timing-function: ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme] *,
-  html[data-theme] *::before,
-  html[data-theme] *::after {
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
     transition: none;
   }
 }

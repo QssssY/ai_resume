@@ -1,10 +1,56 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
+import path from 'node:path'
+import fs from 'node:fs'
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import viteCompression from 'vite-plugin-compression'
+import { resolveVoiceModelLocalPath } from './src/utils/voiceModelDevServer.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// 语音模型中间件：开发模式下从 voice-models-local/ 提供文件，避免 280MB+ 进入构建产物
+function voiceModelsPlugin() {
+  return {
+    name: 'serve-voice-models',
+    configureServer(server) {
+      const modelsDir = path.join(__dirname, 'voice-models-local')
+      if (!fs.existsSync(modelsDir)) return
+
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/voice-models/')) return next()
+        const filePath = resolveVoiceModelLocalPath(modelsDir, req.url)
+        if (!filePath) return next()
+        if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return next()
+        res.setHeader('Content-Type', 'application/octet-stream')
+        fs.createReadStream(filePath).pipe(res)
+      })
+    }
+  }
+}
 
 /// <reference types="vitest" />
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    // Element Plus 按需引入：自动注册组件和对应 API
+    AutoImport({
+      resolvers: [ElementPlusResolver()]
+    }),
+    Components({
+      resolvers: [ElementPlusResolver()]
+    }),
+    // 语音模型开发服务
+    voiceModelsPlugin(),
+    // 生产构建 gzip 压缩（>10KB 的文件生成 .gz）
+    viteCompression({
+      algorithm: 'gzip',
+      threshold: 10240,
+      deleteOriginFile: false
+    })
+  ],
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.{test,spec}.{js,ts}'],

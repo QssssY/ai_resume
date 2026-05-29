@@ -30,8 +30,16 @@ export const useThemeStore = defineStore('theme', () => {
   }
   mediaQuery.addEventListener('change', onSystemThemeChange)
 
+  let transitionTimer = null
   const applyTheme = (resolved) => {
+    // 添加过渡 class 让主题切换平滑，300ms 后自动移除避免常驻性能开销
+    document.documentElement.classList.add('theme-transition')
     document.documentElement.setAttribute('data-theme', resolved)
+    if (transitionTimer) clearTimeout(transitionTimer)
+    transitionTimer = setTimeout(() => {
+      document.documentElement.classList.remove('theme-transition')
+      transitionTimer = null
+    }, 300)
   }
 
   const toggleTheme = () => {

@@ -60,7 +60,7 @@
         <el-button class="export-btn" @click="exportFilteredUsersCsv">导出当前筛选</el-button>
       </div>
       <div class="filter-result">
-        当前筛选结果：<span class="filter-count">{{ filteredUsers.length }}</span> / {{ userList.length }} 人
+        当前筛选结果：<span class="filter-count">{{ userList.length }}</span> / {{ paginationTotal }} 人
       </div>
     </el-card>
 
@@ -110,7 +110,7 @@
     <el-card shadow="never" class="table-card">
       <el-table
         ref="userTableRef"
-        :data="pagedUsers"
+        :data="userList"
         v-loading="tableLoading"
         border
         stripe
@@ -207,7 +207,7 @@
         <el-pagination
           background
           layout="total, sizes, prev, pager, next, jumper"
-          :total="filteredUsers.length"
+          :total="paginationTotal"
           :current-page="pagination.page"
           :page-size="pagination.pageSize"
           :page-sizes="[10, 20, 50]"
@@ -478,6 +478,7 @@ import {
   getAdminUserRights,
   getAdminUserQuota,
   getAdminUsers,
+  getAdminUserStats,
   getMembershipPlansForAdmin,
   updateAdminUserRights,
   updateAdminUserQuota,
@@ -512,6 +513,8 @@ const pagination = reactive({
   page: 1,
   pageSize: 10
 })
+// 服务端分页总数
+const paginationTotal = ref(0)
 
 // 权益详情抽屉状态：点击“查看权益”后加载展示。
 const rightsDrawerVisible = ref(false)
@@ -626,63 +629,18 @@ const getVipState = (row) => {
 }
 
 /**
- * 过滤后的用户列表。
- * 作用：支持关键词、角色、状态、会员状态的多维组合筛选。
- */
-const filteredUsers = computed(() => {
-  return userList.value.filter((item) => {
-    const matchesKeyword = !keyword.value
-      || item.username?.includes(keyword.value)
-      || item._userId?.includes(keyword.value)
-
-    const matchesRole = filterForm.role === 'all' || String(item.role) === filterForm.role
-    const matchesStatus = filterForm.status === 'all' || String(item.status) === filterForm.status
-    const matchesVipState = filterForm.vipState === 'all' || getVipState(item) === filterForm.vipState
-
-    return matchesKeyword && matchesRole && matchesStatus && matchesVipState
-  })
-})
-
-/**
- * 当前页用户列表。
- * 作用：在前端做轻量分页，避免当前后端接口改造成本。
- */
-const pagedUsers = computed(() => {
-  const startIndex = (pagination.page - 1) * pagination.pageSize
-  const endIndex = startIndex + pagination.pageSize
-  return filteredUsers.value.slice(startIndex, endIndex)
-})
-
-/**
  * 表格空状态文案。
- * 作用：统一“全量为空”和“筛选为空”展示语气，减少误判。
+ * 作用：统一”全量为空”和”筛选为空”展示语气，减少误判。
  */
 const tableEmptyText = computed(() => {
-  return resolveAdminTableEmptyText(userList.value.length, filteredUsers.value.length)
+  return userList.value.length === 0 ? '暂无用户数据' : '当前筛选条件下无匹配用户'
 })
 
 /**
- * 用户统计概览。
+ * 用户统计概览（由独立 API 填充，后端缓存 5 分钟）。
  * 作用：给管理员提供一眼可见的用户分布，快速定位目标群体。
  */
-const userStats = computed(() => {
-  return userList.value.reduce(
-    (summary, item) => {
-      summary.total += 1
-      if (isEnabledUser(item)) {
-        summary.enabled += 1
-      } else {
-        summary.disabled += 1
-      }
-
-      const vipState = getVipState(item)
-      if (vipState === 'active') summary.vipActive += 1
-      if (vipState === 'expired') summary.vipExpired += 1
-      return summary
-    },
-    { total: 0, enabled: 0, disabled: 0, vipActive: 0, vipExpired: 0 }
-  )
-})
+const userStats = ref({ total: 0, enabled: 0, disabled: 0, vipActive: 0, vipExpired: 0 })
 
 /**
  * 当前筛选对应的快捷筛选标识。
@@ -767,22 +725,53 @@ const toSafeNonNegativeInteger = (value) => {
 }
 
 /**
- * 拉取用户列表。
+ * 拉取用户列表（服务端分页+过滤）。
  * 关键逻辑：在页面层为每行补充 `_userId`，后续接口一律使用该字符串值。
  */
 const fetchUserList = async () => {
   tableLoading.value = true
   try {
-    const res = await getAdminUsers()
-    const list = Array.isArray(res?.data) ? res.data : []
-    userList.value = list.map((item) => ({
+    const res = await getAdminUsers({
+      page: pagination.page,
+      size: pagination.pageSize,
+      keyword: keyword.value || undefined,
+      role: filterForm.role !== 'all' ? Number(filterForm.role) : undefined,
+      status: filterForm.status !== 'all' ? Number(filterForm.status) : undefined,
+      vipState: filterForm.vipState !== 'all' ? filterForm.vipState : undefined
+    })
+    const data = res?.data || {}
+    const records = Array.isArray(data.records) ? data.records : []
+    userList.value = records.map((item) => ({
       ...item,
       _userId: normalizeUserId(item.userId ?? item.id)
     }))
+    paginationTotal.value = data.total || 0
   } catch (error) {
     showAdminError(error?.message || '加载用户列表失败')
   } finally {
     tableLoading.value = false
+  }
+}
+
+/**
+ * 拉取用户统计概览（独立缓存端点，后端缓存 5 分钟）。
+ */
+const fetchUserStats = async () => {
+  try {
+    const res = await getAdminUserStats()
+    const data = res?.data
+    if (data) {
+      userStats.value = {
+        total: data.total || 0,
+        enabled: data.enabled || 0,
+        disabled: data.disabled || 0,
+        vipActive: data.vipActive || 0,
+        vipExpired: data.vipExpired || 0
+      }
+    }
+  } catch (error) {
+    // 统计加载失败不影响主表格
+    console.warn('加载用户统计失败:', error?.message)
   }
 }
 
@@ -844,6 +833,7 @@ const applyQuickFilter = (key) => {
  */
 const handlePageChange = (nextPage) => {
   pagination.page = nextPage
+  fetchUserList()
 }
 
 /**
@@ -853,6 +843,7 @@ const handlePageChange = (nextPage) => {
 const handlePageSizeChange = (nextPageSize) => {
   pagination.pageSize = nextPageSize
   pagination.page = 1
+  fetchUserList()
 }
 
 /**
@@ -870,25 +861,45 @@ const escapeCsvCell = (value) => {
  * 导出当前筛选结果为 CSV。
  * 作用：让运营可直接下载并离线分析筛选后的用户集。
  */
-const exportFilteredUsersCsv = () => {
-  if (!filteredUsers.value.length) {
-    showAdminWarning('当前筛选结果为空，无法导出')
-    return
-  }
+/**
+ * 导出当前筛选结果为 CSV（获取全量筛选数据，不限于当前页）。
+ */
+const exportFilteredUsersCsv = async () => {
+  try {
+    // 导出全量数据：不限制分页
+    const res = await getAdminUsers({
+      page: 1,
+      size: 10000,
+      keyword: keyword.value || undefined,
+      role: filterForm.role !== 'all' ? Number(filterForm.role) : undefined,
+      status: filterForm.status !== 'all' ? Number(filterForm.status) : undefined,
+      vipState: filterForm.vipState !== 'all' ? filterForm.vipState : undefined
+    })
+    const data = res?.data || {}
+    const records = Array.isArray(data.records) ? data.records : []
+    if ((data.total || 0) > 10000) {
+      showAdminWarning('当前筛选结果超过 10000 条，本次仅导出前 10000 条')
+    }
 
-  const headers = ['用户ID', '用户名', '角色', '状态', '会员到期时间', '会员状态', '创建时间']
-  const rows = filteredUsers.value.map((item) => {
-    const vipState = getVipState(item)
-    return [
-      item._userId || '',
-      item.username || '',
-      item.roleDesc || '',
-      isEnabledUser(item) ? '正常' : '封禁',
-      formatDateTime(item.vipExpireTime),
-      vipState === 'active' ? '会员有效' : (vipState === 'expired' ? '会员过期' : '非会员'),
-      formatDateTime(item.createTime)
-    ]
-  })
+    if (!records.length) {
+      showAdminWarning('当前筛选结果为空，无法导出')
+      return
+    }
+
+    const headers = ['用户ID', '用户名', '角色', '状态', '会员到期时间', '会员状态', '创建时间']
+    const rows = records.map((item) => {
+      const vipState = getVipState(item)
+      const _userId = normalizeUserId(item.userId ?? item.id)
+      return [
+        _userId || '',
+        item.username || '',
+        item.roleDesc || '',
+        isEnabledUser(item) ? '正常' : '封禁',
+        formatDateTime(item.vipExpireTime),
+        vipState === 'active' ? '会员有效' : (vipState === 'expired' ? '会员过期' : '非会员'),
+        formatDateTime(item.createTime)
+      ]
+    })
 
   const csvContent = [headers, ...rows]
     .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
@@ -906,6 +917,9 @@ const exportFilteredUsersCsv = () => {
   document.body.removeChild(downloadLink)
   URL.revokeObjectURL(downloadLink.href)
   showAdminSuccess('导出成功')
+  } catch (error) {
+    showAdminError(error?.message || '导出失败')
+  }
 }
 
 /**
@@ -1205,31 +1219,18 @@ watch(
 
 /**
  * 监听筛选条件变化：
- * 每次筛选条件变化都回到第一页，避免保留旧页码导致展示为空。
+ * 每次筛选条件变化都回到第一页并重新请求服务端数据。
  */
 watch(
   () => [keyword.value, filterForm.role, filterForm.status, filterForm.vipState],
   () => {
     pagination.page = 1
-  }
-)
-
-/**
- * 监听筛选后数据量：
- * 当当前页超出最大页码时回退到最后一页，保证始终有可见数据。
- */
-watch(
-  () => filteredUsers.value.length,
-  (total) => {
-    const totalPage = Math.max(1, Math.ceil(total / pagination.pageSize))
-    if (pagination.page > totalPage) {
-      pagination.page = totalPage
-    }
+    fetchUserList()
   }
 )
 
 onMounted(async () => {
-  await Promise.all([fetchUserList(), fetchMembershipPlans()])
+  await Promise.all([fetchUserList(), fetchUserStats(), fetchMembershipPlans()])
 })
 </script>
 

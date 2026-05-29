@@ -435,7 +435,7 @@ function createEmptyHeaderModel() {
 }
 
 function cloneModel(value) {
-  return JSON.parse(JSON.stringify(value))
+  return structuredClone(value)
 }
 
 function generateClientId(prefix) {

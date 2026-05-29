@@ -14,12 +14,30 @@ export const normalizeUserId = (userId) => {
 }
 
 /**
- * 获取管理端用户列表。
+ * 获取管理端用户列表（服务端分页+过滤）。
+ * @param {Object} [params] - 查询参数
+ * @param {number} [params.page=1] - 当前页码
+ * @param {number} [params.size=20] - 每页条数
+ * @param {string} [params.keyword] - 搜索关键词（用户名/用户ID）
+ * @param {number} [params.role] - 角色筛选
+ * @param {number} [params.status] - 状态筛选
  * @returns {Promise}
  */
-export function getAdminUsers() {
+export function getAdminUsers(params = {}) {
   return adminRequest({
     url: '/api/admin/users',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取用户统计概览（全表聚合，后端缓存 5 分钟）。
+ * @returns {Promise<{total: number, enabled: number, disabled: number, vipActive: number, vipExpired: number}>}
+ */
+export function getAdminUserStats() {
+  return adminRequest({
+    url: '/api/admin/users/stats',
     method: 'get'
   })
 }

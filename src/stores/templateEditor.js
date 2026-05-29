@@ -26,7 +26,7 @@ export const useTemplateEditorStore = defineStore('templateEditor', () => {
   const templateId = ref('')
   const resumeData = ref(null)
   // 段落配置：控制哪些section可见、顺序如何
-  const sectionsConfig = ref(JSON.parse(JSON.stringify(DEFAULT_SECTIONS)))
+  const sectionsConfig = ref(structuredClone(DEFAULT_SECTIONS))
 
   // 获取段落类型目录（只读）
   const sectionTypes = SECTION_TYPES
@@ -36,10 +36,10 @@ export const useTemplateEditorStore = defineStore('templateEditor', () => {
 
   function loadTemplate(id, data, customSectionsConfig) {
     templateId.value = id
-    resumeData.value = JSON.parse(JSON.stringify(data))
+    resumeData.value = structuredClone(data)
     sectionsConfig.value = customSectionsConfig
-      ? JSON.parse(JSON.stringify(customSectionsConfig))
-      : JSON.parse(JSON.stringify(DEFAULT_SECTIONS))
+      ? structuredClone(customSectionsConfig)
+      : structuredClone(DEFAULT_SECTIONS)
   }
 
   function updateBasic(field, value) {

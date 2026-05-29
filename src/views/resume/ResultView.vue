@@ -1162,14 +1162,13 @@ watch([loading, isPending, isProcessing], ([l, p, pr]) => {
   document.documentElement.style.overflow = locked ? 'hidden' : ''
 }, { immediate: true })
 
-watch(task, (newTask) => {
-  if (newTask?.latestJobMatchAnalysis) {
-    jobMatchResult.value = newTask.latestJobMatchAnalysis
-  }
-  if (newTask?.latestPolishResult) {
-    polishResult.value = newTask.latestPolishResult
-  }
-}, { deep: true })
+watch(
+  () => ({ jm: task.value?.latestJobMatchAnalysis, pr: task.value?.latestPolishResult }),
+  ({ jm, pr }) => {
+    if (jm) jobMatchResult.value = jm
+    if (pr) polishResult.value = pr
+  },
+)
 
 // immediate watcher 负责首次进入页面和路由 taskId 变化时的数据加载。
 watch(taskId, (newTaskId, oldTaskId) => {

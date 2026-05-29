@@ -92,6 +92,37 @@ describe('offlineVoiceModelCache', () => {
     expect(manifest.files[1].url).toBe('/voice-models/sherpa-onnx/zh-cn-streaming/model.onnx')
   })
 
+  it('resolves the production sherpa manifest entry as same-origin voice model assets', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      text: () => Promise.resolve(JSON.stringify({
+        version: '2026.05',
+        runtime: 'runtime.js',
+        files: [
+          { path: 'sherpa-onnx-asr.js', size: 1 },
+          { path: 'sherpa-onnx-wasm-main-asr.js', size: 1 },
+          { path: 'sherpa-onnx-wasm-main-asr.wasm', size: 1 },
+          { path: 'sherpa-onnx-wasm-main-asr.data', size: 1 }
+        ]
+      }))
+    })
+
+    const manifest = await readModelManifest(
+      'stt:sherpa_onnx:zh_cn',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
+    )
+
+    expect(manifest.baseUrl).toBe('/voice-models/sherpa-onnx/zh-cn-streaming/')
+    expect(manifest.runtime).toBe('/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js')
+    expect(manifest.files.map((file) => file.url)).toEqual([
+      '/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-asr.js',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-wasm-main-asr.js',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-wasm-main-asr.wasm',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-wasm-main-asr.data'
+    ])
+  })
+
   it('reports a friendly deployment error when manifest url returns the SPA html fallback', async () => {
     global.fetch.mockResolvedValueOnce({
       ok: true,
