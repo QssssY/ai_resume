@@ -710,7 +710,7 @@ onMounted(() => {
   gap: 8px;
   box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
   border: 1px solid rgba(243, 216, 199, 0.4);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .summary-card:hover {

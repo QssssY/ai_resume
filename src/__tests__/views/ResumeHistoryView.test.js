@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ResumeHistoryView from '@/views/resume/HistoryView.vue'
 import { getResumeHistory, retryResumeTask } from '@/api/resume'
 import { ElMessage } from 'element-plus'
+import { prefetchUserRoute } from '@/router/routeLoaders'
 
 const push = vi.fn()
 
@@ -18,13 +19,35 @@ vi.mock('@/api/resume', () => ({
   retryResumeTask: vi.fn(),
 }))
 
+vi.mock('@/router/routeLoaders', () => ({
+  prefetchUserRoute: vi.fn(() => Promise.resolve()),
+}))
+
 vi.mock('element-plus', () => ({
+  ElButton: {
+    template: '<button><slot /></button>',
+  },
+  ElIcon: {
+    template: '<span><slot /></span>',
+  },
   ElMessage: {
     error: vi.fn(),
     success: vi.fn(),
   },
   ElMessageBox: {
     confirm: vi.fn(),
+  },
+  ElPagination: {
+    template: '<nav />',
+  },
+  ElSkeleton: {
+    template: '<div><slot /></div>',
+  },
+  ElSkeletonItem: {
+    template: '<span />',
+  },
+  ElTag: {
+    template: '<span><slot /></span>',
   },
 }))
 
@@ -61,6 +84,16 @@ describe('ResumeHistoryView', () => {
     })
   })
 
+  it('prefetches the resume result chunk before opening a report', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.viewResult({ taskId: 'task-1' })
+
+    expect(prefetchUserRoute).toHaveBeenCalledWith('/resume/result')
+    expect(push).toHaveBeenCalledWith('/resume/result/task-1')
+  })
+
   it('does not navigate when retry response has no new task id', async () => {
     retryResumeTask.mockResolvedValue({ data: '' })
     const wrapper = mountView()
@@ -72,5 +105,17 @@ describe('ResumeHistoryView', () => {
     expect(retryResumeTask).toHaveBeenCalledWith('failed-task')
     expect(ElMessage.error).toHaveBeenCalledWith('重试响应异常，请稍后重试')
     expect(push).not.toHaveBeenCalled()
+  })
+
+  it('prefetches the resume result chunk before navigating to a retry task', async () => {
+    retryResumeTask.mockResolvedValue({ data: 'new-task' })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.vm.handleRetry({ taskId: 'failed-task' })
+    await flushPromises()
+
+    expect(prefetchUserRoute).toHaveBeenCalledWith('/resume/result')
+    expect(push).toHaveBeenCalledWith('/resume/result/new-task')
   })
 })

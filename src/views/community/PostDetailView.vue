@@ -273,7 +273,7 @@ loadPost()
   border-radius: 10px;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border-card);
-  transition: all 0.25s;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .back-btn:hover {
@@ -542,7 +542,7 @@ loadPost()
   font-size: 13px;
   cursor: pointer;
   border-radius: 20px;
-  transition: all 0.25s;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .act-btn:hover {

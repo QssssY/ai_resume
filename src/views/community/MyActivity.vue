@@ -635,7 +635,7 @@ onMounted(() => {
   border-radius: 10px;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border-card);
-  transition: all 0.25s;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .back-btn:hover {
@@ -792,7 +792,9 @@ onMounted(() => {
   border: 1px solid var(--border-card);
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.25s;
+  content-visibility: auto;
+  contain-intrinsic-size: 180px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .my-comment-card:hover {
@@ -927,7 +929,9 @@ onMounted(() => {
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border-card);
   overflow: hidden;
-  transition: all 0.25s;
+  content-visibility: auto;
+  contain-intrinsic-size: 180px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .my-post-card:hover {
@@ -1054,7 +1058,9 @@ onMounted(() => {
   padding: 14px 16px;
   border: 1px solid var(--border-card);
   cursor: pointer;
-  transition: all 0.25s;
+  content-visibility: auto;
+  contain-intrinsic-size: 120px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .interaction-card:hover {
@@ -1190,7 +1196,7 @@ onMounted(() => {
   background: none;
   color: var(--text-placeholder);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
   border-left: 1px solid var(--border-divider);
 }
 
@@ -1237,7 +1243,7 @@ onMounted(() => {
   font-size: 13px;
   cursor: pointer;
   border-radius: 20px;
-  transition: all 0.25s;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1340,7 +1346,7 @@ onMounted(() => {
   cursor: pointer;
   border-radius: 10px;
   box-shadow: 0 2px 12px rgba(255, 140, 66, 0.3);
-  transition: all 0.25s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .empty-action:hover {

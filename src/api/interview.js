@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { API_CACHE_TTL, cachedGet, clearApiCacheByPrefix } from '@/utils/apiCache'
 
 /**
  * 创建面试会话。
@@ -32,10 +33,12 @@ export function createInterviewSession(data) {
  * @returns {Promise}
  */
 export function getInterviewJobRoles() {
-  return request({
-    url: '/api/interview/job-roles',
-    method: 'get'
-  })
+  return cachedGet('config:jobRoles:interview', API_CACHE_TTL.JOB_ROLES, () =>
+    request({
+      url: '/api/interview/job-roles',
+      method: 'get'
+    })
+  )
 }
 
 /**
@@ -121,6 +124,9 @@ export function clearInterviewHistory() {
   return request({
     url: '/api/interview/history',
     method: 'delete'
+  }).then((response) => {
+    clearApiCacheByPrefix('user:growthOverview')
+    return response
   })
 }
 
@@ -133,5 +139,8 @@ export function deleteInterviewSession(sessionId) {
   return request({
     url: `/api/interview/history/${sessionId}`,
     method: 'delete'
+  }).then((response) => {
+    clearApiCacheByPrefix('user:growthOverview')
+    return response
   })
 }

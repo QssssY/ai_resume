@@ -10,6 +10,27 @@ vi.mock('@/api/community', () => ({
 }))
 
 vi.mock('element-plus', () => ({
+  ElButton: {
+    props: ['disabled', 'loading'],
+    emits: ['click'],
+    template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
+  },
+  ElDialog: {
+    name: 'ElDialog',
+    props: ['modelValue', 'appendToBody', 'closeOnClickModal'],
+    emits: ['update:modelValue', 'open'],
+    template: `
+      <div
+        class="dialog-stub"
+        :data-model-value="String(modelValue)"
+        :data-append-to-body="String(appendToBody)"
+        :data-close-on-click-modal="String(closeOnClickModal)"
+      >
+        <slot />
+        <slot name="footer" />
+      </div>
+    `,
+  },
   ElMessage: {
     success: vi.fn(),
     error: vi.fn(),

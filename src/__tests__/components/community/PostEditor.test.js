@@ -12,6 +12,11 @@ vi.mock('@/api/community', () => ({
 }))
 
 vi.mock('element-plus', () => ({
+  ElButton: {
+    props: ['disabled', 'loading'],
+    emits: ['click'],
+    template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
+  },
   ElMessage: {
     success: vi.fn(),
     error: vi.fn(),

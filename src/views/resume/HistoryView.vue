@@ -174,6 +174,9 @@ import { getResumeHistory, extractFileName, clearResumeHistory, deleteResumeHist
 import { ElMessage, ElMessageBox } from "element-plus";
 import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import ResumeEmpty from "@/components/empty/ResumeEmpty.vue";
+import { prefetchUserRoute } from "@/router/routeLoaders";
+
+defineOptions({ name: 'HistoryView' })
 
 const router = useRouter();
 
@@ -275,6 +278,7 @@ const handleCurrentChange = (val) => {
 };
 
 const viewResult = (row) => {
+  prefetchUserRoute("/resume/result")?.catch(() => {});
   router.push(`/resume/result/${row.taskId}`);
 };
 
@@ -316,6 +320,7 @@ const handleRetry = async (item) => {
       return;
     }
     ElMessage.success("重试任务已提交");
+    prefetchUserRoute("/resume/result")?.catch(() => {});
     router.push(`/resume/result/${newTaskId}`);
   } catch (err) {
     ElMessage.error(err?.message || "重试失败，请重新上传");

@@ -973,6 +973,8 @@ import {
   getOfflineVoiceStorageSupport
 } from '@/utils/offlineVoiceModelCache'
 
+defineOptions({ name: 'SettingsView' })
+
 const router = useRouter()
 const userStore = useUserStore()
 const themeStore = useThemeStore()

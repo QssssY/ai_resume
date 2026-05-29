@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { API_CACHE_TTL, cachedGet } from '@/utils/apiCache'
 
 /**
  * 获取个人成长中心概览数据
@@ -6,10 +7,12 @@ import request from '@/utils/request'
  * @returns {Promise}
  */
 export function getGrowthOverview() {
-  return request({
-    url: '/api/user/growth/overview',
-    method: 'get'
-  })
+  return cachedGet('user:growthOverview', API_CACHE_TTL.GROWTH_OVERVIEW, () =>
+    request({
+      url: '/api/user/growth/overview',
+      method: 'get'
+    })
+  )
 }
 
 /**

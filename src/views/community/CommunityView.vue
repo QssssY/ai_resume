@@ -467,7 +467,7 @@ onUnmounted(() => {
   border-radius: 10px;
   backdrop-filter: blur(6px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: all 0.25s;
+  transition: background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
   letter-spacing: 0.2px;
 }
 
@@ -475,7 +475,6 @@ onUnmounted(() => {
   background: #fff;
   color: var(--orange-main);
   box-shadow: 0 4px 16px rgba(255, 140, 66, 0.15);
-  gap: 8px;
 }
 
 .my-activity-btn svg {
@@ -565,7 +564,7 @@ onUnmounted(() => {
   font-weight: 500;
   cursor: pointer;
   border-radius: 10px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   letter-spacing: 0.2px;
   position: relative;
@@ -606,7 +605,7 @@ onUnmounted(() => {
   font-size: 13px;
   cursor: pointer;
   border-radius: 8px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sort-btn:hover {

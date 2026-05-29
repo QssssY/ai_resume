@@ -1,5 +1,6 @@
 import request from '@/utils/request'
 import { getToken, getTokenType } from '@/utils/auth'
+import { API_CACHE_TTL, cachedGet, clearApiCacheByPrefix } from '@/utils/apiCache'
 
 /**
  * 查询当前用户通知列表（分页+筛选）
@@ -17,10 +18,12 @@ export function getNotifications(params) {
  * 获取当前用户未读通知数量
  */
 export function getUnreadCount() {
-  return request({
-    url: '/api/user/notifications/unread-count',
-    method: 'get'
-  })
+  return cachedGet('notification:unreadCount', API_CACHE_TTL.NOTIFICATION_UNREAD, () =>
+    request({
+      url: '/api/user/notifications/unread-count',
+      method: 'get'
+    })
+  )
 }
 
 /**
@@ -31,6 +34,9 @@ export function markAsRead(id) {
   return request({
     url: `/api/user/notifications/${id}/read`,
     method: 'post'
+  }).then((response) => {
+    clearApiCacheByPrefix('notification')
+    return response
   })
 }
 
@@ -41,6 +47,9 @@ export function markAllAsRead() {
   return request({
     url: '/api/user/notifications/read-all',
     method: 'post'
+  }).then((response) => {
+    clearApiCacheByPrefix('notification')
+    return response
   })
 }
 
@@ -52,6 +61,9 @@ export function deleteNotification(id) {
   return request({
     url: `/api/user/notifications/${id}`,
     method: 'delete'
+  }).then((response) => {
+    clearApiCacheByPrefix('notification')
+    return response
   })
 }
 
@@ -64,6 +76,9 @@ export function batchDeleteNotifications(ids) {
     url: '/api/user/notifications/batch-delete',
     method: 'post',
     data: ids
+  }).then((response) => {
+    clearApiCacheByPrefix('notification')
+    return response
   })
 }
 

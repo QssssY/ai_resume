@@ -6,6 +6,12 @@ const MUTE_RESUME_MODE_AUTO = 'auto'
 const TTS_RESUME_DELAY_MS = 1500
 const UNSUPPORTED_SPEECH_ERROR_MESSAGE = '当前浏览器不支持语音识别，已降级为手动输入'
 const UNSUPPORTED_TTS_ERROR_MESSAGE = '当前浏览器不支持语音播报，已降级为手动输入'
+const RECOVERABLE_SPEECH_ERROR_CODES = new Set([
+  'network',
+  'no-speech',
+  'no-transcript',
+  'end-without-result',
+])
 
 /**
  * 语音通话模式编排。
@@ -253,6 +259,14 @@ export function useVoiceCall(options) {
   watch(options.speech.error, (nextError) => {
     if (!nextError || !isVoiceMode.value) return
     error.value = nextError
+    const speechErrorCode = options.speech.errorCode?.value || ''
+    if (RECOVERABLE_SPEECH_ERROR_CODES.has(speechErrorCode)) {
+      // 浏览器语音识别偶发中断时保留当前通话上下文，避免把界面重置成“未开始通话”。
+      // 用户可以继续收音或手动发送已经识别到的片段；致命错误仍走挂断降级。
+      isManualResumePending.value = true
+      isInitialListeningDeferred = false
+      return
+    }
     endVoiceCall()
   })
 

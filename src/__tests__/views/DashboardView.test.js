@@ -140,6 +140,17 @@ describe('DashboardView', () => {
     })
   })
 
+  it('uses link semantics for dashboard navigation cards so nested text keeps pointer cursor', () => {
+    const viewSource = source()
+
+    expect(viewSource).toContain('<router-link to="/growth" class="growth-entry-card">')
+    expect(viewSource).not.toContain('<div class="growth-entry-card" @click="router.push')
+    expect(viewSource).toContain(':is="record.status === 2 ? \'router-link\' : \'div\'"')
+    expect(viewSource).toContain(':to="record.status === 2 ? `/resume/result/${record.taskId}` : undefined"')
+    expect(viewSource).toContain(':is="record.status === 1 ? \'router-link\' : \'div\'"')
+    expect(viewSource).toContain(':to="record.status === 1 ? `/interview/report/${record.sessionId}` : undefined"')
+  })
+
   it('renders recent interview score when the score is zero', async () => {
     getInterviewHistory.mockResolvedValueOnce({
       data: {

@@ -35,7 +35,7 @@
       </div>
 
       <div class="workbench">
-        <section class="input-panel" aria-label="输入谈薪信息">
+        <section ref="inputPanelRef" class="input-panel" aria-label="输入谈薪信息">
           <header class="panel-head">
             <div>
               <h2>{{ currentMode.title }}</h2>
@@ -152,7 +152,7 @@
           </el-form>
         </section>
 
-        <aside class="output-panel" aria-label="生成结果">
+        <aside class="output-panel" :style="outputPanelStyle" aria-label="生成结果">
           <header class="panel-head compact">
             <div>
               <h2>生成结果</h2>
@@ -160,35 +160,37 @@
             </div>
           </header>
 
-          <div v-if="currentLoading" class="result-state loading-state" aria-live="polite">
-            <div class="skeleton-line wide"></div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-block"></div>
-            <div class="skeleton-line short"></div>
-          </div>
-
-          <template v-else-if="activeTab === 'simulate' && simulationResult">
-            <ResultBlock title="场景判断" :content="simulationResult.sceneSummary" tone="plain" />
-            <ResultBlock title="建议回复" :content="simulationResult.candidateReply" tone="highlight" />
-            <ResultBlock title="推进策略" :content="simulationResult.responseStrategy" tone="plain" />
-            <ResultList title="风险提醒" :items="simulationResult.riskReminders" />
-            <ResultList title="下一步行动" :items="simulationResult.nextActions" />
-          </template>
-
-          <template v-else-if="activeTab === 'script' && scriptResult">
-            <ResultBlock title="开场确认" :content="scriptResult.openingScript" tone="highlight" />
-            <ResultBlock title="争取报价" :content="scriptResult.counterOfferScript" tone="highlight" />
-            <ResultBlock title="交换项话术" :content="scriptResult.benefitTradeoffScript" tone="plain" />
-            <ResultBlock title="收口确认" :content="scriptResult.closingScript" tone="plain" />
-            <ResultList title="使用提醒" :items="scriptResult.usageTips" />
-          </template>
-
-          <div v-else class="result-state empty-state">
-            <div class="empty-mark">
-              <FeatureIcon :name="currentMode.iconName" size="lg" />
+          <div class="result-scroll">
+            <div v-if="currentLoading" class="result-state loading-state" aria-live="polite">
+              <div class="skeleton-line wide"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-block"></div>
+              <div class="skeleton-line short"></div>
             </div>
-            <h3>{{ currentMode.emptyTitle }}</h3>
-            <p>{{ currentMode.emptyText }}</p>
+
+            <template v-else-if="activeTab === 'simulate' && simulationResult">
+              <ResultBlock title="场景判断" :content="simulationResult.sceneSummary" tone="plain" />
+              <ResultBlock title="建议回复" :content="simulationResult.candidateReply" tone="highlight" />
+              <ResultBlock title="推进策略" :content="simulationResult.responseStrategy" tone="plain" />
+              <ResultList title="风险提醒" :items="simulationResult.riskReminders" />
+              <ResultList title="下一步行动" :items="simulationResult.nextActions" />
+            </template>
+
+            <template v-else-if="activeTab === 'script' && scriptResult">
+              <ResultBlock title="开场确认" :content="scriptResult.openingScript" tone="highlight" />
+              <ResultBlock title="争取报价" :content="scriptResult.counterOfferScript" tone="highlight" />
+              <ResultBlock title="交换项话术" :content="scriptResult.benefitTradeoffScript" tone="plain" />
+              <ResultBlock title="收口确认" :content="scriptResult.closingScript" tone="plain" />
+              <ResultList title="使用提醒" :items="scriptResult.usageTips" />
+            </template>
+
+            <div v-else class="result-state empty-state">
+              <div class="empty-mark">
+                <FeatureIcon :name="currentMode.iconName" size="lg" />
+              </div>
+              <h3>{{ currentMode.emptyTitle }}</h3>
+              <p>{{ currentMode.emptyText }}</p>
+            </div>
           </div>
         </aside>
       </div>
@@ -197,7 +199,7 @@
 </template>
 
 <script setup>
-import { computed, defineComponent, h, reactive, ref } from 'vue'
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { generateSalaryScript, simulateSalaryNegotiation } from '@/api/offer'
 import FeatureIcon from '@/components/common/FeatureIcon.vue'
@@ -209,6 +211,13 @@ const simulationLoading = ref(false)
 const scriptLoading = ref(false)
 const simulationResult = ref(null)
 const scriptResult = ref(null)
+const inputPanelRef = ref(null)
+const inputPanelHeight = ref(0)
+const isDesktopWorkbench = ref(false)
+
+let inputPanelObserver = null
+let desktopMediaQuery = null
+let removeDesktopListener = null
 
 const modeOptions = [
   {
@@ -238,6 +247,9 @@ const modeOptions = [
 const currentMode = computed(() => modeOptions.find((item) => item.value === activeTab.value) || modeOptions[0])
 const currentLoading = computed(() => activeTab.value === 'simulate' ? simulationLoading.value : scriptLoading.value)
 const resultSubtitle = computed(() => activeTab.value === 'simulate' ? '回复、策略和风险提醒会在这里整理。' : '话术会按使用顺序排列。')
+const outputPanelStyle = computed(() => isDesktopWorkbench.value && inputPanelHeight.value > 0
+  ? { height: `${inputPanelHeight.value}px` }
+  : undefined)
 
 // 表单只收集谈薪必要上下文，不要求用户填写实时行情数据。
 const simulationForm = reactive({
@@ -276,6 +288,48 @@ const scriptRules = {
   candidateBackground: required('请输入候选人背景'),
   negotiationGoal: required('请输入谈判目标')
 }
+
+const syncInputPanelHeight = () => {
+  if (!isDesktopWorkbench.value || !inputPanelRef.value) {
+    inputPanelHeight.value = 0
+    return
+  }
+  inputPanelHeight.value = Math.ceil(inputPanelRef.value.getBoundingClientRect().height)
+}
+
+const refreshDesktopState = () => {
+  isDesktopWorkbench.value = desktopMediaQuery ? desktopMediaQuery.matches : window.innerWidth > 1100
+  nextTick(syncInputPanelHeight)
+}
+
+onMounted(() => {
+  desktopMediaQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 1101px)') : null
+  refreshDesktopState()
+
+  if (desktopMediaQuery) {
+    if (typeof desktopMediaQuery.addEventListener === 'function') {
+      desktopMediaQuery.addEventListener('change', refreshDesktopState)
+      removeDesktopListener = () => desktopMediaQuery.removeEventListener('change', refreshDesktopState)
+    } else if (typeof desktopMediaQuery.addListener === 'function') {
+      desktopMediaQuery.addListener(refreshDesktopState)
+      removeDesktopListener = () => desktopMediaQuery.removeListener(refreshDesktopState)
+    }
+  }
+
+  if (typeof window.ResizeObserver === 'function' && inputPanelRef.value) {
+    inputPanelObserver = new window.ResizeObserver(syncInputPanelHeight)
+    inputPanelObserver.observe(inputPanelRef.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  inputPanelObserver?.disconnect()
+  removeDesktopListener?.()
+})
+
+watch(activeTab, () => {
+  nextTick(syncInputPanelHeight)
+})
 
 // 提交逻辑保持原有接口不变，只调整页面反馈和结果承载方式。
 const handleSimulationSubmit = async () => {
@@ -523,7 +577,7 @@ const ResultList = defineComponent({
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.72fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .input-panel,
@@ -543,6 +597,9 @@ const ResultList = defineComponent({
   padding: 22px 24px;
   position: sticky;
   top: 84px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .panel-head {
@@ -554,6 +611,7 @@ const ResultList = defineComponent({
 }
 
 .panel-head.compact {
+  flex: 0 0 auto;
   margin-bottom: 16px;
 }
 
@@ -634,7 +692,18 @@ const ResultList = defineComponent({
   font-weight: 650;
 }
 
+.result-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
 .result-state {
+  flex: 1 1 auto;
   min-height: 360px;
   border: 1px solid var(--border-divider);
   border-radius: 12px;
@@ -864,6 +933,11 @@ const ResultList = defineComponent({
 
   .output-panel {
     position: static;
+  }
+
+  .result-scroll {
+    overflow: visible;
+    padding-right: 0;
   }
 }
 

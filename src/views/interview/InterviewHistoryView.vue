@@ -191,6 +191,8 @@ import {
   INTERACTION_TYPE_VOICE,
 } from '@/constants/interview'
 
+defineOptions({ name: 'InterviewHistoryView' })
+
 const router = useRouter();
 
 const loading = ref(true);
@@ -479,7 +481,7 @@ onMounted(() => {
 }
 
 .history-card {
-  transition: all 0.25s ease;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
 }
 
 .history-card:hover {

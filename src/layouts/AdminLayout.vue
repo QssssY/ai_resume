@@ -31,6 +31,9 @@
               :to="item.path"
               class="admin-nav-item"
               :class="{ active: isNavActive(item.path) }"
+              @mouseenter="prefetchAdminNavigationRoute(item.path)"
+              @focus="prefetchAdminNavigationRoute(item.path)"
+              @touchstart.passive="prefetchAdminNavigationRoute(item.path)"
             >
               <el-icon class="nav-icon">
                 <component :is="item.icon" />
@@ -42,14 +45,19 @@
       </aside>
 
       <main class="admin-content">
-        <RouterView />
+        <div v-if="showAdminRouteLoading" class="admin-route-loading-bar" aria-hidden="true"></div>
+        <RouterView v-slot="{ Component }">
+          <Transition name="admin-page-fade" mode="out-in">
+            <component :is="Component" :key="route.fullPath" />
+          </Transition>
+        </RouterView>
       </main>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   Bell,
@@ -69,10 +77,17 @@ import {
 import { useAdminUserStore } from "@/stores/adminUser";
 import logoUrl from "@/assets/logo.png";
 import { showAdminError, showAdminSuccess } from "@/utils/adminFeedback";
+import { prefetchAdminRoute } from "@/router/routeLoaders";
 
 const route = useRoute();
 const router = useRouter();
 const adminStore = useAdminUserStore();
+const showAdminRouteLoading = ref(false);
+let adminRouteLoadingTimer = null;
+let adminRouteLoadingHideTimer = null;
+let removeAdminRouteBeforeGuard = null;
+let removeAdminRouteAfterGuard = null;
+let removeAdminRouteErrorGuard = null;
 
 // 管理端分组导航：统一信息架构层次，降低模块扩展后的认知成本。
 const navGroups = computed(() => [
@@ -123,11 +138,56 @@ const navGroups = computed(() => [
  */
 const isNavActive = (navPath) => route.path.startsWith(navPath);
 
+const isAdminContentNavigation = (to, from) => (
+  to.fullPath !== from.fullPath
+  && to.path.startsWith("/admin/")
+  && from.path.startsWith("/admin/")
+  && to.path !== "/admin/login"
+);
+
+const startAdminRouteLoadingFeedback = () => {
+  window.clearTimeout(adminRouteLoadingTimer);
+  window.clearTimeout(adminRouteLoadingHideTimer);
+  showAdminRouteLoading.value = false;
+  adminRouteLoadingTimer = window.setTimeout(() => {
+    showAdminRouteLoading.value = true;
+  }, 120);
+};
+
+const stopAdminRouteLoadingFeedback = () => {
+  window.clearTimeout(adminRouteLoadingTimer);
+  adminRouteLoadingHideTimer = window.setTimeout(() => {
+    showAdminRouteLoading.value = false;
+  }, 180);
+};
+
+/**
+ * 管理端导航预取：只在 hover/focus/touch 明确表达意图时加载目标页面 chunk。
+ * 这样可以缩短点击后的白屏空窗，又避免登录后台时一次性预热所有管理页。
+ * @param {string} path
+ */
+const prefetchAdminNavigationRoute = (path) => {
+  prefetchAdminRoute(path)?.catch(() => {});
+};
+
 /**
  * 页面刷新后如果 Pinia 内存态丢失，主动补拉管理员信息。
  * 作用：确保头部用户名与权限状态不依赖单页内存。
  */
 onMounted(async () => {
+  removeAdminRouteBeforeGuard = router.beforeEach((to, from) => {
+    if (isAdminContentNavigation(to, from)) {
+      startAdminRouteLoadingFeedback();
+    }
+  });
+  removeAdminRouteAfterGuard = router.afterEach(async () => {
+    await nextTick();
+    stopAdminRouteLoadingFeedback();
+  });
+  removeAdminRouteErrorGuard = router.onError(() => {
+    stopAdminRouteLoadingFeedback();
+  });
+
   if (adminStore.adminInfo) return;
   try {
     await adminStore.fetchAdminInfo();
@@ -148,6 +208,14 @@ const handleLogout = () => {
   showAdminSuccess("已退出管理端");
   router.push("/admin/login");
 };
+
+onBeforeUnmount(() => {
+  removeAdminRouteBeforeGuard?.();
+  removeAdminRouteAfterGuard?.();
+  removeAdminRouteErrorGuard?.();
+  window.clearTimeout(adminRouteLoadingTimer);
+  window.clearTimeout(adminRouteLoadingHideTimer);
+});
 </script>
 
 <style scoped>
@@ -285,7 +353,7 @@ const handleLogout = () => {
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 14px;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -313,9 +381,74 @@ const handleLogout = () => {
 
 .admin-content {
   flex: 1;
+  position: relative;
   padding: 20px 24px;
   min-width: 0;
   overflow-x: hidden;
+}
+
+.admin-route-loading-bar {
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  z-index: 20;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(230, 126, 34, 0.14);
+}
+
+.admin-route-loading-bar::before {
+  content: "";
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(230, 126, 34, 0.08), #e67e22, rgba(243, 156, 18, 0.28));
+  animation: admin-route-loading-sweep 0.9s ease-in-out infinite;
+}
+
+.admin-page-fade-enter-active,
+.admin-page-fade-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.admin-page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.admin-page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+@keyframes admin-route-loading-sweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(280%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-fade-enter-active,
+  .admin-page-fade-leave-active {
+    transition-duration: 0.01ms;
+  }
+
+  .admin-page-fade-enter-from,
+  .admin-page-fade-leave-to {
+    opacity: 1;
+    transform: none;
+  }
+
+  .admin-route-loading-bar::before {
+    animation: none;
+    width: 100%;
+  }
 }
 
 
@@ -344,6 +477,11 @@ const handleLogout = () => {
 
   .admin-content {
     padding: 16px;
+  }
+
+  .admin-route-loading-bar {
+    left: 16px;
+    right: 16px;
   }
 }
 </style>

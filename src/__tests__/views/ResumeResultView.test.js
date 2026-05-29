@@ -174,4 +174,13 @@ describe('ResumeResultView', () => {
     expect(source).toContain('<FeatureIcon name="job-match-analysis" size="xs" class="button-feature-icon" />')
     expect(source).toContain('<FeatureIcon name="resume-optimization" size="xs" class="button-feature-icon" />')
   })
+
+  it('does not statically import export helpers into the initial result page chunk', () => {
+    const source = viewSource()
+
+    expect(source).not.toContain("import { createResumePdfImagePages } from '@/utils/resumePdfPagination'")
+    expect(source).not.toContain("import { exportResumeToDocx } from '@/utils/resumeDocxExport'")
+    expect(source).toContain("await import('@/utils/resumePdfPagination')")
+    expect(source).toContain("await import('@/utils/resumeDocxExport')")
+  })
 })

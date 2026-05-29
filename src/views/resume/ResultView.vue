@@ -596,8 +596,6 @@ import SkillsSection from '@/components/resume/SkillsSection.vue'
 import WorkExperienceSection from '@/components/resume/WorkExperienceSection.vue'
 import RadarChart from '@/components/resume/RadarChart.vue'
 import RadarScorePanel from '@/components/resume/RadarScorePanel.vue'
-import { createResumePdfImagePages } from '@/utils/resumePdfPagination'
-import { exportResumeToDocx } from '@/utils/resumeDocxExport'
 const ResumeTemplate = defineAsyncComponent(() => import('@/components/resume/ResumeTemplate.vue'))
 
 const router = useRouter()
@@ -1325,6 +1323,7 @@ const exportResumePdf = async () => {
     })
 
     // PDF 不额外加边距，简历模板自身已有内边距；按页面宽度铺满后分页，避免长图被压窄。
+    const { createResumePdfImagePages } = await import('@/utils/resumePdfPagination')
     const pages = createResumePdfImagePages({
       canvasWidth: canvas.width,
       canvasHeight: canvas.height,
@@ -1363,6 +1362,7 @@ const exportResumeDocx = async () => {
     }
 
     const filename = getExportFilename()
+    const { exportResumeToDocx } = await import('@/utils/resumeDocxExport')
     await exportResumeToDocx(jsonString, filename)
     message.success('Word 文件已导出')
   } catch (err) {
@@ -1854,7 +1854,7 @@ const exportResumeImage = async () => {
   border-radius: 10px;
   background: var(--orange-light-bg);
   border: 1px solid transparent;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .grade-row.active {

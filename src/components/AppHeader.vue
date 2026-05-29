@@ -166,10 +166,10 @@
             @before-enter="handleNotificationOpen"
           >
             <template #reference>
-              <div ref="bellRef" class="notification-bell">
+              <button ref="bellRef" type="button" class="notification-bell" aria-label="消息通知">
                 <FeatureIcon name="notification-center" size="sm" critical />
                 <span v-if="unreadCount > 0" class="bell-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-              </div>
+              </button>
             </template>
 
           <!-- 通知下拉面板 -->
@@ -199,31 +199,32 @@
             </div>
 
             <div v-else class="panel-list">
-              <div
+              <button
                 v-for="item in notificationList"
                 :key="item.id"
+                type="button"
                 class="panel-item"
                 :class="{ unread: item.readStatus === 0 }"
                 @click="handleNotificationRead(item)"
               >
                 <NotificationTypeIcon class="panel-item-icon" :type="item.type" size="sm" halo />
-                <div class="panel-item-content">
-                  <div class="panel-item-title-row">
-                    <div class="panel-item-title">{{ item.title }}</div>
+                <span class="panel-item-content">
+                  <span class="panel-item-title-row">
+                    <span class="panel-item-title">{{ item.title }}</span>
                     <el-tag :type="getNotificationTypeMeta(item.type).tagType" size="small" effect="plain">
                       {{ getNotificationTypeMeta(item.type).label }}
                     </el-tag>
-                  </div>
-                  <div class="panel-item-text">{{ item.content }}</div>
-                  <div class="panel-item-time">{{ formatNotificationTime(item.createTime, { compact: true }) }}</div>
-                </div>
-                <div v-if="item.readStatus === 0" class="panel-item-dot"></div>
-              </div>
+                  </span>
+                  <span class="panel-item-text">{{ item.content }}</span>
+                  <span class="panel-item-time">{{ formatNotificationTime(item.createTime, { compact: true }) }}</span>
+                </span>
+                <span v-if="item.readStatus === 0" class="panel-item-dot"></span>
+              </button>
             </div>
 
-            <div class="panel-footer" @click="goToNotificationPage">
+            <button type="button" class="panel-footer" @click="goToNotificationPage">
               查看全部消息
-            </div>
+            </button>
           </div>
           </el-popover>
           <!-- 虚拟触发 tooltip，popover 打开时禁用，避免提示和通知面板叠在一起。 -->
@@ -1230,6 +1231,8 @@ onUnmounted(() => {
 
 /* ===== 消息通知铃铛 ===== */
 .notification-bell {
+  appearance: none;
+  padding: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -1239,6 +1242,9 @@ onUnmounted(() => {
   border-radius: 50%;
   cursor: pointer;
   border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   transition:
     background-color 180ms var(--header-motion-ease),
     border-color 180ms var(--header-motion-ease),
@@ -1347,10 +1353,17 @@ onUnmounted(() => {
 }
 
 .panel-item {
+  appearance: none;
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  width: 100%;
   padding: 12px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   transition:
     background-color 160ms var(--header-motion-ease),
@@ -1393,6 +1406,7 @@ onUnmounted(() => {
 }
 
 .panel-item-content {
+  display: block;
   flex: 1;
   min-width: 0;
 }
@@ -1406,6 +1420,7 @@ onUnmounted(() => {
 }
 
 .panel-item-title {
+  display: block;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-title);
@@ -1428,6 +1443,7 @@ onUnmounted(() => {
 }
 
 .panel-item-time {
+  display: block;
   font-size: 11px;
   color: var(--text-placeholder);
 }
@@ -1442,11 +1458,17 @@ onUnmounted(() => {
 }
 
 .panel-footer {
+  appearance: none;
+  display: block;
+  width: 100%;
   text-align: center;
   padding: 10px 16px;
+  font: inherit;
   font-size: 13px;
   color: var(--orange-main);
+  border: 0;
   border-top: 1px solid var(--border-divider);
+  background: transparent;
   cursor: pointer;
   transition: background-color 0.15s;
 }

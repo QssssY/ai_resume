@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { API_CACHE_TTL, cachedGet } from '@/utils/apiCache'
 
 /**
  * 获取平台公开统计数据（无需登录）
@@ -6,10 +7,12 @@ import request from '@/utils/request'
  * @returns {Promise}
  */
 export function getPublicStats() {
-  return request({
-    url: '/api/stats',
-    method: 'get'
-  })
+  return cachedGet('public:stats', API_CACHE_TTL.PUBLIC_STATS, () =>
+    request({
+      url: '/api/stats',
+      method: 'get'
+    })
+  )
 }
 
 /**

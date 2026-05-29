@@ -48,7 +48,7 @@ vi.mock('@/utils/auth', () => ({
 const sourceFile = (path) => readFileSync(resolve(process.cwd(), path), 'utf8')
 
 describe('MainLayout', () => {
-  it('keeps only high-frequency route views alive and shows delayed route feedback', () => {
+  it('keeps high-frequency user route views alive and shows delayed route feedback', () => {
     const wrapper = mount(MainLayout, {
       global: {
         stubs: {
@@ -67,11 +67,19 @@ describe('MainLayout', () => {
     expect(wrapper.vm.keepAliveViews).toEqual([
       'TemplateLibraryView',
       'CommunityView',
-      'GrowthCenterView'
+      'GrowthCenterView',
+      'DashboardView',
+      'SettingsView',
+      'MembershipView',
+      'InterviewHistoryView',
+      'HistoryView'
     ])
     expect(source).toContain('setTimeout(() =>')
     expect(source).toContain('}, 120)')
     expect(source).toContain('route-loading-bar')
+    expect(source).toContain('route-loading-placeholder')
+    expect(source).toContain('routeLoadingTargetText')
+    expect(source).toContain('isResumeDiagnosisRoute')
     expect(source).toContain('<KeepAlive :include="keepAliveViews">')
     expect(source).toContain('<Transition name="page-fade" mode="out-in">')
     expect(source).toContain('class="page-fade-route"')

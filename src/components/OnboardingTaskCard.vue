@@ -253,7 +253,7 @@ const dashOffset = computed(() => {
   padding: 6px 14px;
   border-radius: 8px;
   background: var(--orange-light-bg);
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
   white-space: nowrap;
   flex-shrink: 0;
 }

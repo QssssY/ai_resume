@@ -196,6 +196,8 @@ import { getMembershipPlans, mockUpgradeMembership } from '@/api/membership'
 import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import { useUserStore } from '@/stores/user'
 
+defineOptions({ name: 'MembershipView' })
+
 const userStore = useUserStore()
 
 const plans = ref([])

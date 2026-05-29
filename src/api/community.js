@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { API_CACHE_TTL, buildCacheKey, cachedGet, clearApiCacheByPrefix } from '@/utils/apiCache'
 
 /**
  * 获取帖子列表
@@ -9,11 +10,13 @@ import request from '@/utils/request'
  * @param {number} params.pageSize - 每页条数
  */
 export function getPostList(params) {
-  return request({
-    url: '/api/community/posts',
-    method: 'get',
-    params
-  })
+  return cachedGet(buildCacheKey('community:posts', params), API_CACHE_TTL.COMMUNITY_LIST, () =>
+    request({
+      url: '/api/community/posts',
+      method: 'get',
+      params
+    })
+  )
 }
 
 /**
@@ -41,6 +44,9 @@ export function createPost(data) {
     url: '/api/community/posts',
     method: 'post',
     data
+  }).then((response) => {
+    clearApiCacheByPrefix('community')
+    return response
   })
 }
 
@@ -69,6 +75,9 @@ export function togglePostLike(postId) {
   return request({
     url: `/api/community/posts/${postId}/like`,
     method: 'post'
+  }).then((response) => {
+    clearApiCacheByPrefix('community')
+    return response
   })
 }
 
@@ -80,6 +89,9 @@ export function togglePostFavorite(postId) {
   return request({
     url: `/api/community/posts/${postId}/favorite`,
     method: 'post'
+  }).then((response) => {
+    clearApiCacheByPrefix('community')
+    return response
   })
 }
 
@@ -110,6 +122,9 @@ export function createComment(postId, data) {
     url: `/api/community/posts/${postId}/comments`,
     method: 'post',
     data
+  }).then((response) => {
+    clearApiCacheByPrefix('community')
+    return response
   })
 }
 
@@ -145,6 +160,9 @@ export function deleteComment(postId, commentId) {
   return request({
     url: `/api/community/posts/${postId}/comments/${commentId}`,
     method: 'delete'
+  }).then((response) => {
+    clearApiCacheByPrefix('community')
+    return response
   })
 }
 
@@ -226,6 +244,9 @@ export function deletePost(postId) {
   return request({
     url: `/api/community/posts/${postId}`,
     method: 'delete'
+  }).then((response) => {
+    clearApiCacheByPrefix('community')
+    return response
   })
 }
 

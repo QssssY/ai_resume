@@ -1,10 +1,10 @@
 <template>
-  <div
+  <span
     class="notification-type-icon"
     :class="[`type-${meta.key}`, `size-${size}`, { 'notification-icon-halo': halo }]"
   >
     <FeatureIcon :name="meta.featureIcon" :label="meta.label" :size="iconSize" />
-  </div>
+  </span>
 </template>
 
 <script setup>

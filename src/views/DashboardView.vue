@@ -127,7 +127,7 @@
     />
 
     <!-- 成长中心入口 -->
-    <div class="growth-entry-card" @click="router.push('/growth')">
+    <router-link to="/growth" class="growth-entry-card">
       <div class="growth-entry-icon">
         <FeatureIcon name="growth-radar" size="lg" />
       </div>
@@ -136,7 +136,7 @@
         <div class="growth-entry-desc">查看你的成长轨迹与个性化建议</div>
       </div>
       <FeatureIcon name="next" size="md" class="growth-entry-arrow" />
-    </div>
+    </router-link>
 
     <!-- 最近记录区 -->
     <div class="records-section">
@@ -155,12 +155,13 @@
         </div>
         <div class="record-list">
           <template v-if="recentResumeRecords.length > 0">
-            <div
+            <component
+              :is="record.status === 2 ? 'router-link' : 'div'"
               v-for="record in recentResumeRecords"
               :key="record.taskId"
+              :to="record.status === 2 ? `/resume/result/${record.taskId}` : undefined"
               class="record-item"
               :class="{ clickable: record.status === 2 }"
-              @click="record.status === 2 && router.push(`/resume/result/${record.taskId}`)"
             >
               <div class="record-left">
                 <div class="file-icon">
@@ -174,7 +175,7 @@
               <div class="record-status-badge" :class="record.statusClass">
                 {{ record.statusText }}
               </div>
-            </div>
+            </component>
           </template>
           <template v-else>
             <div class="empty-state">
@@ -203,12 +204,13 @@
         </div>
         <div class="record-list">
           <template v-if="recentInterviewRecords.length > 0">
-            <div
+            <component
+              :is="record.status === 1 ? 'router-link' : 'div'"
               v-for="record in recentInterviewRecords"
               :key="record.sessionId"
+              :to="record.status === 1 ? `/interview/report/${record.sessionId}` : undefined"
               class="record-item"
               :class="{ clickable: record.status === 1 }"
-              @click="record.status === 1 && router.push(`/interview/report/${record.sessionId}`)"
             >
               <div class="record-left">
                 <div class="interview-icon-wrap">
@@ -223,7 +225,7 @@
                 <span class="score-value">{{ record.score }}</span>
                 <span class="score-unit">分</span>
               </div>
-            </div>
+            </component>
           </template>
           <template v-else>
             <div class="empty-state">
@@ -253,6 +255,8 @@ import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import OptimizedImage from "@/components/common/OptimizedImage.vue";
 import OnboardingTaskCard from "@/components/OnboardingTaskCard.vue";
 import { optimizedImages } from "@/utils/optimizedImages";
+
+defineOptions({ name: 'DashboardView' })
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -869,7 +873,9 @@ const viewAllInterview = () => {
   margin-bottom: 24px;
   background: linear-gradient(135deg, #ff9a5c 0%, var(--el-color-primary) 40%, var(--el-color-primary-dark-2) 100%);
   border-radius: 16px;
+  color: inherit;
   cursor: pointer;
+  text-decoration: none;
   transition:
     transform 0.2s var(--dashboard-ease),
     box-shadow 0.2s var(--dashboard-ease),
@@ -880,6 +886,11 @@ const viewAllInterview = () => {
 .growth-entry-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 24px rgba(255, 140, 66, 0.3);
+}
+
+.growth-entry-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--orange-main) 70%, #ffffff 30%);
+  outline-offset: 4px;
 }
 
 .growth-entry-icon {
@@ -1024,6 +1035,8 @@ const viewAllInterview = () => {
   align-items: center;
   padding: 12px 14px;
   border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
   transition:
     background-color 0.15s var(--dashboard-ease),
     transform 0.15s var(--dashboard-ease);
@@ -1036,6 +1049,11 @@ const viewAllInterview = () => {
 
 .record-item:hover {
   background: var(--bg-card-hover);
+}
+
+.record-item.clickable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--orange-main) 64%, transparent);
+  outline-offset: 2px;
 }
 
 .record-left {

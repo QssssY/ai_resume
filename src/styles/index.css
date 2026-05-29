@@ -465,7 +465,7 @@ html.theme-transition *::after {
   gap: 12px;
   font-size: 14px;
   color: var(--text-body);
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
   position: relative;
   box-sizing: border-box;
   justify-content: flex-start;
@@ -689,7 +689,7 @@ html.theme-transition *::after {
   gap: 12px;
   font-size: 14px;
   color: var(--text-body);
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
   box-sizing: border-box;
   justify-content: flex-start;
 }

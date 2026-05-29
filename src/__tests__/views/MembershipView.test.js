@@ -42,6 +42,7 @@ const plans = [
     description: '后台配置的月卡介绍词',
     priceAmount: 19.9,
     durationDays: 30,
+    sort: 1,
     resumeQuota: 8,
     interviewQuota: 12
   },
@@ -51,6 +52,7 @@ const plans = [
     description: '后台配置的季卡介绍词',
     priceAmount: 49.9,
     durationDays: 90,
+    sort: 2,
     resumeQuota: 15,
     interviewQuota: 25
   }

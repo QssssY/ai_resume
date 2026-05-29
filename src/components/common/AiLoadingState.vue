@@ -328,7 +328,7 @@ function onMotionChange(e) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
   background: var(--bg-card);
   color: var(--bg-card);
 }

@@ -234,4 +234,16 @@ describe('AppHeader', () => {
     expect(globalStyle).toMatch(/\.history-dropdown-menu\s+\.el-dropdown-menu__item:focus,[\s\S]*?\.history-dropdown-menu\s+\.el-dropdown-menu__item:active,[\s\S]*?\.history-dropdown-menu\s+\.el-dropdown-menu__item\.is-active[\s\S]*?cursor:\s*pointer\s*!important;/)
     expect(globalStyle).toMatch(/\.history-dropdown-menu\s+\.el-dropdown-menu__item,[\s\S]*?user-select:\s*none;/)
   })
+
+  it('uses semantic buttons for notification hover targets so nested text keeps pointer cursor', () => {
+    const source = headerSource()
+
+    expect(source).toContain('<button ref="bellRef" type="button" class="notification-bell"')
+    expect(source).toContain('<button')
+    expect(source).toContain('class="panel-item"')
+    expect(source).toContain('type="button"')
+    expect(source).toContain('class="panel-footer"')
+    expect(source).toMatch(/\.panel-item\s*\{[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?text-align:\s*left;/)
+    expect(source).toMatch(/\.panel-footer\s*\{[\s\S]*?width:\s*100%;[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;/)
+  })
 })

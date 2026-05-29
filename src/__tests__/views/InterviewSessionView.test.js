@@ -20,6 +20,7 @@ const sttRecording = ref(false)
 const sttFinal = ref('')
 const sttInterim = ref('')
 const sttError = ref('')
+const sttErrorCode = ref('')
 const sttLanguage = ref('zh-CN')
 const sttToggle = vi.fn()
 const sttStart = vi.fn(() => {
@@ -39,6 +40,7 @@ const voiceSttRecording = ref(false)
 const voiceSttFinal = ref('')
 const voiceSttInterim = ref('')
 const voiceSttError = ref('')
+const voiceSttErrorCode = ref('')
 const voiceSttLanguage = ref('zh-CN')
 const voiceSttStart = vi.fn(() => {
   voiceSttRecording.value = true
@@ -87,6 +89,7 @@ vi.mock('@/composables/useSpeechToText', () => ({
       finalTranscript: sttFinal,
       interimTranscript: sttInterim,
       error: sttError,
+      errorCode: sttErrorCode,
       language: sttLanguage,
       start: sttStart,
       stop: sttStop,
@@ -102,6 +105,7 @@ vi.mock('@/composables/useSpeechToText', () => ({
       finalTranscript: voiceSttFinal,
       interimTranscript: voiceSttInterim,
       error: voiceSttError,
+      errorCode: voiceSttErrorCode,
       language: voiceSttLanguage,
       start: voiceSttStart,
       stop: voiceSttStop,
@@ -203,12 +207,14 @@ describe('InterviewSessionView', () => {
     sttFinal.value = ''
     sttInterim.value = ''
     sttError.value = ''
+    sttErrorCode.value = ''
     sttLanguage.value = 'zh-CN'
     voiceSttSupported.value = true
     voiceSttRecording.value = false
     voiceSttFinal.value = ''
     voiceSttInterim.value = ''
     voiceSttError.value = ''
+    voiceSttErrorCode.value = ''
     voiceSttLanguage.value = 'zh-CN'
     window.speechSynthesis = {
       getVoices: vi.fn(() => [{ lang: 'zh-CN' }]),
@@ -642,6 +648,34 @@ describe('InterviewSessionView', () => {
       expect.objectContaining({ signal: expect.anything() })
     )
     expect(voiceSttStop).toHaveBeenCalled()
+  })
+
+  it('keeps the voice call active when recognition has a recoverable interruption', async () => {
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
+    voiceSttFinal.value = '我负责订单模块'
+    await wrapper.vm.$nextTick()
+
+    voiceSttErrorCode.value = 'no-transcript'
+    voiceSttError.value = '检测到麦克风输入，但浏览器未返回识别文字，已降级为手动输入。错误码：no-transcript'
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.voice-call-overlay').exists()).toBe(true)
+    expect(wrapper.text()).toContain('等待继续收音')
+    expect(wrapper.find('.voice-call-overlay [title="继续收音"]').exists()).toBe(true)
+    expect(wrapper.find('.voice-call-overlay [title="停止收听并发送"]').exists()).toBe(true)
+    expect(wrapper.find('.voice-call-overlay [title="开始通话"]').exists()).toBe(false)
+    expect(voiceSttCancel).not.toHaveBeenCalled()
   })
 
   it('collapses voice call overlay back to the bottom call bar', async () => {

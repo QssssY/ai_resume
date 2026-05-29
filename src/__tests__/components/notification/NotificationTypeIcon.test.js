@@ -24,6 +24,7 @@ describe('NotificationTypeIcon', () => {
       }
     })
 
+    expect(wrapper.element.tagName).toBe('SPAN')
     expect(wrapper.classes()).toContain('notification-type-icon')
     expect(wrapper.classes()).toContain('type-resume')
     expect(wrapper.classes()).toContain('size-md')

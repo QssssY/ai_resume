@@ -2,10 +2,24 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { isLoggedIn } from '@/utils/auth'
 import { hasAdminRole, isAdminLoggedIn } from '@/utils/adminAuth'
 import {
+  adminAiEngineRouteLoader,
+  adminAuditLogRouteLoader,
+  adminDashboardRouteLoader,
+  adminFeedbackRouteLoader,
+  adminGrowthConfigRouteLoader,
+  adminJobRoleRouteLoader,
+  adminMembershipOrderRouteLoader,
+  adminMembershipPlanRouteLoader,
+  adminMonitorRouteLoader,
+  adminNotificationRouteLoader,
+  adminPromptRouteLoader,
+  adminUserRightsRouteLoader,
+  adminVersionLogRouteLoader,
   communityRouteLoader,
   growthCenterRouteLoader,
   interviewEntryRouteLoader,
   offerAssistRouteLoader,
+  resumeResultRouteLoader,
   resumeUploadRouteLoader,
   templateLibraryRouteLoader
 } from '@/router/routeLoaders'
@@ -32,79 +46,79 @@ const routes = [
       {
         path: 'dashboard',
         name: 'AdminDashboard',
-        component: () => import('@/views/admin/AdminDashboardView.vue'),
+        component: adminDashboardRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'job-roles',
         name: 'AdminJobRoles',
-        component: () => import('@/views/admin/AdminJobRoleView.vue'),
+        component: adminJobRoleRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'prompts',
         name: 'AdminPrompts',
-        component: () => import('@/views/admin/AdminPromptView.vue'),
+        component: adminPromptRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'ai-engines',
         name: 'AdminAiEngines',
-        component: () => import('@/views/admin/AdminAiEngineView.vue'),
+        component: adminAiEngineRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'users',
         name: 'AdminUsers',
-        component: () => import('@/views/admin/AdminUserRightsView.vue'),
+        component: adminUserRightsRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'monitor',
         name: 'AdminMonitor',
-        component: () => import('@/views/admin/AdminMonitorView.vue'),
+        component: adminMonitorRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'notifications',
         name: 'AdminNotifications',
-        component: () => import('@/views/admin/AdminNotificationView.vue'),
+        component: adminNotificationRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'feedback',
         name: 'AdminFeedback',
-        component: () => import('@/views/admin/AdminFeedbackView.vue'),
+        component: adminFeedbackRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'version-logs',
         name: 'AdminVersionLogs',
-        component: () => import('@/views/admin/AdminVersionLogView.vue'),
+        component: adminVersionLogRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'audit-logs',
         name: 'AdminAuditLogs',
-        component: () => import('@/views/admin/AdminAuditLogView.vue'),
+        component: adminAuditLogRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'membership/plans',
         name: 'AdminMembershipPlans',
-        component: () => import('@/views/admin/AdminMembershipPlanView.vue'),
+        component: adminMembershipPlanRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'membership/orders',
         name: 'AdminMembershipOrders',
-        component: () => import('@/views/admin/AdminMembershipOrderView.vue'),
+        component: adminMembershipOrderRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {
         path: 'growth-config',
         name: 'AdminGrowthConfig',
-        component: () => import('@/views/admin/AdminGrowthConfigView.vue'),
+        component: adminGrowthConfigRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       }
     ]
@@ -131,13 +145,13 @@ const routes = [
     path: '/dashboard',
     name: 'Dashboard',
     component: () => import('@/views/DashboardView.vue'),
-    meta: { requiresAuth: true, useLayout: true }
+    meta: { requiresAuth: true, useLayout: true, keepAlive: true }
   },
   {
     path: '/membership',
     name: 'Membership',
     component: () => import('@/views/MembershipView.vue'),
-    meta: { requiresAuth: true, useLayout: true }
+    meta: { requiresAuth: true, useLayout: true, keepAlive: true }
   },
   {
     path: '/growth',
@@ -161,7 +175,7 @@ const routes = [
     path: '/settings',
     name: 'Settings',
     component: () => import('@/views/settings/SettingsView.vue'),
-    meta: { requiresAuth: true, useLayout: true }
+    meta: { requiresAuth: true, useLayout: true, keepAlive: true }
   },
   {
     path: '/resume/upload',
@@ -172,14 +186,14 @@ const routes = [
   {
     path: '/resume/result/:taskId',
     name: 'ResumeResult',
-    component: () => import('@/views/resume/ResultView.vue'),
+    component: resumeResultRouteLoader,
     meta: { requiresAuth: true, useLayout: true }
   },
   {
     path: '/resume/history',
     name: 'ResumeHistory',
     component: () => import('@/views/resume/HistoryView.vue'),
-    meta: { requiresAuth: true, useLayout: true }
+    meta: { requiresAuth: true, useLayout: true, keepAlive: true }
   },
   {
     path: '/interview/entry',
@@ -197,7 +211,7 @@ const routes = [
     path: '/interview/history',
     name: 'InterviewHistory',
     component: () => import('@/views/interview/InterviewHistoryView.vue'),
-    meta: { requiresAuth: true, useLayout: true }
+    meta: { requiresAuth: true, useLayout: true, keepAlive: true }
   },
   {
     path: '/interview/report/:sessionId',

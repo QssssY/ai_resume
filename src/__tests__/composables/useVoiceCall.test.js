@@ -18,6 +18,7 @@ describe('useVoiceCall', () => {
       finalTranscript: ref(''),
       interimTranscript: ref(''),
       error: ref(''),
+      errorCode: ref(''),
       engineStatus: ref('offline-ready'),
       isModelReady: ref(true),
       start: vi.fn(() => {
@@ -167,14 +168,33 @@ describe('useVoiceCall', () => {
     expect(speech.start).not.toHaveBeenCalled()
   })
 
-  it('ends voice mode when speech recognition reports an error', async () => {
+  it('keeps voice mode active when speech recognition reports a recoverable interruption', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+    speech.finalTranscript.value = '我负责订单模块'
+    await nextTick()
+
+    speech.errorCode.value = 'no-transcript'
+    speech.error.value = '检测到麦克风输入，但浏览器未返回识别文字，已降级为手动输入。错误码：no-transcript'
+    await nextTick()
+
+    expect(call.error.value).toContain('no-transcript')
+    expect(call.isVoiceMode.value).toBe(true)
+    expect(call.isManualResumePending.value).toBe(true)
+    expect(call.pendingMessage.value).toBe('我负责订单模块')
+    expect(textToSpeech.stop).not.toHaveBeenCalled()
+    expect(speech.cancel).not.toHaveBeenCalled()
+  })
+
+  it('ends voice mode when speech recognition reports a fatal error', async () => {
     const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
     call.startVoiceCall()
 
-    speech.error.value = '系统语音引擎暂不可用，建议下载离线语音包'
+    speech.errorCode.value = 'not-allowed'
+    speech.error.value = '麦克风权限被拒绝，已降级为手动输入'
     await nextTick()
 
-    expect(call.error.value).toBe('系统语音引擎暂不可用，建议下载离线语音包')
+    expect(call.error.value).toBe('麦克风权限被拒绝，已降级为手动输入')
     expect(call.isVoiceMode.value).toBe(false)
     expect(textToSpeech.stop).toHaveBeenCalled()
     expect(speech.cancel).toHaveBeenCalled()

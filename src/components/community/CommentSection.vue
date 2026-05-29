@@ -872,7 +872,7 @@ onUnmounted(() => {
   font-size: 13px;
   cursor: pointer;
   border-radius: 8px;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .btn-cancel:hover {
@@ -889,7 +889,7 @@ onUnmounted(() => {
   font-weight: 600;
   cursor: pointer;
   border-radius: 8px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 8px rgba(255, 140, 66, 0.3);
   min-width: 60px;
   display: flex;
@@ -1082,7 +1082,7 @@ onUnmounted(() => {
   color: var(--text-placeholder);
   cursor: pointer;
   border-radius: 6px;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1157,7 +1157,7 @@ onUnmounted(() => {
   font-size: 13px;
   cursor: pointer;
   border-radius: 20px;
-  transition: all 0.25s;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1230,7 +1230,7 @@ onUnmounted(() => {
   font-size: 12px;
   cursor: pointer;
   border-radius: 6px;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
   flex-shrink: 0;
 }
 
@@ -1258,7 +1258,7 @@ onUnmounted(() => {
   font-weight: 500;
   cursor: pointer;
   border-radius: 8px;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease;
 }
 
 .btn-toggle-replies:hover {
@@ -1379,7 +1379,7 @@ onUnmounted(() => {
   font-weight: 500;
   cursor: pointer;
   text-align: left;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease;
 }
 
 .btn-expand-more:hover {
@@ -1415,7 +1415,7 @@ onUnmounted(() => {
   color: var(--text-placeholder);
   cursor: pointer;
   border-radius: 4px;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
   display: flex;
   align-items: center;
 }
@@ -1546,7 +1546,7 @@ onUnmounted(() => {
   border-radius: 6px;
   cursor: pointer;
   color: var(--text-muted);
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
   flex-shrink: 0;
 }
 

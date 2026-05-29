@@ -117,6 +117,7 @@ import { uploadResume } from '@/api/resume'
 import { completeOnboardingTask } from '@/api/onboarding'
 import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import { isLoggedIn } from '@/utils/auth'
+import { prefetchUserRoute } from '@/router/routeLoaders'
 
 const router = useRouter()
 
@@ -127,6 +128,7 @@ const selectedFile = ref(null)
 const fileError = ref('')
 const submitting = ref(false)
 const submitError = ref('')
+let resumeResultPrefetchPromise = null
 
 const buttonText = computed(() => (submitting.value ? '提交中...' : '开始诊断'))
 
@@ -206,6 +208,8 @@ const handleSubmit = async () => {
 
   submitting.value = true
   submitError.value = ''
+  // 上传请求通常耗时较长，趁用户停留在当前页时预热结果页 chunk，减少跳转后的白屏窗口。
+  resumeResultPrefetchPromise = prefetchUserRoute('/resume/result')?.catch(() => {}) || null
 
   try {
     const res = await uploadResume(selectedFile.value)
@@ -226,6 +230,7 @@ const handleSubmit = async () => {
       return
     }
 
+    await resumeResultPrefetchPromise
     await router.push(`/resume/result/${taskId}`)
   } catch (err) {
     console.error('上传失败:', err)
@@ -286,7 +291,7 @@ const retrySubmit = () => {
   border-radius: 12px;
   background-color: var(--bg-page);
   padding: 40px 20px;
-  transition: all 0.25s ease;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .upload-area :deep(.el-upload-dragger:hover) {

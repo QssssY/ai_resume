@@ -5,6 +5,19 @@
       <section class="layout-content">
         <n-message-provider>
           <div v-if="showRouteLoading" class="route-loading-bar" aria-hidden="true"></div>
+          <div
+            v-if="showRouteLoading && isResumeDiagnosisRoute"
+            class="route-loading-placeholder"
+            role="status"
+            aria-live="polite"
+          >
+            <div class="route-loading-placeholder-card">
+              <div class="route-loading-placeholder-title">{{ routeLoadingTargetText }}</div>
+              <div class="route-loading-placeholder-line primary"></div>
+              <div class="route-loading-placeholder-line"></div>
+              <div class="route-loading-placeholder-line short"></div>
+            </div>
+          </div>
           <router-view v-slot="{ Component, route }">
             <KeepAlive :include="keepAliveViews">
               <component
@@ -35,7 +48,7 @@
 </template>
 
 <script setup>
-import { nextTick, ref, onMounted, onUnmounted } from 'vue'
+import { computed, nextTick, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NMessageProvider } from 'naive-ui'
 import AppHeader from '@/components/AppHeader.vue'
@@ -50,16 +63,38 @@ const userStore = useUserStore()
 const router = useRouter()
 const showGuide = ref(false)
 const showRouteLoading = ref(false)
-const keepAliveViews = ['TemplateLibraryView', 'CommunityView', 'GrowthCenterView']
+const loadingRoutePath = ref('')
+const keepAliveViews = [
+  'TemplateLibraryView',
+  'CommunityView',
+  'GrowthCenterView',
+  'DashboardView',
+  'SettingsView',
+  'MembershipView',
+  'InterviewHistoryView',
+  'HistoryView'
+]
 let routeLoadingTimer = null
 let routeLoadingHideTimer = null
 let removeRouteBeforeGuard = null
 let removeRouteAfterGuard = null
 let removeRouteErrorGuard = null
 
-function startRouteLoadingFeedback() {
+const isResumeDiagnosisRoute = computed(() => (
+  loadingRoutePath.value.startsWith('/resume/upload')
+  || loadingRoutePath.value.startsWith('/resume/result')
+))
+
+const routeLoadingTargetText = computed(() => {
+  if (loadingRoutePath.value.startsWith('/resume/result')) return '正在打开诊断结果'
+  if (loadingRoutePath.value.startsWith('/resume/upload')) return '正在打开简历诊断'
+  return '正在加载页面'
+})
+
+function startRouteLoadingFeedback(targetPath = '') {
   window.clearTimeout(routeLoadingTimer)
   window.clearTimeout(routeLoadingHideTimer)
+  loadingRoutePath.value = targetPath
   showRouteLoading.value = false
   routeLoadingTimer = window.setTimeout(() => {
     showRouteLoading.value = true
@@ -70,13 +105,14 @@ function stopRouteLoadingFeedback() {
   window.clearTimeout(routeLoadingTimer)
   routeLoadingHideTimer = window.setTimeout(() => {
     showRouteLoading.value = false
+    loadingRoutePath.value = ''
   }, 180)
 }
 
 onMounted(async () => {
   removeRouteBeforeGuard = router.beforeEach((to, from) => {
     if (to.fullPath !== from.fullPath) {
-      startRouteLoadingFeedback()
+      startRouteLoadingFeedback(to.path)
     }
   })
   removeRouteAfterGuard = router.afterEach(async () => {
@@ -158,6 +194,47 @@ onUnmounted(() => {
   animation: route-loading-sweep 0.9s ease-in-out infinite;
 }
 
+.route-loading-placeholder {
+  width: 100%;
+  margin: 18px 0;
+}
+
+.route-loading-placeholder-card {
+  width: min(720px, 100%);
+  min-height: 156px;
+  padding: 24px;
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+}
+
+.route-loading-placeholder-title {
+  margin-bottom: 18px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.route-loading-placeholder-line {
+  height: 12px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 140, 66, 0.12), rgba(255, 176, 122, 0.22));
+}
+
+.route-loading-placeholder-line.primary {
+  width: 82%;
+}
+
+.route-loading-placeholder-line:not(.primary):not(.short) {
+  width: 64%;
+}
+
+.route-loading-placeholder-line.short {
+  width: 42%;
+}
+
 .page-fade-route {
   width: 100%;
   min-width: 0;
@@ -223,6 +300,11 @@ onUnmounted(() => {
   }
   .layout-content {
     padding: 16px;
+  }
+
+  .route-loading-placeholder-card {
+    min-height: 132px;
+    padding: 18px;
   }
 }
 

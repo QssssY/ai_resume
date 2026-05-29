@@ -663,7 +663,7 @@ onMounted(async () => {
   border-radius: 10px;
   border: 1px solid var(--border-card);
   box-shadow: none;
-  transition: all 0.2s;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   padding: 0 16px;
 }
 
@@ -793,7 +793,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  transition: all 0.25s ease;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
   font-family: inherit;
 }
 
@@ -997,7 +997,7 @@ onMounted(async () => {
   background: linear-gradient(135deg, #ff8c42 0%, #e67a35 100%);
   border: none;
   box-shadow: 0 4px 14px rgba(255, 140, 66, 0.35);
-  transition: all 0.25s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .start-section .el-button:hover:not(:disabled) {
