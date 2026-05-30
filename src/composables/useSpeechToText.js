@@ -8,10 +8,15 @@ import {
 const VOICE_ACTIVITY_THRESHOLD = 0.018
 const VOICE_ACTIVITY_INTERVAL_MS = 120
 const NO_TRANSCRIPT_TIMEOUT_MS = 6000
-const OFFLINE_STOP_FLUSH_TIMEOUT_MS = 1200
+const OFFLINE_AUDIO_FRAME_TIMEOUT_MS = 2000
+const OFFLINE_STOP_FLUSH_TIMEOUT_MS = 5000
 const OFFLINE_STT_MODEL_KEY = 'stt:sherpa_onnx:zh_cn'
 const OFFLINE_STT_MANIFEST_URL = '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
+const OFFLINE_STT_WORKLET_URL = '/audio-worklets/offline-stt-processor.js'
+const OFFLINE_STT_RUNTIME_VERSION = '20260530-persistent-worker-stream-reset'
 const OFFLINE_MODEL_MISSING_MESSAGE = '离线语音识别模型未安装，请先到设置中心下载离线语音识别引擎。'
+const OFFLINE_AUDIO_UNAVAILABLE_MESSAGE = '离线语音识别未收到麦克风音频，请检查浏览器麦克风权限或刷新后重试。'
+const OFFLINE_NO_TRANSCRIPT_MESSAGE = '离线语音识别已收到麦克风音频，但没有返回识别文字，请检查离线语音包是否完整后重新下载。'
 const UNSUPPORTED_RECOGNITION_ERROR_MESSAGE = '当前浏览器不支持语音识别，已降级为手动输入'
 const NETWORK_RECOGNITION_ERROR_MESSAGE = '当前浏览器语音识别服务不可用，已降级为手动输入；建议下载离线语音识别引擎'
 const MICROPHONE_PERMISSION_ERROR_MESSAGE = '麦克风权限被拒绝，已降级为手动输入'
@@ -55,6 +60,11 @@ export function useSpeechToText(options = {}) {
 
   let recognition = null
   let offlineWorker = null
+  let offlineWorkerReady = false
+  let offlineWorkerRuntimeUrl = ''
+  let offlineWorkerReadyPromise = null
+  let offlineWorkerReadyResolve = null
+  let offlineWorkerReadyReject = null
   let ignoreResults = false
   let isStarting = false
   let mediaStream = null
@@ -69,6 +79,14 @@ export function useSpeechToText(options = {}) {
   let preferLocalProcessing = true
   let offlineStopFlushTimer = null
   let offlineStopFlushResolve = null
+  let offlineAudioFrameTimer = null
+  let hasOfflineAudioFrame = false
+
+  const clearOfflineAudioFrameTimer = () => {
+    if (!offlineAudioFrameTimer) return
+    clearTimeout(offlineAudioFrameTimer)
+    offlineAudioFrameTimer = null
+  }
 
   const resolveOfflineStopFlush = () => {
     if (offlineStopFlushTimer) {
@@ -81,8 +99,10 @@ export function useSpeechToText(options = {}) {
   }
 
   const finishOfflineStopFlush = () => {
+    if (hasOfflineAudioFrame && !hasTranscriptResult) {
+      setOfflineErrorState(OFFLINE_NO_TRANSCRIPT_MESSAGE, 'offline-no-transcript')
+    }
     isRecording.value = false
-    cleanupOfflineWorker()
     cleanupVoiceActivity()
     resolveOfflineStopFlush()
   }
@@ -123,6 +143,14 @@ export function useSpeechToText(options = {}) {
         : 'unavailable'
   }
 
+  const setOfflineErrorState = (message, code) => {
+    error.value = message
+    errorCode.value = code
+    offlineEngineSuggested.value = false
+    isSupported.value = true
+    engineStatus.value = 'offline-error'
+  }
+
   const cleanupRecognition = () => {
     if (!recognition) return
     recognition.onresult = null
@@ -137,15 +165,25 @@ export function useSpeechToText(options = {}) {
     offlineWorker.onerror = null
     offlineWorker.terminate?.()
     offlineWorker = null
+    offlineWorkerReady = false
+    offlineWorkerRuntimeUrl = ''
+    offlineWorkerReadyResolve = null
+    offlineWorkerReadyReject = null
+    offlineWorkerReadyPromise = null
   }
 
   const cleanupVoiceActivity = () => {
+    clearOfflineAudioFrameTimer()
     if (voiceActivityTimer) {
       clearInterval(voiceActivityTimer)
       voiceActivityTimer = null
     }
     if (audioProcessor) {
       audioProcessor.onaudioprocess = null
+      if (audioProcessor.port) {
+        audioProcessor.port.onmessage = null
+        audioProcessor.port.close?.()
+      }
       audioProcessor.disconnect?.()
       audioProcessor = null
     }
@@ -172,8 +210,13 @@ export function useSpeechToText(options = {}) {
     context?.close?.()
   }
 
-  const stopWithError = (message, code = 'recognition-error') => {
-    setErrorState(message, code, true)
+  const stopWithError = (message, code = 'recognition-error', options = {}) => {
+    if (options.offline) {
+      setOfflineErrorState(message, code)
+    } else {
+      setErrorState(message, code, true)
+    }
+    isStarting = false
     isRecording.value = false
     try {
       recognition?.abort?.()
@@ -183,6 +226,14 @@ export function useSpeechToText(options = {}) {
     cleanupOfflineWorker()
     cleanupVoiceActivity()
     resolveOfflineStopFlush()
+  }
+
+  const startOfflineAudioFrameWatchdog = () => {
+    clearOfflineAudioFrameTimer()
+    offlineAudioFrameTimer = setTimeout(() => {
+      if (!isRecording.value || ignoreResults) return
+      stopWithError(OFFLINE_AUDIO_UNAVAILABLE_MESSAGE, 'offline-audio-unavailable', { offline: true })
+    }, OFFLINE_AUDIO_FRAME_TIMEOUT_MS)
   }
 
   const canUseLocalProcessing = async () => {
@@ -204,21 +255,38 @@ export function useSpeechToText(options = {}) {
     }
   }
 
-  const startVoiceActivityMonitor = async (shouldKeepMonitor = () => true) => {
-    if (!navigator.mediaDevices?.getUserMedia || voiceActivityTimer) return
+  const startVoiceActivityMonitor = async (shouldKeepMonitor = () => true, monitorOptions = {}) => {
+    if (!navigator.mediaDevices?.getUserMedia || voiceActivityTimer) {
+      releaseLocalVoiceActivityResources(null, monitorOptions.prewarmedAudioContext, null)
+      return
+    }
 
     const AudioContextConstructor = window.AudioContext || window.webkitAudioContext
-    if (!AudioContextConstructor) return
+    if (!AudioContextConstructor) {
+      releaseLocalVoiceActivityResources(null, monitorOptions.prewarmedAudioContext, null)
+      return
+    }
 
     let nextMediaStream = null
-    let nextAudioContext = null
+    let nextAudioContext = monitorOptions.prewarmedAudioContext || null
     let nextAnalyser = null
     let nextAudioSource = null
 
+    const audioConstraints = monitorOptions.audioConstraints ?? true
+    const audioContextOptions = monitorOptions.audioContextOptions
+    const shouldDetectNoTranscript = monitorOptions.detectNoTranscript !== false
+
     // 这里的 getUserMedia 用于离线识别和音量监测；浏览器 Web Speech 会在 start() 内部自行申请麦克风。
     try {
-      nextMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      nextAudioContext = new AudioContextConstructor()
+      if (!nextAudioContext) {
+        nextAudioContext = audioContextOptions
+          ? new AudioContextConstructor(audioContextOptions)
+          : new AudioContextConstructor()
+      }
+      if (monitorOptions.resumeSuspendedContext && nextAudioContext.state === 'suspended') {
+        await nextAudioContext.resume?.()
+      }
+      nextMediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
       nextAnalyser = nextAudioContext.createAnalyser()
       nextAnalyser.fftSize = 1024
       nextAudioSource = nextAudioContext.createMediaStreamSource(nextMediaStream)
@@ -251,7 +319,7 @@ export function useSpeechToText(options = {}) {
       isVoiceActive.value = active
       if (active) {
         voiceActivityAt.value = Date.now()
-        if (!hasTranscriptResult) {
+        if (shouldDetectNoTranscript && !hasTranscriptResult) {
           voiceActivityStartedAt ||= voiceActivityAt.value
           if (voiceActivityAt.value - voiceActivityStartedAt >= NO_TRANSCRIPT_TIMEOUT_MS) {
             stopWithError(NO_TRANSCRIPT_ERROR_MESSAGE, 'no-transcript')
@@ -270,29 +338,211 @@ export function useSpeechToText(options = {}) {
     })
   }
 
-  const connectOfflineAudioStream = () => {
-    if (!audioContext?.createScriptProcessor || !audioSource || !offlineWorker) return
-    audioProcessor = audioContext.createScriptProcessor(4096, 1, 1)
+  const markOfflineVoiceActivityFromSamples = (samples) => {
+    if (!samples?.length) return
+    const rms = Math.sqrt(
+      samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length
+    )
+    const active = rms >= VOICE_ACTIVITY_THRESHOLD
+    isVoiceActive.value = active
+    if (active) {
+      voiceActivityAt.value = Date.now()
+    }
+  }
+
+  const postOfflineAudioSamples = (samples) => {
+    if (!isRecording.value || ignoreResults || !offlineWorker || !audioContext) return
+    clearOfflineAudioFrameTimer()
+    hasOfflineAudioFrame = true
+    const chunk = samples instanceof Float32Array ? new Float32Array(samples) : new Float32Array(samples)
+    markOfflineVoiceActivityFromSamples(chunk)
+    offlineWorker.postMessage({
+      type: 'audio',
+      sampleRate: audioContext.sampleRate,
+      samples: chunk
+    }, [chunk.buffer])
+  }
+
+  const connectScriptProcessorAudioStream = () => {
+    if (!audioContext?.createScriptProcessor || !audioSource || !offlineWorker) return false
+    try {
+      audioProcessor = audioContext.createScriptProcessor(4096, 1, 1)
+    } catch {
+      return false
+    }
     audioProcessor.onaudioprocess = (event) => {
-      if (!isRecording.value || ignoreResults) return
       const input = event.inputBuffer.getChannelData(0)
-      const chunk = new Float32Array(input)
-      offlineWorker.postMessage({
-        type: 'audio',
-        sampleRate: audioContext.sampleRate,
-        samples: chunk
-      }, [chunk.buffer])
+      postOfflineAudioSamples(input)
     }
     audioSource.connect(audioProcessor)
     audioProcessor.connect(audioContext.destination)
+    return true
   }
 
-  const buildOfflineWorkerConfig = () => ({
-    modelKey: OFFLINE_STT_MODEL_KEY,
-    language: language.value,
-    manifestUrl: modelStatus.value.manifestUrl || OFFLINE_STT_MANIFEST_URL,
-    files: modelStatus.value.files
-  })
+  const connectAudioWorkletStream = () => {
+    const AudioWorkletNodeConstructor = window.AudioWorkletNode
+    if (!audioContext?.audioWorklet?.addModule || !AudioWorkletNodeConstructor || !audioSource || !offlineWorker) {
+      return null
+    }
+    return audioContext.audioWorklet.addModule(OFFLINE_STT_WORKLET_URL)
+      .then(() => {
+        if (!audioContext || !audioSource || !offlineWorker) return false
+        audioProcessor = new AudioWorkletNodeConstructor(audioContext, 'offline-stt-processor')
+        audioProcessor.port.onmessage = (event) => {
+          const samples = event.data?.samples
+          if (samples?.length) postOfflineAudioSamples(samples)
+        }
+        audioSource.connect(audioProcessor)
+        audioProcessor.connect?.(audioContext.destination)
+        return true
+      })
+      .catch(() => connectScriptProcessorAudioStream())
+  }
+
+  const connectOfflineAudioStream = () => {
+    // 新版浏览器优先使用 AudioWorklet 采集 PCM，避免 ScriptProcessorNode 的弃用警告；旧浏览器继续走 ScriptProcessor 兜底。
+    const audioWorkletConnection = connectAudioWorkletStream()
+    return audioWorkletConnection || connectScriptProcessorAudioStream()
+  }
+
+  const buildOfflineWorkerConfig = () => {
+    const files = Array.isArray(modelStatus.value.files)
+      ? modelStatus.value.files.map((file) => ({
+        path: String(file?.path || ''),
+        url: String(file?.url || ''),
+        size: Number(file?.size || 0)
+      }))
+      : []
+
+    return {
+      modelKey: OFFLINE_STT_MODEL_KEY,
+      language: language.value,
+      manifestUrl: modelStatus.value.manifestUrl || OFFLINE_STT_MANIFEST_URL,
+      files
+    }
+  }
+
+  const resolveOfflineRuntimeUrl = () => {
+    const runtimeUrl = modelStatus.value.runtime || '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js'
+    const separator = runtimeUrl.includes('?') ? '&' : '?'
+    const version = [modelStatus.value.version, OFFLINE_STT_RUNTIME_VERSION]
+      .filter(Boolean)
+      .join('__') || OFFLINE_STT_RUNTIME_VERSION
+    return `${runtimeUrl}${separator}v=${encodeURIComponent(version)}`
+  }
+
+  const createOfflineWorkerReadyPromise = () => {
+    offlineWorkerReadyPromise = new Promise((resolve, reject) => {
+      offlineWorkerReadyResolve = resolve
+      offlineWorkerReadyReject = reject
+    })
+    return offlineWorkerReadyPromise
+  }
+
+  const handleOfflineWorkerMessage = (event, beginOfflineRecording) => {
+    if (ignoreResults) return
+    const message = event.data || {}
+    if (message.type === 'ready') {
+      offlineWorkerReady = true
+      engineStatus.value = 'offline-ready'
+      offlineWorkerReadyResolve?.()
+      offlineWorkerReadyResolve = null
+      offlineWorkerReadyReject = null
+      beginOfflineRecording?.()
+      return
+    }
+    if (message.type === 'partial') {
+      hasTranscriptResult = true
+      interimTranscript.value = message.transcript || ''
+      return
+    }
+    if (message.type === 'final') {
+      hasTranscriptResult = true
+      if (message.transcript) finalTranscript.value += message.transcript
+      interimTranscript.value = ''
+      if (offlineStopFlushResolve) {
+        finishOfflineStopFlush()
+      }
+      return
+    }
+    if (message.type === 'stopped') {
+      if (offlineStopFlushResolve) {
+        finishOfflineStopFlush()
+      }
+      return
+    }
+    if (message.type === 'error') {
+      const workerError = new Error(message.error || START_RECOGNITION_ERROR_MESSAGE)
+      offlineWorkerReadyReject?.(workerError)
+      offlineWorkerReadyResolve = null
+      offlineWorkerReadyReject = null
+      stopWithError(workerError.message, 'offline-worker-error', { offline: true })
+    }
+  }
+
+  const ensureOfflineWorker = (runtimeUrl, beginOfflineRecording) => {
+    if (offlineWorker && offlineWorkerRuntimeUrl === runtimeUrl) {
+      offlineWorker.onmessage = (event) => handleOfflineWorkerMessage(event, beginOfflineRecording)
+      if (offlineWorkerReady) {
+        return Promise.resolve()
+      }
+      return offlineWorkerReadyPromise || createOfflineWorkerReadyPromise()
+    }
+
+    if (offlineWorker) {
+      cleanupOfflineWorker()
+    }
+
+    const readyPromise = createOfflineWorkerReadyPromise()
+    offlineWorker = new Worker(new URL('../workers/sherpaSpeechWorker.js', import.meta.url))
+    offlineWorkerReady = false
+    offlineWorkerRuntimeUrl = runtimeUrl
+    offlineWorker.onmessage = (event) => handleOfflineWorkerMessage(event, beginOfflineRecording)
+    offlineWorker.onerror = () => {
+      const workerError = new Error('离线语音识别 Worker 启动失败，请检查模型文件和运行时是否已部署。')
+      offlineWorkerReadyReject?.(workerError)
+      offlineWorkerReadyResolve = null
+      offlineWorkerReadyReject = null
+      stopWithError(workerError.message, 'offline-worker-error', { offline: true })
+    }
+    try {
+      offlineWorker.postMessage({
+        type: 'init',
+        runtimeUrl,
+        config: buildOfflineWorkerConfig()
+      })
+    } catch (postMessageError) {
+      const workerError = new Error(
+        postMessageError?.message || '离线语音识别 Worker 初始化消息发送失败，请刷新后重试。'
+      )
+      offlineWorkerReadyReject?.(workerError)
+      offlineWorkerReadyResolve = null
+      offlineWorkerReadyReject = null
+      stopWithError(workerError.message, 'offline-worker-error', { offline: true })
+    }
+    return readyPromise
+  }
+
+  const prepareOfflineRecognition = async () => {
+    if (!preferOffline) return false
+    refreshModelStatus()
+    if (!isModelReady.value) return false
+    if (isRecording.value || isStarting) return false
+
+    const nextRuntimeUrl = resolveOfflineRuntimeUrl()
+    if (offlineWorker && offlineWorkerReady && offlineWorkerRuntimeUrl === nextRuntimeUrl) {
+      engineStatus.value = 'offline-ready'
+      return true
+    }
+
+    clearState()
+    ignoreResults = false
+    engineStatus.value = 'offline-ready'
+    // 预热只加载 sherpa Worker/模型，不申请麦克风；真正收音仍由用户点击开始通话触发。
+    // 这里保持“已就绪”文案稳定，避免后台预热 Worker 时把用户可见的引擎状态闪成加载中。
+    await ensureOfflineWorker(nextRuntimeUrl)
+    return offlineWorkerReady
+  }
 
   const startOfflineRecognition = async () => {
     refreshModelStatus()
@@ -308,18 +558,44 @@ export function useSpeechToText(options = {}) {
     startRunId += 1
     const currentStartRunId = startRunId
     hasTranscriptResult = false
+    hasOfflineAudioFrame = false
     voiceActivityStartedAt = 0
-    engineStatus.value = 'offline-loading'
+    const nextRuntimeUrl = resolveOfflineRuntimeUrl()
+    const canReuseReadyOfflineWorker = Boolean(
+      offlineWorker && offlineWorkerReady && offlineWorkerRuntimeUrl === nextRuntimeUrl
+    )
+    engineStatus.value = canReuseReadyOfflineWorker ? 'offline-ready' : 'offline-loading'
 
     try {
-      await startVoiceActivityMonitor()
+      const AudioContextConstructor = window.AudioContext || window.webkitAudioContext
+      let prewarmedAudioContext = null
+      if (AudioContextConstructor) {
+        prewarmedAudioContext = new AudioContextConstructor({ sampleRate: 16000 })
+        if (prewarmedAudioContext.state === 'suspended') {
+          await prewarmedAudioContext.resume?.()
+        }
+      }
+      await startVoiceActivityMonitor(
+        () => currentStartRunId === startRunId && isStarting && !ignoreResults,
+        {
+          audioConstraints: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+          audioContextOptions: prewarmedAudioContext ? undefined : { sampleRate: 16000 },
+          prewarmedAudioContext,
+          resumeSuspendedContext: true,
+          detectNoTranscript: false,
+        }
+      )
     } catch {
       if (currentStartRunId !== startRunId || !isStarting || ignoreResults) {
         cleanupVoiceActivity()
         isStarting = false
         return
       }
-      setErrorState(MICROPHONE_PERMISSION_ERROR_MESSAGE, 'not-allowed', true)
+      setOfflineErrorState(MICROPHONE_PERMISSION_ERROR_MESSAGE, 'not-allowed')
       cleanupVoiceActivity()
       isStarting = false
       return
@@ -331,44 +607,50 @@ export function useSpeechToText(options = {}) {
       return
     }
 
-    offlineWorker = new Worker(new URL('../workers/sherpaSpeechWorker.js', import.meta.url))
-    offlineWorker.onmessage = (event) => {
-      if (ignoreResults) return
-      const message = event.data || {}
-      if (message.type === 'ready') {
-        engineStatus.value = 'offline-ready'
-        return
-      }
-      if (message.type === 'partial') {
-        hasTranscriptResult = true
-        interimTranscript.value = message.transcript || ''
-        return
-      }
-      if (message.type === 'final') {
-        hasTranscriptResult = true
-        if (message.transcript) finalTranscript.value += message.transcript
-        interimTranscript.value = ''
-        if (offlineStopFlushResolve) {
-          finishOfflineStopFlush()
+    const beginOfflineRecording = () => {
+      if (currentStartRunId !== startRunId || !isStarting || ignoreResults) return
+
+      const startWorkerAfterAudioConnected = (audioConnected) => {
+        if (currentStartRunId !== startRunId || !isStarting || ignoreResults) return
+        if (!audioConnected) {
+          stopWithError(OFFLINE_AUDIO_UNAVAILABLE_MESSAGE, 'offline-audio-unavailable', { offline: true })
+          return
         }
+        try {
+          // Worker 承载已加载的 sherpa WASM/ONNX；每轮只重新 start 识别流，避免反复初始化模型造成长时间“准备中”。
+          offlineWorker.postMessage({ type: 'start' })
+        } catch (startError) {
+          stopWithError(
+            startError?.message || START_RECOGNITION_ERROR_MESSAGE,
+            'offline-worker-error',
+            { offline: true }
+          )
+          return
+        }
+        engineStatus.value = 'offline-ready'
+        isRecording.value = true
+        isStarting = false
+        startOfflineAudioFrameWatchdog()
+      }
+
+      const audioConnection = connectOfflineAudioStream()
+      if (audioConnection && typeof audioConnection.then === 'function') {
+        audioConnection.then(startWorkerAfterAudioConnected).catch(() => {
+          stopWithError(OFFLINE_AUDIO_UNAVAILABLE_MESSAGE, 'offline-audio-unavailable', { offline: true })
+        })
         return
       }
-      if (message.type === 'error') {
-        stopWithError(message.error || START_RECOGNITION_ERROR_MESSAGE, 'offline-worker-error')
-      }
+      startWorkerAfterAudioConnected(audioConnection)
     }
-    offlineWorker.onerror = () => {
-      stopWithError('离线语音识别 Worker 启动失败，请检查模型文件和运行时是否已部署。', 'offline-worker-error')
+
+    if (canReuseReadyOfflineWorker) {
+      beginOfflineRecording()
+      return
     }
-    offlineWorker.postMessage({
-      type: 'init',
-      runtimeUrl: modelStatus.value.runtime || '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js',
-      config: buildOfflineWorkerConfig()
+
+    ensureOfflineWorker(nextRuntimeUrl, beginOfflineRecording).catch((workerError) => {
+      stopWithError(workerError?.message || START_RECOGNITION_ERROR_MESSAGE, 'offline-worker-error', { offline: true })
     })
-    connectOfflineAudioStream()
-    offlineWorker.postMessage({ type: 'start' })
-    isRecording.value = true
-    isStarting = false
   }
 
   const startBrowserRecognition = async () => {
@@ -507,11 +789,16 @@ export function useSpeechToText(options = {}) {
     if (isStarting) {
       startRunId += 1
       isStarting = false
+      cleanupOfflineWorker()
+      cleanupRecognition()
     }
     if (offlineWorker && isRecording.value) {
       await new Promise((resolve) => {
         offlineStopFlushResolve = resolve
-        offlineStopFlushTimer = setTimeout(finishOfflineStopFlush, OFFLINE_STOP_FLUSH_TIMEOUT_MS)
+        offlineStopFlushTimer = setTimeout(() => {
+          finishOfflineStopFlush()
+          cleanupOfflineWorker()
+        }, OFFLINE_STOP_FLUSH_TIMEOUT_MS)
         try {
           offlineWorker.postMessage({ type: 'stop' })
         } catch {
@@ -533,11 +820,14 @@ export function useSpeechToText(options = {}) {
   }
 
   const cancel = () => {
+    const shouldPreserveOfflineError = engineStatus.value === 'offline-error' && errorCode.value.startsWith('offline-')
     startRunId += 1
     ignoreResults = true
     isStarting = false
     isRecording.value = false
-    clearState()
+    if (!shouldPreserveOfflineError) {
+      clearState()
+    }
     cleanupVoiceActivity()
     cleanupOfflineWorker()
     if (!recognition) return
@@ -602,5 +892,6 @@ export function useSpeechToText(options = {}) {
     toggle,
     downloadOfflineModel,
     clearOfflineModel,
+    prepareOfflineRecognition,
   }
 }

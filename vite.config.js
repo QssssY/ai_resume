@@ -7,7 +7,7 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import viteCompression from 'vite-plugin-compression'
-import { resolveVoiceModelLocalPath } from './src/utils/voiceModelDevServer.js'
+import { resolveVoiceModelContentType, resolveVoiceModelLocalPath } from './src/utils/voiceModelDevServer.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -24,7 +24,7 @@ function voiceModelsPlugin() {
         const filePath = resolveVoiceModelLocalPath(modelsDir, req.url)
         if (!filePath) return next()
         if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return next()
-        res.setHeader('Content-Type', 'application/octet-stream')
+        res.setHeader('Content-Type', resolveVoiceModelContentType(filePath))
         fs.createReadStream(filePath).pipe(res)
       })
     }

@@ -38,6 +38,22 @@ describe('admin notifications API', () => {
     })
   })
 
+  it('getAdminNotifications forwards non-empty filter params only', async () => {
+    await getAdminNotifications({ page: 2, size: 10, type: 'activity', status: 0, targetType: 'vip', keyword: '维护', empty: '' })
+    expect(adminRequest).toHaveBeenCalledWith({
+      url: '/api/admin/notifications',
+      method: 'get',
+      params: {
+        page: 2,
+        size: 10,
+        type: 'activity',
+        status: 0,
+        targetType: 'vip',
+        keyword: '维护'
+      }
+    })
+  })
+
   it('getAdminNotificationDetail calls correct endpoint', async () => {
     await getAdminNotificationDetail(123)
     expect(adminRequest).toHaveBeenCalledWith({ url: '/api/admin/notifications/123', method: 'get' })

@@ -3,7 +3,7 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 const DEFAULT_SILENCE_TIMEOUT_MS = 3000
 const CHECK_INTERVAL_MS = 500
 const MUTE_RESUME_MODE_AUTO = 'auto'
-const TTS_RESUME_DELAY_MS = 1500
+const TTS_RESUME_DELAY_MS = 800
 const UNSUPPORTED_SPEECH_ERROR_MESSAGE = '当前浏览器不支持语音识别，已降级为手动输入'
 const UNSUPPORTED_TTS_ERROR_MESSAGE = '当前浏览器不支持语音播报，已降级为手动输入'
 const RECOVERABLE_SPEECH_ERROR_CODES = new Set([
@@ -32,7 +32,10 @@ export function useVoiceCall(options) {
   let lastSpeechAt = 0
   let lastFinal = ''
   let lastInterim = ''
+  let pendingFinalText = ''
+  let pendingInterimText = ''
   let isInitialListeningDeferred = false
+  let isAutoSending = false
   // ttsWasActive: TTS 播报期间同步设置，确保 resumeListening 在播报结束后始终走延迟路径，
   // 避免 isSpeaking / isReplying 两个 watcher 竞态导致延迟失效。
   let ttsWasActive = false
@@ -40,6 +43,10 @@ export function useVoiceCall(options) {
 
   const silenceTimeoutMs = Number(options.silenceTimeoutMs ?? DEFAULT_SILENCE_TIMEOUT_MS)
   const muteResumeMode = options.muteResumeMode || MUTE_RESUME_MODE_AUTO
+
+  const shouldFlushOfflineSilence = () => (
+    lastSpeechAt && options.speech.engineStatus?.value === 'offline-ready'
+  )
 
   const clearTimers = () => {
     if (durationTimer) {
@@ -57,6 +64,8 @@ export function useVoiceCall(options) {
   }
 
   const resetSpeechState = () => {
+    pendingFinalText = ''
+    pendingInterimText = ''
     pendingMessage.value = ''
     isManualResumePending.value = false
     isInitialListeningDeferred = false
@@ -64,6 +73,7 @@ export function useVoiceCall(options) {
     lastFinal = options.speech.finalTranscript.value || ''
     lastInterim = options.speech.interimTranscript.value || ''
     ttsWasActive = false
+    isAutoSending = false
   }
 
   const pauseListeningForAi = () => {
@@ -98,6 +108,8 @@ export function useVoiceCall(options) {
     }
     isInitialListeningDeferred = false
     // 清理 TTS 播报期间可能残留的误识别文本，防止复读
+    pendingFinalText = ''
+    pendingInterimText = ''
     pendingMessage.value = ''
     lastSpeechAt = 0
     lastFinal = options.speech.finalTranscript.value || ''
@@ -112,19 +124,27 @@ export function useVoiceCall(options) {
   }
 
   const autoSendTranscript = async () => {
+    if (isAutoSending) return false
     if (options.isReplying?.value) return false
-    if (pendingMessage.value.trim() || lastSpeechAt) {
-      const flushPromise = flushListeningBeforeSend()
-      if (flushPromise) {
-        await flushPromise
+    isAutoSending = true
+    try {
+      if (pendingMessage.value.trim() || lastSpeechAt) {
+        const flushPromise = flushListeningBeforeSend()
+        if (flushPromise) {
+          await flushPromise
+        }
       }
-    }
-    const text = pendingMessage.value.trim()
-    if (!text || options.isReplying?.value) return false
+      const text = pendingMessage.value.trim()
+      if (!text || options.isReplying?.value) return false
 
-    pendingMessage.value = ''
-    await options.onSend(text)
-    return true
+      pendingFinalText = ''
+      pendingInterimText = ''
+      pendingMessage.value = ''
+      await options.onSend(text)
+      return true
+    } finally {
+      isAutoSending = false
+    }
   }
 
   const stopListeningAndSend = async () => {
@@ -143,7 +163,8 @@ export function useVoiceCall(options) {
       lastSpeechAt = Date.now()
       return
     }
-    if (!silenceTimeoutMs || !pendingMessage.value.trim() || !lastSpeechAt) return
+    if (!silenceTimeoutMs || !lastSpeechAt) return
+    if (!pendingMessage.value.trim() && !shouldFlushOfflineSilence()) return
     if (Date.now() - lastSpeechAt >= silenceTimeoutMs) {
       autoSendTranscript()
     }
@@ -210,19 +231,27 @@ export function useVoiceCall(options) {
     [options.speech.finalTranscript, options.speech.interimTranscript],
     ([nextFinal, nextInterim]) => {
       if (!isVoiceMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
-      const finalChanged = nextFinal !== lastFinal
-      const interimChanged = nextInterim !== lastInterim
+      const normalizedFinal = nextFinal || ''
+      const normalizedInterim = nextInterim || ''
+      const finalChanged = normalizedFinal !== lastFinal
+      const interimChanged = normalizedInterim !== lastInterim
       if (!finalChanged && !interimChanged) return
 
       lastSpeechAt = Date.now()
       if (finalChanged) {
-        const appendedText = nextFinal.slice(lastFinal.length)
+        const appendedText = normalizedFinal.startsWith(lastFinal)
+          ? normalizedFinal.slice(lastFinal.length)
+          : normalizedFinal
         if (appendedText.trim()) {
-          pendingMessage.value = `${pendingMessage.value}${appendedText}`
+          pendingFinalText = `${pendingFinalText}${appendedText}`
         }
       }
-      lastFinal = nextFinal || ''
-      lastInterim = nextInterim || ''
+      // 离线 sherpa-onnx 常先持续返回 partial，endpoint 或 stop 后才给 final。
+      // 自动静音提交必须临时展示/发送 interim，final 到达后再由最终文本接管，避免一直等待。
+      pendingInterimText = normalizedInterim
+      pendingMessage.value = `${pendingFinalText}${pendingInterimText}`
+      lastFinal = normalizedFinal
+      lastInterim = normalizedInterim
     }
   )
 

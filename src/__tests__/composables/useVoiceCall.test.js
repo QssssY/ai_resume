@@ -69,6 +69,24 @@ describe('useVoiceCall', () => {
     expect(speech.start).toHaveBeenCalledTimes(1)
   })
 
+  it('resumes listening shortly after opening speech ends', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+
+    call.startVoiceCall({ startListening: false })
+    textToSpeech.isSpeaking.value = true
+    await nextTick()
+    textToSpeech.isSpeaking.value = false
+    await nextTick()
+
+    await vi.advanceTimersByTimeAsync(799)
+
+    expect(speech.start).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(speech.start).toHaveBeenCalledTimes(1)
+  })
+
   it('auto sends after three seconds of silence', async () => {
     const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
     call.startVoiceCall()
@@ -79,6 +97,61 @@ describe('useVoiceCall', () => {
 
     expect(onSend).toHaveBeenCalledWith('我负责订单模块')
     expect(call.pendingMessage.value).toBe('')
+  })
+
+  it('auto sends after silence when offline recognition only has interim text before stop', async () => {
+    speech.stop = vi.fn(() => {
+      speech.isRecording.value = false
+      speech.finalTranscript.value = '我负责订单模块'
+      speech.interimTranscript.value = ''
+      return Promise.resolve()
+    })
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+
+    speech.interimTranscript.value = '我负责订单模块'
+    await nextTick()
+
+    expect(call.pendingMessage.value).toBe('我负责订单模块')
+
+    await vi.advanceTimersByTimeAsync(3000)
+
+    expect(speech.stop).toHaveBeenCalled()
+    expect(onSend).toHaveBeenCalledWith('我负责订单模块')
+    expect(call.pendingMessage.value).toBe('')
+  })
+
+  it('flushes offline recognition after silence when microphone activity was heard but no partial text arrived', async () => {
+    speech.stop = vi.fn(() => {
+      speech.isRecording.value = false
+      speech.finalTranscript.value = '我负责订单模块'
+      return Promise.resolve()
+    })
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+
+    speech.voiceActivityAt.value = Date.now()
+    await nextTick()
+
+    await vi.advanceTimersByTimeAsync(3000)
+
+    expect(speech.stop).toHaveBeenCalled()
+    expect(onSend).toHaveBeenCalledWith('我负责订单模块')
+    expect(call.pendingMessage.value).toBe('')
+  })
+
+  it('ends voice mode for installed offline engine failures instead of waiting for manual resume', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+
+    speech.errorCode.value = 'offline-worker-error'
+    speech.error.value = '离线语音识别 Worker 启动失败，请检查模型文件和运行时是否已部署。'
+    await nextTick()
+
+    expect(call.error.value).toContain('离线语音识别 Worker 启动失败')
+    expect(call.isVoiceMode.value).toBe(false)
+    expect(call.isManualResumePending.value).toBe(false)
+    expect(speech.cancel).toHaveBeenCalled()
   })
 
   it('does not auto send when silence timeout is disabled', async () => {

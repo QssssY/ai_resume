@@ -88,6 +88,18 @@ describe('FeatureIcon', () => {
     expect(lazyIcon.find('source[type="image/webp"]').attributes('srcset')).toContain('resume-score.webp')
   })
 
+  it('renders loading.webp immediately for loading states instead of the notification fallback', () => {
+    const loadingIcon = mount(FeatureIcon, {
+      props: {
+        name: 'loading'
+      }
+    })
+
+    expect(loadingIcon.find('img').attributes('src')).toContain('loading.png')
+    expect(loadingIcon.find('source[type="image/webp"]').attributes('srcset')).toContain('loading.webp')
+    expect(loadingIcon.find('img').attributes('src')).not.toContain('system-notifications')
+  })
+
   it('keeps halo styling transparent, motion-safe, and larger than the old icon scale', () => {
     const source = componentSource()
 

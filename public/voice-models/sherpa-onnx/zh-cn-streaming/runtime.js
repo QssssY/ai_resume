@@ -10,6 +10,13 @@
 
   const runtimeBlobUrls = {}
 
+  const resolveRuntimeMimeType = (url) => {
+    const normalizedUrl = String(url || '').toLowerCase()
+    if (normalizedUrl.endsWith('.js')) return 'text/javascript'
+    if (normalizedUrl.endsWith('.wasm')) return 'application/wasm'
+    return 'application/octet-stream'
+  }
+
   const fetchCachedBlobUrl = async (url) => {
     const cache = await caches.open(CACHE_NAME)
     let response = await cache.match(url)
@@ -22,7 +29,12 @@
     if (!response?.ok) {
       throw new Error(`离线语音模型运行时文件不可用: ${url}`)
     }
-    return URL.createObjectURL(await response.blob())
+    const blob = await response.blob()
+    const expectedType = resolveRuntimeMimeType(url)
+    const typedBlob = blob.type === expectedType
+      ? blob
+      : new Blob([blob], { type: expectedType })
+    return URL.createObjectURL(typedBlob)
   }
 
   const downsampleTo16k = (samples, sampleRate) => {
@@ -43,14 +55,70 @@
     return nextSamples
   }
 
+  const createDefaultOnlineRecognizerConfig = () => ({
+    featConfig: {
+      sampleRate: 16000,
+      featureDim: 80
+    },
+    modelConfig: {
+      transducer: {
+        encoder: './encoder.onnx',
+        decoder: './decoder.onnx',
+        joiner: './joiner.onnx'
+      },
+      paraformer: {
+        encoder: '',
+        decoder: ''
+      },
+      zipformer2Ctc: {
+        model: ''
+      },
+      nemoCtc: {
+        model: ''
+      },
+      toneCtc: {
+        model: ''
+      },
+      tokens: './tokens.txt',
+      numThreads: 1,
+      provider: 'cpu',
+      debug: 0,
+      modelType: '',
+      modelingUnit: 'cjkchar',
+      bpeVocab: ''
+    },
+    decodingMethod: 'greedy_search',
+    maxActivePaths: 4,
+    enableEndpoint: 1,
+    rule1MinTrailingSilence: 2.4,
+    rule2MinTrailingSilence: 1.2,
+    rule3MinUtteranceLength: 20,
+    hotwordsFile: '',
+    hotwordsScore: 1.5,
+    ctcFstDecoderConfig: {
+      graph: '',
+      maxActive: 3000
+    },
+    ruleFsts: '',
+    ruleFars: ''
+  })
+
   class AiResumeSherpaRecognizer {
     constructor(recognizer) {
       this.recognizer = recognizer
-      this.stream = recognizer.createStream()
+      this.stream = null
       this.lastPartialText = ''
+      this.resetStream()
+    }
+
+    resetStream() {
+      this.stream?.free?.()
+      this.stream = this.recognizer.createStream()
     }
 
     start() {
+      this.resetStream()
+      // 同一个 Worker 会复用已加载的模型；每轮收音必须创建新 stream，避免上一轮 inputFinished 状态影响下一轮。
       this.lastPartialText = ''
     }
 
@@ -119,6 +187,8 @@
     if (typeof factory !== 'function') {
       throw new Error('未找到 sherpa-onnx 在线识别创建函数')
     }
-    return new AiResumeSherpaRecognizer(factory(self.Module, config.recognizerConfig))
+    // 默认关闭 sherpa C++ debug 日志，避免模型初始化信息被误认为前端报错。
+    const recognizerConfig = config.recognizerConfig || createDefaultOnlineRecognizerConfig()
+    return new AiResumeSherpaRecognizer(factory(self.Module, recognizerConfig))
   }
 })()

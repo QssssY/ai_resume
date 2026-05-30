@@ -147,6 +147,17 @@ describe('SettingsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    window.speechSynthesis = {
+      getVoices: vi.fn(() => []),
+      speak: vi.fn(),
+      cancel: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      onvoiceschanged: null
+    }
+    window.SpeechSynthesisUtterance = vi.fn(function SpeechSynthesisUtterance(text) {
+      this.text = text
+    })
     useUserStore.mockReturnValue({
       userInfo: {
         id: 1,
@@ -362,6 +373,76 @@ describe('SettingsView', () => {
     expect(wrapper.vm.offlineSttModelStatus.status).toBe('pending')
 
     confirmSpy.mockRestore()
+  })
+
+  it('disables offline STT download after the resource package is cached', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'offline'
+    wrapper.vm.offlineSttModelStatus = {
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    }
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    expect(wrapper.vm.canDownloadOfflineSttModel).toBe(false)
+    const downloadButton = wrapper.find('.offline-model-actions .n-button')
+    expect(downloadButton.exists()).toBe(true)
+    expect(downloadButton.text()).toContain('已缓存')
+    expect(downloadButton.attributes('disabled')).toBeDefined()
+
+    await wrapper.vm.handleOfflineSttDownload()
+
+    expect(downloadModelFromManifest).not.toHaveBeenCalled()
+  })
+
+  it('switches recognition preference to offline after offline STT download succeeds', async () => {
+    saveSettingsPreferences({ voiceRecognitionEngine: 'system_local' })
+    const wrapper = mountView()
+    await flushPromises()
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'offline'
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    expect(wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine).toBe('system_local')
+
+    await wrapper.vm.handleOfflineSttDownload()
+    await flushPromises()
+
+    expect(wrapper.vm.offlineSttModelStatus.status).toBe('ready')
+    expect(wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine).toBe('offline_sherpa')
+    expect(getSettingsPreferences()).toMatchObject({
+      voiceRecognitionEngine: 'offline_sherpa',
+      offlineSttEngine: 'sherpa_onnx'
+    })
+  })
+
+  it('keeps offline resource actions outside the status grid after package download', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'offline'
+    wrapper.vm.offlineSttModelStatus = {
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    }
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    const source = settingsViewSource()
+    const offlinePanel = wrapper.find('.offline-voice-grid')
+
+    expect(offlinePanel.find('.offline-model-actions').exists()).toBe(true)
+    expect(offlinePanel.find('.offline-model-status .offline-model-actions').exists()).toBe(false)
+    expect(offlinePanel.findAll('.offline-model-status span').map((item) => item.text())).toContain('模型状态：已缓存')
+    expect(source).toMatch(/\.offline-model-actions\s*\{[\s\S]*?display:\s*flex;/)
+    expect(source).toMatch(/\.offline-model-status\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/)
+    expect(source).toMatch(/@media \(max-width: 640px\)[\s\S]*\.offline-model-actions\s*\{[\s\S]*?flex-direction:\s*column;/)
   })
 
   it('allows users to delete failed offline STT package remnants and keeps them when cancelled', async () => {
@@ -626,6 +707,29 @@ describe('SettingsView', () => {
     expect(previewButton.attributes('aria-label')).toBe('试听当前 AI 播报声音')
     expect(previewButton.find('.voice-preview-icon img').exists()).toBe(true)
   })
+
+  it('prepares browser TTS during voice preview clicks so Chrome can load preferred voices', async () => {
+    let synthesisPrepared = false
+    window.speechSynthesis.getVoices = vi.fn(() => (
+      synthesisPrepared ? [{ lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural' }] : []
+    ))
+    window.speechSynthesis.resume = vi.fn(() => {
+      synthesisPrepared = true
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    await wrapper.find('.voice-preview-button').trigger('click')
+
+    expect(window.speechSynthesis.resume).toHaveBeenCalled()
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+    expect(window.speechSynthesis.speak.mock.calls[0][0].voice.name).toBe('Microsoft Xiaoxiao Natural')
+  }, 15000)
 
   it('loads server settings and renders resume retention preference', async () => {
     getUserSettings.mockResolvedValueOnce({

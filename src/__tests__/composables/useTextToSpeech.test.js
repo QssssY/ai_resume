@@ -32,8 +32,38 @@ describe('useTextToSpeech', () => {
     expect(spokenUtterances[0].text).toBe('你好，请介绍自己。')
 
     tts.flushRemaining()
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+
+    spokenUtterances[0].onend()
+
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(2)
     expect(spokenUtterances[1].text).toBe('下一句还没结束')
+  })
+
+  it('plays streamed interview questions sequentially without releasing speaking state between sentences', () => {
+    const tts = useTextToSpeech()
+
+    tts.speakStreaming('没关系，这个知识点比较深。我们换个角度，你在用Vue3开发的时候，用过哪些生命周期钩子？它们分别在什么阶段触发？')
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+    expect(spokenUtterances[0].text).toBe('没关系，这个知识点比较深。')
+    expect(tts.isSpeaking.value).toBe(true)
+
+    spokenUtterances[0].onend()
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(2)
+    expect(spokenUtterances[1].text).toBe('我们换个角度，你在用Vue3开发的时候，用过哪些生命周期钩子？')
+    expect(tts.isSpeaking.value).toBe(true)
+
+    spokenUtterances[1].onend()
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(3)
+    expect(spokenUtterances[2].text).toBe('它们分别在什么阶段触发？')
+    expect(tts.isSpeaking.value).toBe(true)
+
+    spokenUtterances[2].onend()
+
+    expect(tts.isSpeaking.value).toBe(false)
   })
 
   it('filters feedback blocks before speaking', () => {
@@ -90,6 +120,177 @@ describe('useTextToSpeech', () => {
     expect(spokenUtterances[0].text).toBe('你好。')
     expect(spokenUtterances[0].voice.name).toBe('Microsoft Xiaoxiao Natural')
     vi.useRealTimers()
+  })
+
+  it('falls back to the system default voice after Chrome voices fail to load during user gesture playback', async () => {
+    vi.useFakeTimers()
+    window.speechSynthesis.getVoices = vi.fn(() => [])
+    const tts = useTextToSpeech()
+
+    tts.prepareForUserGesture()
+    tts.speak('你好，我是本次 AI 面试官。')
+
+    expect(window.speechSynthesis.resume).toHaveBeenCalled()
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(900)
+    await Promise.resolve()
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+    expect(spokenUtterances[0].text).toBe('你好，我是本次 AI 面试官。')
+    expect(spokenUtterances[0].voice).toBeUndefined()
+    vi.useRealTimers()
+  })
+
+  it('waits briefly for Chrome voices after user gesture before falling back to the system default voice', async () => {
+    vi.useFakeTimers()
+    let currentVoices = []
+    window.speechSynthesis.getVoices = vi.fn(() => currentVoices)
+    const tts = useTextToSpeech()
+
+    tts.prepareForUserGesture()
+    tts.speak('Hello.')
+
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
+
+    currentVoices = [{ lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural' }]
+    window.speechSynthesis.onvoiceschanged()
+    await Promise.resolve()
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+    expect(spokenUtterances[0].voice.name).toBe('Microsoft Xiaoxiao Natural')
+    vi.useRealTimers()
+  })
+
+  it('still waits for preferred Chrome voices when default voice fallback is allowed', async () => {
+    vi.useFakeTimers()
+    let currentVoices = []
+    window.speechSynthesis.getVoices = vi.fn(() => currentVoices)
+    const tts = useTextToSpeech()
+
+    tts.prepareForUserGesture()
+    tts.speak('Hello.', { allowDefaultVoice: true, requireStartEvent: true })
+
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
+
+    currentVoices = [{ lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural' }]
+    window.speechSynthesis.onvoiceschanged()
+    await Promise.resolve()
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+    expect(spokenUtterances[0].voice.name).toBe('Microsoft Xiaoxiao Natural')
+    vi.useRealTimers()
+  })
+
+  it('waits for better Chrome voices when the first user gesture only exposes legacy system voices', async () => {
+    vi.useFakeTimers()
+    let currentVoices = [
+      { lang: 'zh-CN', name: 'Microsoft Huihui Desktop', voiceURI: 'huihui-desktop', localService: true },
+    ]
+    window.speechSynthesis.getVoices = vi.fn(() => currentVoices)
+    const tts = useTextToSpeech()
+
+    tts.prepareForUserGesture()
+    tts.speak('你好，我是你的 AI 面试官。')
+
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
+
+    currentVoices = [
+      { lang: 'zh-CN', name: 'Microsoft Huihui Desktop', voiceURI: 'huihui-desktop', localService: true },
+      { lang: 'zh-CN', name: 'Google 普通话（中国大陆）', voiceURI: 'google-zh-cn', localService: false },
+    ]
+    window.speechSynthesis.onvoiceschanged()
+    await Promise.resolve()
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+    expect(spokenUtterances[0].voice.name).toBe('Google 普通话（中国大陆）')
+    vi.useRealTimers()
+  })
+
+  it('falls back to legacy Chrome system voices after waiting for better voices times out', async () => {
+    vi.useFakeTimers()
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Huihui Desktop', voiceURI: 'huihui-desktop', localService: true },
+    ])
+    const tts = useTextToSpeech()
+
+    tts.prepareForUserGesture()
+    tts.speak('你好，我是你的 AI 面试官。')
+
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(900)
+    await Promise.resolve()
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+    expect(spokenUtterances[0].voice.name).toBe('Microsoft Huihui Desktop')
+    vi.useRealTimers()
+  })
+
+  it('reports utterance start and end details to the caller', () => {
+    const onStart = vi.fn()
+    const onEnd = vi.fn()
+    const tts = useTextToSpeech()
+
+    tts.speak('你好。', { onStart, onEnd })
+    spokenUtterances[0].onstart()
+    spokenUtterances[0].onend()
+
+    expect(onStart).toHaveBeenCalledTimes(1)
+    expect(onEnd).toHaveBeenCalledWith(expect.objectContaining({
+      reason: 'end',
+      started: true,
+      text: '你好。',
+    }))
+  })
+
+  it('keeps active utterances strongly referenced until completion', () => {
+    const tts = useTextToSpeech()
+
+    tts.speak('The interviewer should finish this sentence before listening.')
+
+    expect(tts.activeUtteranceCount.value).toBe(1)
+
+    spokenUtterances[0].onend()
+
+    expect(tts.activeUtteranceCount.value).toBe(0)
+  })
+
+  it('reports a start timeout when Chrome accepts an utterance but never starts it', () => {
+    vi.useFakeTimers()
+    const onEnd = vi.fn()
+    window.speechSynthesis.speak = vi.fn((utterance) => {
+      window.speechSynthesis.speaking = true
+      spokenUtterances.push(utterance)
+    })
+    const tts = useTextToSpeech()
+
+    tts.speak('你好。', { onEnd })
+    vi.advanceTimersByTime(6000)
+
+    expect(onEnd).toHaveBeenCalledWith(expect.objectContaining({
+      reason: 'start-timeout',
+      started: false,
+      text: '你好。',
+    }))
+    vi.useRealTimers()
+  })
+
+  it('ignores stale callbacks from a cancelled utterance after replacement speech starts', () => {
+    const onEnd = vi.fn()
+    const tts = useTextToSpeech({ onEnd })
+
+    tts.speak('第一句。')
+    const staleUtterance = spokenUtterances[0]
+    tts.speak('第二句。')
+
+    staleUtterance.onend()
+
+    expect(tts.isSpeaking.value).toBe(true)
+    expect(onEnd).not.toHaveBeenCalled()
+    spokenUtterances[1].onend()
+    expect(tts.isSpeaking.value).toBe(false)
+    expect(onEnd).toHaveBeenCalledTimes(1)
   })
 
   it('exposes browser TTS engine status without requiring enhanced voice package', () => {
@@ -156,6 +357,30 @@ describe('useTextToSpeech', () => {
     expect(spokenUtterances[0].voice.name).toBe('Microsoft Yunxi Natural')
   })
 
+  it('prefers local Chinese voices over generic remote browser voices for default playback reliability', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Browser Chinese Voice', voiceURI: 'browser-zh-cn', localService: false },
+      { lang: 'zh-CN', name: 'Windows Chinese Voice', voiceURI: 'local-zh-cn', localService: true },
+    ])
+    const tts = useTextToSpeech()
+
+    tts.speak('你好，我是本次 AI 面试官。')
+
+    expect(spokenUtterances[0].voice.name).toBe('Windows Chinese Voice')
+  })
+
+  it('prefers recognizable natural Chrome Chinese voices over generic local system voices', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Huihui Desktop', voiceURI: 'huihui-desktop', localService: true },
+      { lang: 'zh-CN', name: 'Google 普通话（中国大陆）', voiceURI: 'google-zh-cn', localService: false },
+    ])
+    const tts = useTextToSpeech()
+
+    tts.speak('你好，我是你的 AI 面试官。')
+
+    expect(spokenUtterances[0].voice.name).toBe('Google 普通话（中国大陆）')
+  })
+
   it('stop clears speech queue', () => {
     const tts = useTextToSpeech()
 
@@ -201,6 +426,83 @@ describe('useTextToSpeech', () => {
     window.speechSynthesis.speaking = false
     spokenUtterances[0].onend()
 
+    expect(tts.isSpeaking.value).toBe(false)
+    expect(onEnd).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
+  })
+
+  it('does not cancel a started Chrome utterance at the first watchdog check while it is still speaking', () => {
+    vi.useFakeTimers()
+    const onEnd = vi.fn()
+    window.speechSynthesis.speak = vi.fn((utterance) => {
+      window.speechSynthesis.speaking = true
+      spokenUtterances.push(utterance)
+      utterance.onstart()
+    })
+    const tts = useTextToSpeech({ onEnd })
+
+    tts.speak('你好，我是本次 AI 面试官。')
+    window.speechSynthesis.cancel.mockClear()
+
+    vi.advanceTimersByTime(13000)
+
+    expect(window.speechSynthesis.cancel).not.toHaveBeenCalled()
+    expect(tts.isSpeaking.value).toBe(true)
+    expect(onEnd).not.toHaveBeenCalled()
+
+    window.speechSynthesis.speaking = false
+    spokenUtterances[0].onend()
+
+    expect(tts.isSpeaking.value).toBe(false)
+    expect(onEnd).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
+  })
+
+  it('does not cancel browser speech before the first idle utterance', () => {
+    const tts = useTextToSpeech()
+
+    tts.speak('你好，我是本次 AI 面试官。')
+
+    expect(window.speechSynthesis.cancel).not.toHaveBeenCalled()
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+  })
+
+  it('releases speaking state when Chrome accepts an utterance but never starts it', () => {
+    vi.useFakeTimers()
+    const onEnd = vi.fn()
+    window.speechSynthesis.speak = vi.fn((utterance) => {
+      window.speechSynthesis.speaking = true
+      spokenUtterances.push(utterance)
+    })
+    const tts = useTextToSpeech({ onEnd })
+
+    tts.speak('你好，我是本次 AI 面试官。')
+
+    expect(tts.isSpeaking.value).toBe(true)
+    vi.advanceTimersByTime(6000)
+
+    expect(window.speechSynthesis.cancel).toHaveBeenCalled()
+    expect(tts.isSpeaking.value).toBe(false)
+    expect(onEnd).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
+  })
+
+  it('releases speaking state after the conservative hard timeout when Chrome keeps reporting speaking', () => {
+    vi.useFakeTimers()
+    const onEnd = vi.fn()
+    window.speechSynthesis.speak = vi.fn((utterance) => {
+      window.speechSynthesis.speaking = true
+      spokenUtterances.push(utterance)
+      utterance.onstart()
+    })
+    const tts = useTextToSpeech({ onEnd })
+
+    tts.speak('你好，我是本次 AI 面试官。')
+
+    expect(tts.isSpeaking.value).toBe(true)
+    vi.advanceTimersByTime(61000)
+
+    expect(window.speechSynthesis.cancel).toHaveBeenCalled()
     expect(tts.isSpeaking.value).toBe(false)
     expect(onEnd).toHaveBeenCalledTimes(1)
     vi.useRealTimers()

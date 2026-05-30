@@ -19,24 +19,50 @@ describe('useSpeechToText', () => {
   let recognitionInstance
   let mediaTrack
   let audioContext
+  let audioSource
+  let audioProcessor
+  let audioWorkletNode
   let analyser
   let sampleValue
   let workerInstance
+  let workerInstances
 
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-19T10:00:00.000Z'))
     sampleValue = 128
     workerInstance = null
+    workerInstances = []
     recognitionInstance = null
     mediaTrack = { stop: vi.fn() }
+    audioSource = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }
+    audioProcessor = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      onaudioprocess: null,
+    }
+    audioWorkletNode = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      port: {
+        onmessage: null,
+        close: vi.fn(),
+      },
+    }
     analyser = {
       fftSize: 0,
       getByteTimeDomainData: vi.fn((samples) => samples.fill(sampleValue)),
     }
     audioContext = {
+      state: 'running',
+      sampleRate: 16000,
+      resume: vi.fn(() => Promise.resolve()),
       createAnalyser: vi.fn(() => analyser),
-      createMediaStreamSource: vi.fn(() => ({ connect: vi.fn() })),
+      createMediaStreamSource: vi.fn(() => audioSource),
+      createScriptProcessor: vi.fn(() => audioProcessor),
       close: vi.fn(),
     }
 
@@ -55,6 +81,7 @@ describe('useSpeechToText', () => {
     }
     window.Worker = vi.fn(function WorkerMock() {
       workerInstance = this
+      workerInstances.push(this)
       this.postMessage = vi.fn()
       this.terminate = vi.fn()
     })
@@ -63,6 +90,7 @@ describe('useSpeechToText', () => {
   afterEach(() => {
     delete window.SpeechRecognition
     delete window.AudioContext
+    delete window.AudioWorkletNode
     delete navigator.mediaDevices
     delete window.Worker
     vi.useRealTimers()
@@ -110,20 +138,363 @@ describe('useSpeechToText', () => {
     const speech = useSpeechToText({ preferOffline: true })
 
     await speech.start()
+    expect(window.AudioContext).toHaveBeenCalledWith({ sampleRate: 16000 })
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      }
+    })
+    expect(speech.isRecording.value).toBe(false)
+
     workerInstance.onmessage({ data: { type: 'ready' } })
+    expect(speech.engineStatus.value).toBe('offline-ready')
+    expect(speech.isRecording.value).toBe(true)
+    expect(audioSource.connect).toHaveBeenCalledWith(audioProcessor)
+    expect(audioProcessor.connect).toHaveBeenCalledWith(audioContext.destination)
+
     workerInstance.onmessage({ data: { type: 'partial', transcript: 'hello' } })
     expect(speech.interimTranscript.value).toBe('hello')
     workerInstance.onmessage({ data: { type: 'final', transcript: 'hello interviewer' } })
 
-    expect(speech.engineStatus.value).toBe('offline-ready')
-    expect(speech.isRecording.value).toBe(true)
     expect(window.SpeechRecognition).not.toHaveBeenCalled()
     expect(workerInstance.postMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: 'init',
-      runtimeUrl: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js'
+      runtimeUrl: expect.stringMatching(/^\/voice-models\/sherpa-onnx\/zh-cn-streaming\/runtime\.js\?v=/)
     }))
     expect(workerInstance.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'start' }))
     expect(speech.finalTranscript.value).toBe('hello interviewer')
+  })
+
+  it('posts a structured-cloneable offline worker init message when cached files are reactive', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    const cachedFiles = [
+      {
+        path: 'sherpa-onnx-asr.js',
+        url: '/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-asr.js',
+        size: 43606
+      }
+    ]
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100,
+      manifestUrl: '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json',
+      runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js',
+      files: cachedFiles
+    })
+    window.Worker = vi.fn(function WorkerMock() {
+      workerInstance = this
+      workerInstances.push(this)
+      this.postMessage = vi.fn((message) => structuredClone(message))
+      this.terminate = vi.fn()
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await expect(speech.start()).resolves.toBeUndefined()
+
+    const initCall = workerInstance.postMessage.mock.calls.find(([message]) => message.type === 'init')
+    expect(initCall).toBeTruthy()
+    expect(initCall[0].runtimeUrl).toMatch(/^\/voice-models\/sherpa-onnx\/zh-cn-streaming\/runtime\.js\?v=/)
+    expect(initCall[0].config.files).toEqual(cachedFiles)
+    expect(() => structuredClone(initCall[0])).not.toThrow()
+  })
+
+  it('appends the frontend runtime adapter version even when the cached model has its own version', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100,
+      version: 'speech-asr-1pass-20260527',
+      runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js'
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+
+    const initCall = workerInstance.postMessage.mock.calls.find(([message]) => message.type === 'init')
+    expect(initCall[0].runtimeUrl).toContain('speech-asr-1pass-20260527')
+    expect(initCall[0].runtimeUrl).toMatch(/20260530/)
+  })
+
+  it('prepares the offline worker without opening microphone capture', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100,
+      runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js'
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    const preparePromise = speech.prepareOfflineRecognition()
+
+    expect(window.Worker).toHaveBeenCalledTimes(1)
+    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled()
+    expect(speech.isRecording.value).toBe(false)
+    expect(workerInstance.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'init' }))
+
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    await preparePromise
+
+    expect(speech.engineStatus.value).toBe('offline-ready')
+    expect(speech.isRecording.value).toBe(false)
+  })
+
+  it('keeps the downloaded offline engine label stable while prewarming', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100,
+      runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js'
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    expect(speech.engineStatus.value).toBe('offline-ready')
+
+    const preparePromise = speech.prepareOfflineRecognition()
+
+    expect(speech.engineStatus.value).toBe('offline-ready')
+    expect(speech.isRecording.value).toBe(false)
+
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    await preparePromise
+
+    expect(speech.engineStatus.value).toBe('offline-ready')
+  })
+
+  it('starts recording through a prewarmed offline worker without sending init again', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100,
+      runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js'
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    const preparePromise = speech.prepareOfflineRecognition()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    await preparePromise
+    const firstWorker = workerInstance
+
+    await speech.start()
+
+    expect(workerInstances).toHaveLength(1)
+    expect(firstWorker.postMessage.mock.calls.filter(([message]) => message.type === 'init')).toHaveLength(1)
+    expect(firstWorker.postMessage).toHaveBeenLastCalledWith({ type: 'start' })
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1)
+    expect(speech.isRecording.value).toBe(true)
+  })
+
+  it('resumes suspended offline audio context before recording starts', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    audioContext.state = 'suspended'
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+
+    expect(audioContext.resume).toHaveBeenCalled()
+  })
+
+  it('resumes offline audio context within the start gesture before microphone permission resolves', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    audioContext.state = 'suspended'
+    let resolveUserMedia
+    navigator.mediaDevices.getUserMedia = vi.fn(() => new Promise((resolve) => {
+      resolveUserMedia = resolve
+    }))
+    const speech = useSpeechToText({ preferOffline: true })
+
+    const startPromise = speech.start()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(window.AudioContext).toHaveBeenCalledWith({ sampleRate: 16000 })
+    expect(audioContext.resume).toHaveBeenCalled()
+    expect(audioContext.createMediaStreamSource).not.toHaveBeenCalled()
+
+    resolveUserMedia({ getTracks: () => [mediaTrack] })
+    await startPromise
+
+    expect(audioContext.createMediaStreamSource).toHaveBeenCalled()
+  })
+
+  it('sends offline microphone audio frames into the worker after ready', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    audioProcessor.onaudioprocess({
+      inputBuffer: {
+        getChannelData: vi.fn(() => new Float32Array([0.25, -0.5]))
+      }
+    })
+
+    const audioCall = workerInstance.postMessage.mock.calls.find(([message]) => message.type === 'audio')
+    expect(audioCall).toBeTruthy()
+    expect(audioCall[0].sampleRate).toBe(16000)
+    expect(Array.from(audioCall[0].samples)).toEqual([0.25, -0.5])
+    expect(audioCall[1]).toEqual([audioCall[0].samples.buffer])
+    expect(speech.errorCode.value).toBe('')
+  })
+
+  it('uses AudioWorklet for offline microphone frames before falling back to deprecated ScriptProcessor', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    audioContext.audioWorklet = {
+      addModule: vi.fn(() => Promise.resolve()),
+    }
+    window.AudioWorkletNode = vi.fn(function AudioWorkletNodeMock() {
+      return audioWorkletNode
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(speech.isRecording.value).toBe(true)
+    audioWorkletNode.port.onmessage({ data: { samples: [0.25, -0.5] } })
+
+    expect(audioContext.audioWorklet.addModule).toHaveBeenCalledWith(expect.stringContaining('/audio-worklets/offline-stt-processor.js'))
+    expect(window.AudioWorkletNode).toHaveBeenCalledWith(audioContext, 'offline-stt-processor')
+    expect(audioContext.createScriptProcessor).not.toHaveBeenCalled()
+    const audioCall = workerInstance.postMessage.mock.calls.find(([message]) => message.type === 'audio')
+    expect(audioCall).toBeTruthy()
+    expect(audioCall[0].sampleRate).toBe(16000)
+    expect(Array.from(audioCall[0].samples)).toEqual([0.25, -0.5])
+    expect(audioCall[1]).toEqual([audioCall[0].samples.buffer])
+    expect(speech.isVoiceActive.value).toBe(true)
+  })
+
+  it('marks offline voice activity directly from PCM frames before transcript changes', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    audioProcessor.onaudioprocess({
+      inputBuffer: {
+        getChannelData: vi.fn(() => new Float32Array([0.04, -0.04, 0.03, -0.03]))
+      }
+    })
+
+    expect(speech.isVoiceActive.value).toBe(true)
+    expect(speech.voiceActivityAt.value).toBe(Date.now())
+  })
+
+  it('reports an offline audio error when no processor node is available', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    audioContext.createScriptProcessor = undefined
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+
+    expect(speech.errorCode.value).toBe('offline-audio-unavailable')
+    expect(speech.engineStatus.value).toBe('offline-error')
+    expect(speech.offlineEngineSuggested.value).toBe(false)
+    expect(speech.isRecording.value).toBe(false)
+    expect(workerInstance.terminate).toHaveBeenCalled()
+  })
+
+  it('reports an offline audio error when recording produces no audio frames', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    vi.advanceTimersByTime(2200)
+
+    expect(speech.errorCode.value).toBe('offline-audio-unavailable')
+    expect(speech.engineStatus.value).toBe('offline-error')
+    expect(speech.offlineEngineSuggested.value).toBe(false)
+    expect(speech.isRecording.value).toBe(false)
+    expect(workerInstance.terminate).toHaveBeenCalled()
+  })
+
+  it('does not downgrade ready offline recognition to no-transcript before sherpa flushes final text', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    audioProcessor.onaudioprocess({
+      inputBuffer: {
+        getChannelData: vi.fn(() => new Float32Array([0.08, -0.09]))
+      }
+    })
+    sampleValue = 145
+    vi.advanceTimersByTime(6240)
+
+    expect(speech.errorCode.value).toBe('')
+    expect(speech.engineStatus.value).toBe('offline-ready')
+    expect(speech.isRecording.value).toBe(true)
+  })
+
+  it('keeps installed offline model status after an offline worker error instead of suggesting another download', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    workerInstance.onmessage({ data: { type: 'error', error: 'runtime failed' } })
+
+    expect(speech.errorCode.value).toBe('offline-worker-error')
+    expect(speech.engineStatus.value).toBe('offline-error')
+    expect(speech.offlineEngineSuggested.value).toBe(false)
+    expect(speech.isSupported.value).toBe(true)
   })
 
   it('terminates offline worker and releases microphone when cancelled', async () => {
@@ -144,7 +515,7 @@ describe('useSpeechToText', () => {
     expect(speech.isRecording.value).toBe(false)
   })
 
-  it('waits for the offline worker final transcript before terminating on stop', async () => {
+  it('waits for the offline worker final transcript before releasing microphone on stop', async () => {
     const cache = await import('@/utils/offlineVoiceModelCache')
     cache.getOfflineVoiceModelStatus.mockReturnValue({
       modelKey: 'stt:sherpa_onnx:zh_cn',
@@ -154,6 +525,7 @@ describe('useSpeechToText', () => {
     const speech = useSpeechToText({ preferOffline: true })
 
     await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
     const stopPromise = speech.stop()
 
     expect(workerInstance.postMessage).toHaveBeenCalledWith({ type: 'stop' })
@@ -163,9 +535,93 @@ describe('useSpeechToText', () => {
     await stopPromise
 
     expect(speech.finalTranscript.value).toBe('last answer')
-    expect(workerInstance.terminate).toHaveBeenCalled()
+    expect(workerInstance.terminate).not.toHaveBeenCalled()
     expect(mediaTrack.stop).toHaveBeenCalled()
     expect(audioContext.close).toHaveBeenCalled()
+    expect(speech.isRecording.value).toBe(false)
+  })
+
+  it('reuses the ready offline worker between recording rounds instead of reinitializing the model', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100,
+      runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js'
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    const firstWorker = workerInstance
+    const stopPromise = speech.stop()
+    firstWorker.onmessage({ data: { type: 'final', transcript: '第一轮' } })
+    await stopPromise
+
+    await speech.start()
+
+    expect(workerInstances).toHaveLength(1)
+    expect(firstWorker.terminate).not.toHaveBeenCalled()
+    expect(firstWorker.postMessage.mock.calls.filter(([message]) => message.type === 'init')).toHaveLength(1)
+    expect(firstWorker.postMessage).toHaveBeenLastCalledWith({ type: 'start' })
+    expect(speech.engineStatus.value).toBe('offline-ready')
+    expect(speech.isRecording.value).toBe(true)
+  })
+
+  it('finishes offline stop immediately when the worker confirms stop without text', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    audioProcessor.onaudioprocess({
+      inputBuffer: {
+        getChannelData: vi.fn(() => new Float32Array([0.08, -0.09]))
+      }
+    })
+
+    const stopPromise = speech.stop()
+    let resolved = false
+    stopPromise.then(() => { resolved = true })
+    workerInstance.onmessage({ data: { type: 'stopped' } })
+    await stopPromise
+
+    expect(resolved).toBe(true)
+    expect(speech.errorCode.value).toBe('offline-no-transcript')
+    expect(workerInstance.terminate).not.toHaveBeenCalled()
+  })
+
+  it('reports an offline recognition error when microphone audio flushes without any transcript', async () => {
+    const cache = await import('@/utils/offlineVoiceModelCache')
+    cache.getOfflineVoiceModelStatus.mockReturnValue({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
+      status: 'ready',
+      progress: 100
+    })
+    const speech = useSpeechToText({ preferOffline: true })
+
+    await speech.start()
+    workerInstance.onmessage({ data: { type: 'ready' } })
+    audioProcessor.onaudioprocess({
+      inputBuffer: {
+        getChannelData: vi.fn(() => new Float32Array([0.08, -0.09]))
+      }
+    })
+    sampleValue = 145
+    vi.advanceTimersByTime(120)
+
+    const stopPromise = speech.stop()
+    vi.advanceTimersByTime(5100)
+    await stopPromise
+
+    expect(speech.errorCode.value).toBe('offline-no-transcript')
+    expect(speech.engineStatus.value).toBe('offline-error')
+    expect(speech.offlineEngineSuggested.value).toBe(false)
     expect(speech.isRecording.value).toBe(false)
   })
 

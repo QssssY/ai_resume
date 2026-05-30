@@ -391,8 +391,16 @@ const router = useRouter();
 const route = useRoute();
 const settingsPreferences = getSettingsPreferences();
 const speechRecognitionOptions = {
-  preferOffline: settingsPreferences.voiceRecognitionEngine === 'offline_sherpa'
+  preferOffline: settingsPreferences.voiceRecognitionEngine === 'offline_sherpa',
+  prewarmOffline: false,
 };
+const voiceSpeechRecognitionOptions = {
+  preferOffline: settingsPreferences.voiceRecognitionEngine === 'offline_sherpa',
+  prewarmOffline: settingsPreferences.voiceRecognitionEngine === 'offline_sherpa',
+};
+const RATE_LIMIT_STATUS = 429;
+const INTERVIEW_STREAM_RATE_LIMIT_MESSAGE = "发送太频繁，请稍后继续。10 分钟内最多 60 轮对话。";
+const OPENING_SPEECH_MAX_ATTEMPTS = 2;
 
 const sessionId = computed(() => route.params.sessionId);
 const chatContainer = ref(null);
@@ -417,6 +425,7 @@ const voiceFeatureSupported = computed(() => voiceSttSupported.value && textToSp
 const voiceRecognitionEngineText = computed(() => {
   if (voiceSttEngineStatus?.value === 'offline-ready') return '识别引擎：离线 sherpa-onnx 已就绪';
   if (voiceSttEngineStatus?.value === 'offline-loading') return '识别引擎：离线模型启动中';
+  if (voiceSttEngineStatus?.value === 'offline-error') return '识别引擎：离线 sherpa-onnx 异常';
   if (voiceSttEngineStatus?.value === 'offline-missing') return '识别引擎：无可用识别引擎，建议下载离线模型';
   if (!voiceSttSupported.value) return '识别引擎：当前浏览器不可用';
   if (voiceSttEngineStatus?.value === 'system-local') return '识别引擎：系统本地优先';
@@ -443,6 +452,8 @@ const voiceCallDescription = computed(() => {
   return `说完后静音 ${settingsPreferences.voiceAutoSubmitDelayMs / 1000} 秒会自动发送本轮回答。`;
 });
 let openingPollingTimer = null;
+let openingSpeechAttemptCount = 0;
+let openingSpeechActive = false;
 
 const {
   isSupported: sttSupported,
@@ -471,7 +482,8 @@ const {
   start: voiceSttStart,
   stop: voiceSttStop,
   cancel: voiceSttCancel,
-} = useSpeechToText(speechRecognitionOptions);
+  prepareOfflineRecognition: voiceSttPrepareOfflineRecognition,
+} = useSpeechToText(voiceSpeechRecognitionOptions);
 
 const textToSpeech = useTextToSpeech({
   rate: settingsPreferences.voiceSpeakingRate,
@@ -572,6 +584,14 @@ watch(sttError, (err) => {
 watch(voiceCall.error, (err) => {
   if (err) ElMessage.warning(err);
 });
+
+watch(isVoiceSession, (enabled) => {
+  if (!enabled || !voiceSpeechRecognitionOptions.prewarmOffline) return;
+  // 语音面试加载后后台预热离线 Worker/模型，不申请麦克风，减少用户点击开始通话后的准备等待。
+  void voiceSttPrepareOfflineRecognition?.().catch(() => {
+    // 预热失败不打断页面；真正开始通话时仍会走现有错误提示和降级链路。
+  });
+}, { immediate: true });
 
 const assistantAvatar = optimizedImages.assistantAvatar;
 const userAvatar = optimizedImages.userAvatar;
@@ -683,21 +703,37 @@ const shouldDeferListeningForOpeningSpeech = () => Boolean(
 );
 
 const speakOpeningMessageOnce = () => {
-  if (openingSpeechPlayed.value || !isVoiceSession.value || !voiceCall.isVoiceMode.value) {
+  if (openingSpeechPlayed.value || openingSpeechActive || !isVoiceSession.value || !voiceCall.isVoiceMode.value) {
     return;
   }
   const openingContent = getOpeningSpeechContent();
   if (!openingContent) {
     return;
   }
+  if (openingSpeechAttemptCount >= OPENING_SPEECH_MAX_ATTEMPTS) {
+    return;
+  }
 
-  // 语音通话首次启动时先播报已生成的开场白，避免用户进入通话后直接面对空白收音状态。
-  openingSpeechPlayed.value = true;
   // 如果开场白是在通话启动后才生成，播报前仍需关闭当前收音；首轮已延迟开麦时不再做无效取消。
   if (voiceSttRecording.value) {
     voiceSttCancel();
   }
-  textToSpeech.speak(openingContent);
+  openingSpeechActive = true;
+  openingSpeechAttemptCount += 1;
+  textToSpeech.speak(openingContent, {
+    allowDefaultVoice: true,
+    requireStartEvent: true,
+    onStart: () => {
+      // Chrome 可能接受 speak 调用但不真正开始发声；只有收到 onstart 才认为开场白已播过。
+      openingSpeechPlayed.value = true;
+    },
+    onEnd: (event) => {
+      openingSpeechActive = false;
+      if (event?.reason === 'start-timeout' && !openingSpeechPlayed.value && voiceCall.isVoiceMode.value) {
+        speakOpeningMessageOnce();
+      }
+    },
+  });
 };
 
 const groupedChatLogs = computed(() => {
@@ -767,6 +803,9 @@ const fetchSessionDetail = async () => {
 };
 
 const OPENING_POLL_MAX_ROUNDS = 60; // 最多轮询 60 次，约 3 分钟超时
+const OPENING_POLL_FAST_ROUNDS = 6;
+const OPENING_POLL_FAST_DELAY_MS = 500;
+const OPENING_POLL_NORMAL_DELAY_MS = 3000;
 let openingPollRounds = 0;
 
 const startOpeningPolling = () => {
@@ -796,11 +835,14 @@ const startOpeningPolling = () => {
     } catch (err) {
       // 后端开场白生成是异步过程，单次轮询失败不一定意味着永久错误，
       // 但完全静默会让排查变困难，至少要在控制台留痕方便定位。
-      console.warn("开场白轮询失败，将在 3 秒后重试", err);
+      console.warn("开场白轮询失败，将继续重试", err);
     }
-    openingPollingTimer = setTimeout(poll, 3000);
+    const nextDelay = openingPollRounds < OPENING_POLL_FAST_ROUNDS
+      ? OPENING_POLL_FAST_DELAY_MS
+      : OPENING_POLL_NORMAL_DELAY_MS;
+    openingPollingTimer = setTimeout(poll, nextDelay);
   };
-  openingPollingTimer = setTimeout(poll, 3000);
+  openingPollingTimer = setTimeout(poll, OPENING_POLL_FAST_DELAY_MS);
 };
 
 const stopOpeningPolling = () => {
@@ -1041,7 +1083,12 @@ const sendMessage = async (overrideContent = "") => {
         const errBody = await response.json();
         errMsg = errBody.message || errBody.msg || errMsg;
       } catch { /* 保持最小兜底 */ }
-      throw new Error(errMsg);
+      const httpError = new Error(response.status === RATE_LIMIT_STATUS ? INTERVIEW_STREAM_RATE_LIMIT_MESSAGE : errMsg);
+      httpError.status = response.status;
+      if (response.status === RATE_LIMIT_STATUS) {
+        httpError.rateLimited = true;
+      }
+      throw httpError;
     }
     if (!response.body) throw new Error("未获取到流式响应体");
 
@@ -1073,12 +1120,16 @@ const sendMessage = async (overrideContent = "") => {
       sending.value = false;
       return;
     }
-    if (isVoiceSession.value && voiceCall.isVoiceMode.value) {
+    if (isVoiceSession.value && voiceCall.isVoiceMode.value && !err?.rateLimited) {
       voiceCall.endVoiceCall();
     }
     textToSpeech.stop();
     if (!err?.suppressToast) {
-      ElMessage.error(err.message || "发送消息失败，请稍后重试");
+      if (err?.rateLimited) {
+        ElMessage.warning(err.message || INTERVIEW_STREAM_RATE_LIMIT_MESSAGE);
+      } else {
+        ElMessage.error(err.message || "发送消息失败，请稍后重试");
+      }
     }
     const msgIndex = sessionData.value.chatLogs.findIndex((item) => item.id === tempMsgId);
     if (msgIndex !== -1) {
@@ -1100,16 +1151,21 @@ const formatCallDuration = (duration) => {
 };
 
 const handleStartVoiceCall = () => {
+  textToSpeech.prepareForUserGesture?.();
   const shouldDeferListening = shouldDeferListeningForOpeningSpeech();
   if (!voiceCall.startVoiceCall({ startListening: !shouldDeferListening })) {
     ElMessage.warning(voiceCall.error.value || "无法启动语音通话");
     return;
   }
+  openingSpeechAttemptCount = 0;
+  openingSpeechActive = false;
   speakOpeningMessageOnce();
 };
 
 const handleEndVoiceCall = () => {
   voiceCall.endVoiceCall();
+  openingSpeechActive = false;
+  openingSpeechAttemptCount = 0;
   voiceCallCollapsed.value = true;
   ElMessage.success("语音通话已挂断");
 };

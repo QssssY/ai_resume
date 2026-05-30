@@ -2,6 +2,15 @@ import path from 'node:path'
 
 const VOICE_MODEL_PREFIX = '/voice-models/'
 
+export function resolveVoiceModelContentType(filePath = '') {
+  const normalizedPath = filePath.toLowerCase()
+  if (normalizedPath.endsWith('.js')) return 'text/javascript; charset=utf-8'
+  if (normalizedPath.endsWith('.json')) return 'application/json; charset=utf-8'
+  if (normalizedPath.endsWith('.wasm')) return 'application/wasm'
+  if (normalizedPath.endsWith('.data')) return 'application/octet-stream'
+  return 'application/octet-stream'
+}
+
 /**
  * 解析开发环境语音模型本地路径，并确保最终路径不会逃逸模型目录。
  */

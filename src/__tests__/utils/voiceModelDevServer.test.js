@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveVoiceModelLocalPath } from '@/utils/voiceModelDevServer'
+import { resolveVoiceModelContentType, resolveVoiceModelLocalPath } from '@/utils/voiceModelDevServer'
 
 describe('voiceModelDevServer', () => {
   it('rejects traversal paths outside the local voice model directory', () => {
@@ -21,5 +21,14 @@ describe('voiceModelDevServer', () => {
     expect(resolved?.replace(/\\/g, '/')).toBe(
       'F:/Code/ai-resume/frontend/app/voice-models-local/sherpa-onnx/zh-cn-streaming/manifest.json'
     )
+  })
+
+  it('serves runnable worker scripts with a JavaScript content type', () => {
+    expect(resolveVoiceModelContentType(
+      'F:/Code/ai-resume/frontend/app/voice-models-local/sherpa-onnx/zh-cn-streaming/runtime.js'
+    )).toBe('text/javascript; charset=utf-8')
+    expect(resolveVoiceModelContentType(
+      'F:/Code/ai-resume/frontend/app/voice-models-local/sherpa-onnx/zh-cn-streaming/sherpa-onnx-wasm-main-asr.wasm'
+    )).toBe('application/wasm')
   })
 })

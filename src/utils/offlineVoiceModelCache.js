@@ -54,6 +54,23 @@ const normalizeModelStatus = (modelKey, status = {}) => ({
   files: Array.isArray(status.files) ? status.files : []
 })
 
+const resolveCachePrefix = (status) => {
+  const manifestUrl = typeof status.manifestUrl === 'string' ? status.manifestUrl : ''
+  if (!manifestUrl) return ''
+  return manifestUrl.slice(0, manifestUrl.lastIndexOf('/') + 1)
+}
+
+const isCacheRequestUnderPrefix = (request, prefix) => {
+  if (!prefix) return false
+  const requestUrl = typeof request === 'string' ? request : request?.url || ''
+  if (!requestUrl) return false
+  try {
+    return new URL(requestUrl, window.location.origin).pathname.startsWith(prefix)
+  } catch {
+    return requestUrl.startsWith(prefix)
+  }
+}
+
 const readStatusMap = () => {
   if (typeof localStorage === 'undefined') return {}
   try {
@@ -149,16 +166,22 @@ export async function readModelManifest(modelKey, manifestUrl) {
  */
 export async function downloadModelFromManifest(modelKey, manifestUrl, onProgress) {
   assertCacheApi()
+  const previousStatus = getOfflineVoiceModelStatus(modelKey)
+  if (previousStatus.status === 'ready' && await isModelCached(modelKey)) {
+    return previousStatus
+  }
   let manifest
   try {
     manifest = await readModelManifest(modelKey, manifestUrl)
   } catch (error) {
-    // 清单本身不可用时也写入 failed，设置页才能展示失败并允许用户删除残留状态。
+    // 清单不可用时保留旧文件清单，避免失败重试后丢失可删除的 Cache API 条目。
     saveOfflineVoiceModelStatus(modelKey, {
       status: 'failed',
       progress: 0,
       manifestUrl,
-      files: []
+      version: previousStatus.version,
+      runtime: previousStatus.runtime,
+      files: previousStatus.files
     })
     throw error
   }
@@ -247,9 +270,18 @@ export async function isModelCached(modelKey) {
  */
 export async function clearModelCache(modelKey) {
   const status = getOfflineVoiceModelStatus(modelKey)
-  if (typeof caches !== 'undefined' && status.files.length) {
+  if (typeof caches !== 'undefined') {
     const cache = await caches.open(OFFLINE_VOICE_CACHE_NAME)
-    await Promise.all(status.files.map((file) => cache.delete(file.url)))
+    if (status.files.length) {
+      await Promise.all(status.files.map((file) => cache.delete(file.url)))
+    } else if (typeof cache.keys === 'function') {
+      const cachePrefix = resolveCachePrefix(status)
+      const cachedRequests = await cache.keys()
+      // 兼容旧失败状态：files 被清空时按 manifest 所在目录清理残留模型文件，避免长期占用浏览器缓存。
+      await Promise.all(cachedRequests
+        .filter((request) => isCacheRequestUnderPrefix(request, cachePrefix))
+        .map((request) => cache.delete(request)))
+    }
   }
   return saveOfflineVoiceModelStatus(modelKey, {
     status: 'pending',

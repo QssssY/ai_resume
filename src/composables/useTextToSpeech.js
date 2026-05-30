@@ -4,7 +4,9 @@ const SENTENCE_END_REGEXP = /[。！？.!?]/
 const FEEDBACK_BLOCK_REGEXP = /<FEEDBACK>[\s\S]*?<\/FEEDBACK>/gi
 const CHROME_KEEPALIVE_INTERVAL_MS = 10000
 const STUCK_TIMEOUT_MS = 180000
+const UTTERANCE_START_TIMEOUT_MS = 5000
 const MIN_UTTERANCE_TIMEOUT_MS = 12000
+const STARTED_UTTERANCE_MIN_TIMEOUT_MS = 60000
 const MAX_UTTERANCE_TIMEOUT_MS = 180000
 const UTTERANCE_TIMEOUT_PER_CHAR_MS = 450
 
@@ -21,6 +23,7 @@ export function useTextToSpeech(options = {}) {
   const selectedVoice = ref(null)
   const engineStatus = computed(() => (isSupported.value ? 'system-tts' : 'unsupported'))
   const enhancedVoiceReady = ref(false)
+  const activeUtteranceCount = ref(0)
   const rate = ref(Number(options.rate ?? 0.92))
   const pitch = ref(Number(options.pitch ?? 1.06))
   const volume = ref(Number(options.volume ?? 1))
@@ -31,10 +34,17 @@ export function useTextToSpeech(options = {}) {
   let speechRunId = 0
   let voiceReadyResolvers = []
   let endedUtterances = new WeakSet()
+  let startedUtterances = new WeakSet()
+  let utteranceMetadata = new WeakMap()
   let utteranceWatchdogs = new WeakMap()
+  let utteranceStartWatchdogs = new WeakMap()
   let utteranceWatchdogTimers = new Set()
+  let activeUtterances = new Set()
+  let speechQueue = []
+  let isPreparingQueuedUtterance = false
   let keepAliveInterval = null
   let lastPendingChangeAt = 0
+  let userGesturePrepared = false
 
   const speechSynthesisRef = computed(() => (
     typeof window !== 'undefined' ? window.speechSynthesis : null
@@ -53,6 +63,8 @@ export function useTextToSpeech(options = {}) {
 
   const isFemaleVoiceName = (name) => /xiaoxiao|xiaoyi|xiaobei|xiaoxuan|huihui|yaoyao|hanhan|tingting|meijia|female|woman|girl|zira|aria|jenny|susan|samantha|victoria/.test(name)
   const isMaleVoiceName = (name) => /yunxi|yunyang|yunjian|kangkang|male|man|boy|david|mark|george|daniel/.test(name)
+  const isLegacySystemVoiceName = (name) => /desktop|huihui|zira|david|heami|hanhan|ichiro|haruka|hazel|hedda/.test(name)
+  const isLegacySystemVoice = (voice) => isLegacySystemVoiceName((voice?.name || '').toLowerCase())
 
   const getVoiceScore = (voice, preferredType = 'natural_zh') => {
     const lang = voice.lang?.toLowerCase() || ''
@@ -60,9 +72,13 @@ export function useTextToSpeech(options = {}) {
     let score = 0
     if (lang.startsWith('zh')) score += 20
     if (lang === 'zh-cn' || lang === 'zh-hans') score += 8
-    if (/xiaoxiao|xiaoyi|xiaobei|yunxi|xiaoxuan|natural|neural|premium/.test(name)) score += 12
-    if (/microsoft|google/.test(name)) score += 4
-    if (voice.localService === false) score += 2
+    if (/xiaoxiao|xiaoyi|xiaobei|yunxi|xiaoxuan|natural|neural|premium/.test(name)) score += 18
+    if (/google/.test(name)) score += 12
+    if (/microsoft/.test(name)) score += 4
+    if (voice.localService === true) score += isLegacySystemVoiceName(name) ? 1 : 6
+    if (voice.localService === false) score += /google|natural|neural|premium/.test(name) ? 2 : -2
+    // Chrome 常把 Windows 旧式本地语音也标为可用；这些 voice 稳定但机械，默认自然音色不应优先选择。
+    if (isLegacySystemVoiceName(name)) score -= 8
     if (preferredType === 'female' && isFemaleVoiceName(name)) score += 16
     if (preferredType === 'male' && isMaleVoiceName(name)) score += 16
     return score
@@ -91,6 +107,11 @@ export function useTextToSpeech(options = {}) {
       || null
   }
 
+  const hasPreferredNonLegacyVoice = () => {
+    const preferredVoice = pickPreferredVoice(voices.value)
+    return Boolean(preferredVoice && !isLegacySystemVoice(preferredVoice))
+  }
+
   const refreshVoices = () => {
     if (!isSupported.value || !speechSynthesisRef.value) return
     voices.value = speechSynthesisRef.value.getVoices()
@@ -98,9 +119,16 @@ export function useTextToSpeech(options = {}) {
   }
 
   const resolveVoiceReadyWaiters = () => {
-    const resolvers = voiceReadyResolvers
-    voiceReadyResolvers = []
-    resolvers.forEach((resolve) => resolve())
+    const pendingResolvers = []
+    voiceReadyResolvers.forEach((waiter) => {
+      if (waiter.isReady()) {
+        clearTimeout(waiter.timer)
+        waiter.resolve()
+        return
+      }
+      pendingResolvers.push(waiter)
+    })
+    voiceReadyResolvers = pendingResolvers
   }
 
   const handleVoicesChanged = () => {
@@ -108,17 +136,25 @@ export function useTextToSpeech(options = {}) {
     resolveVoiceReadyWaiters()
   }
 
-  const waitForVoicesReady = () => {
+  const waitForVoicesReady = (isReady = () => voices.value.length > 0) => {
     refreshVoices()
-    if (!isSupported.value || !speechSynthesisRef.value || voices.value.length > 0) {
+    if (!isSupported.value || !speechSynthesisRef.value || isReady()) {
       return Promise.resolve()
     }
     return new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(), 800)
-      voiceReadyResolvers.push(() => {
-        clearTimeout(timer)
+      const waiter = {
+        isReady,
+        timer: null,
+        resolve: () => {
+          voiceReadyResolvers = voiceReadyResolvers.filter((item) => item !== waiter)
+          resolve()
+        },
+      }
+      waiter.timer = setTimeout(() => {
+        voiceReadyResolvers = voiceReadyResolvers.filter((item) => item !== waiter)
         resolve()
-      })
+      }, 800)
+      voiceReadyResolvers.push(waiter)
     })
   }
 
@@ -146,10 +182,90 @@ export function useTextToSpeech(options = {}) {
     }, CHROME_KEEPALIVE_INTERVAL_MS)
   }
 
-  // pendingCount 仅由 onend/onerror 扣减，WeakSet 防止同一 utterance 重复扣减。
-  const markUtteranceEnd = (utterance) => {
+  const clearUtteranceStartWatchdog = (utterance) => {
+    const startWatchdog = utteranceStartWatchdogs.get(utterance)
+    if (!startWatchdog) return
+    clearTimeout(startWatchdog)
+    utteranceStartWatchdogs.delete(utterance)
+    utteranceWatchdogTimers.delete(startWatchdog)
+  }
+
+  const getUtteranceEvent = (utterance, reason) => {
+    const metadata = utteranceMetadata.get(utterance) || {}
+    return {
+      reason,
+      started: startedUtterances.has(utterance),
+      text: metadata.text || utterance.text || '',
+      utterance,
+    }
+  }
+
+  const markUtteranceStart = (utterance) => {
+    const metadata = utteranceMetadata.get(utterance)
+    if (!metadata || metadata.runId !== speechRunId) return
+    if (startedUtterances.has(utterance)) return
+    startedUtterances.add(utterance)
+    metadata.startedAt = Date.now()
+    clearUtteranceStartWatchdog(utterance)
+    metadata.onStart?.(getUtteranceEvent(utterance, 'start'))
+  }
+
+  const shouldWaitForVoiceBeforeSpeech = (speechOptions = {}) => {
+    refreshVoices()
+    const shouldWaitForHigherQualityVoice = Boolean(
+      (userGesturePrepared || speechOptions.allowDefaultVoice) &&
+      voicePreference.value?.type !== 'system' &&
+      selectedVoice.value &&
+      isLegacySystemVoice(selectedVoice.value)
+    )
+    if (voices.value.length > 0 && !shouldWaitForHigherQualityVoice) {
+      userGesturePrepared = false
+      return false
+    }
+    userGesturePrepared = false
+    return shouldWaitForHigherQualityVoice ? hasPreferredNonLegacyVoice : undefined
+  }
+
+  const playNextQueuedUtterance = () => {
+    if (isPreparingQueuedUtterance || activeUtterances.size > 0 || !speechQueue.length) return
+    const nextItem = speechQueue[0]
+    if (nextItem.runId !== speechRunId) {
+      speechQueue.shift()
+      pendingCount = Math.max(0, pendingCount - 1)
+      playNextQueuedUtterance()
+      return
+    }
+
+    const voiceReadyPredicate = shouldWaitForVoiceBeforeSpeech(nextItem.speechOptions)
+    if (voiceReadyPredicate !== false) {
+      isPreparingQueuedUtterance = true
+      // Chrome 可能先返回 Huihui Desktop 等旧式机械音色，再异步补齐 Google/自然音色；点击手势内短暂等待更优 voice。
+      void waitForVoicesReady(voiceReadyPredicate).then(() => {
+        isPreparingQueuedUtterance = false
+        if (nextItem.runId !== speechRunId || activeUtterances.size > 0) return
+        speechQueue.shift()
+        // 浏览器 speechSynthesis 自身的多 utterance 队列在 Chrome 中不稳定；这里改为应用层串行，只在上一句结束后再交给浏览器下一句。
+        enqueueNow(nextItem.text, nextItem.speechOptions)
+      })
+      return
+    }
+
+    speechQueue.shift()
+    // 浏览器 speechSynthesis 自身的多 utterance 队列在 Chrome 中不稳定；这里改为应用层串行，只在上一句结束后再交给浏览器下一句。
+    enqueueNow(nextItem.text, nextItem.speechOptions)
+  }
+
+  // pendingCount 表示应用层待播队列 + 当前浏览器 utterance 的总数，统一结束入口扣减；WeakSet 防止重复释放。
+  const markUtteranceEnd = (utterance, reason = 'end') => {
+    const metadata = utteranceMetadata.get(utterance)
+    if (!metadata || metadata.runId !== speechRunId) return
     if (endedUtterances.has(utterance)) return
+    const endEvent = getUtteranceEvent(utterance, reason)
     endedUtterances.add(utterance)
+    // Chrome 对 SpeechSynthesisUtterance 的队列引用不稳定，播放期间必须由业务层持有强引用，结束后再释放。
+    activeUtterances.delete(utterance)
+    activeUtteranceCount.value = activeUtterances.size
+    clearUtteranceStartWatchdog(utterance)
     const watchdog = utteranceWatchdogs.get(utterance)
     if (watchdog) {
       clearTimeout(watchdog)
@@ -158,10 +274,15 @@ export function useTextToSpeech(options = {}) {
     }
     pendingCount = Math.max(0, pendingCount - 1)
     lastPendingChangeAt = Date.now()
+    metadata.onEnd?.(endEvent)
+    utteranceMetadata.delete(utterance)
+    if (speechQueue.length > 0) {
+      playNextQueuedUtterance()
+    }
     if (pendingCount === 0) {
       stopKeepAlive()
       isSpeaking.value = false
-      options.onEnd?.()
+      options.onEnd?.(endEvent)
     }
   }
 
@@ -170,65 +291,145 @@ export function useTextToSpeech(options = {}) {
     Math.max(MIN_UTTERANCE_TIMEOUT_MS, text.length * UTTERANCE_TIMEOUT_PER_CHAR_MS)
   )
 
-  const startUtteranceWatchdog = (utterance, text) => {
+  const getStartedUtteranceTimeout = (text) => Math.min(
+    MAX_UTTERANCE_TIMEOUT_MS,
+    Math.max(STARTED_UTTERANCE_MIN_TIMEOUT_MS, getUtteranceTimeout(text) * 3)
+  )
+
+  const startUtteranceStartWatchdog = (utterance) => {
     const timer = setTimeout(() => {
       utteranceWatchdogTimers.delete(timer)
+      utteranceStartWatchdogs.delete(utterance)
+      if (endedUtterances.has(utterance) || startedUtterances.has(utterance)) return
+      // Chrome 可能接受 speak 调用但既不真正开始播报也不触发回调，此时主动释放 AI 回复状态。
+      speechSynthesisRef.value?.cancel()
+      markUtteranceEnd(utterance, 'start-timeout')
+    }, UTTERANCE_START_TIMEOUT_MS)
+    utteranceStartWatchdogs.set(utterance, timer)
+    utteranceWatchdogTimers.add(timer)
+  }
+
+  const startUtteranceWatchdog = (utterance, text, delay = getUtteranceTimeout(text)) => {
+    const timer = setTimeout(() => {
+      utteranceWatchdogTimers.delete(timer)
+      utteranceWatchdogs.delete(utterance)
       if (endedUtterances.has(utterance)) return
-      if (speechSynthesisRef.value?.speaking || speechSynthesisRef.value?.pending) {
-        startUtteranceWatchdog(utterance, text)
-        return
+      const metadata = utteranceMetadata.get(utterance)
+      const browserStillSpeaking = Boolean(speechSynthesisRef.value?.speaking || speechSynthesisRef.value?.pending)
+      if (metadata && startedUtterances.has(utterance) && browserStillSpeaking) {
+        const hardTimeout = getStartedUtteranceTimeout(text)
+        const elapsedAfterStart = Date.now() - (metadata.startedAt ?? metadata.createdAt ?? Date.now())
+        if (elapsedAfterStart < hardTimeout) {
+          // 已触发 onstart 的 Chrome 播报不能按短句估算直接 cancel，否则慢音色会被误判为卡死而中途截断。
+          startUtteranceWatchdog(utterance, text, Math.min(getUtteranceTimeout(text), hardTimeout - elapsedAfterStart))
+          return
+        }
       }
       // 部分浏览器偶发不触发 onend/onerror，主动 cancel 并释放播报状态，避免面试卡住。
       speechSynthesisRef.value?.cancel()
-      pendingCount = 1
-      markUtteranceEnd(utterance)
-    }, getUtteranceTimeout(text))
+      markUtteranceEnd(utterance, 'timeout')
+    }, delay)
     utteranceWatchdogs.set(utterance, timer)
     utteranceWatchdogTimers.add(timer)
   }
 
-  const enqueueNow = (text) => {
+  const enqueueNow = (text, speechOptions = {}) => {
     const normalizedText = normalizeTextForSpeech(text)
     if (!normalizedText || !isSupported.value || !speechSynthesisRef.value) return
 
     refreshVoices()
+    const shouldWatchStart = activeUtterances.size === 0 && (
+      speechOptions.requireStartEvent || (!speechSynthesisRef.value?.speaking && !speechSynthesisRef.value?.pending)
+    )
     const utterance = new SpeechSynthesisUtterance(normalizedText)
+    utteranceMetadata.set(utterance, {
+      text: normalizedText,
+      runId: speechRunId,
+      createdAt: Date.now(),
+      onStart: speechOptions.onStart,
+      onEnd: speechOptions.onEnd,
+    })
     utterance.lang = selectedVoice.value?.lang || 'zh-CN'
     utterance.rate = rate.value
     utterance.pitch = pitch.value
     utterance.volume = volume.value
     if (selectedVoice.value) utterance.voice = selectedVoice.value
+    utterance.onstart = () => markUtteranceStart(utterance)
     utterance.onend = () => markUtteranceEnd(utterance)
-    utterance.onerror = () => markUtteranceEnd(utterance)
+    utterance.onerror = (event) => markUtteranceEnd(utterance, event?.error || 'error')
 
-    pendingCount += 1
+    activeUtterances.add(utterance)
+    activeUtteranceCount.value = activeUtterances.size
     lastPendingChangeAt = Date.now()
     isSpeaking.value = true
-    // Chrome 在持续合成约 15 秒后会自动暂停，keep-alive 定期 resume 防止此问题
-    if (pendingCount === 1) startKeepAlive()
     speechSynthesisRef.value.resume?.()
     speechSynthesisRef.value.speak(utterance)
+    if (shouldWatchStart) startUtteranceStartWatchdog(utterance)
     startUtteranceWatchdog(utterance, normalizedText)
   }
 
-  const enqueue = (text, runId = speechRunId) => {
+  const enqueue = (text, runId = speechRunId, speechOptions = {}) => {
     const normalizedText = normalizeTextForSpeech(text)
     if (!normalizedText || !isSupported.value || !speechSynthesisRef.value) return
-    refreshVoices()
-    if (voices.value.length > 0) {
-      enqueueNow(normalizedText)
-      return
-    }
-    isSpeaking.value = true
-    void waitForVoicesReady().then(() => {
-      if (runId !== speechRunId) return
-      enqueueNow(normalizedText)
+    const shouldAllowDefaultVoiceAfterWait = userGesturePrepared || speechOptions.allowDefaultVoice
+    speechQueue.push({
+      text: normalizedText,
+      runId,
+      speechOptions: {
+        ...speechOptions,
+        allowDefaultVoice: speechOptions.allowDefaultVoice || shouldAllowDefaultVoiceAfterWait,
+      },
     })
+    pendingCount += 1
+    lastPendingChangeAt = Date.now()
+    isSpeaking.value = true
+    // Chrome 在持续合成约 15 秒后会自动暂停，keep-alive 定期 resume 防止此问题。
+    if (pendingCount === 1) startKeepAlive()
+    playNextQueuedUtterance()
   }
 
-  const speak = (text) => {
-    stop()
-    enqueue(text, speechRunId)
+  const hasActiveSpeech = () => Boolean(
+    buffer.trim()
+    || pendingCount > 0
+    || isSpeaking.value
+    || speechSynthesisRef.value?.speaking
+    || speechSynthesisRef.value?.pending
+  )
+
+  const clearSpeechState = (shouldCancelBrowserSpeech = true) => {
+    speechRunId += 1
+    buffer = ''
+    pendingCount = 0
+    stopKeepAlive()
+    utteranceWatchdogTimers.forEach((timer) => clearTimeout(timer))
+    utteranceWatchdogTimers = new Set()
+    utteranceWatchdogs = new WeakMap()
+    utteranceStartWatchdogs = new WeakMap()
+    utteranceMetadata = new WeakMap()
+    speechQueue = []
+    isPreparingQueuedUtterance = false
+    activeUtterances = new Set()
+    activeUtteranceCount.value = 0
+    endedUtterances = new WeakSet()
+    startedUtterances = new WeakSet()
+    isSpeaking.value = false
+    isPaused.value = false
+    if (shouldCancelBrowserSpeech) {
+      speechSynthesisRef.value?.cancel()
+    }
+  }
+
+  const speak = (text, speechOptions = {}) => {
+    clearSpeechState(hasActiveSpeech())
+    enqueue(text, speechRunId, speechOptions)
+  }
+
+  const prepareForUserGesture = () => {
+    if (!isSupported.value || !speechSynthesisRef.value) return
+    // Chrome 首次点击后 voices 可能仍为空或只有旧式机械音色；先唤醒合成器，后续播报会短暂等待更优 voice。
+    userGesturePrepared = true
+    refreshVoices()
+    speechSynthesisRef.value.resume?.()
   }
 
   const speakStreaming = (chunk) => {
@@ -255,17 +456,7 @@ export function useTextToSpeech(options = {}) {
   }
 
   const stop = () => {
-    speechRunId += 1
-    buffer = ''
-    pendingCount = 0
-    stopKeepAlive()
-    utteranceWatchdogTimers.forEach((timer) => clearTimeout(timer))
-    utteranceWatchdogTimers = new Set()
-    utteranceWatchdogs = new WeakMap()
-    endedUtterances = new WeakSet()
-    isSpeaking.value = false
-    isPaused.value = false
-    speechSynthesisRef.value?.cancel()
+    clearSpeechState(true)
   }
 
   const pause = () => {
@@ -307,6 +498,7 @@ export function useTextToSpeech(options = {}) {
     isPaused,
     engineStatus,
     enhancedVoiceReady,
+    activeUtteranceCount,
     voices,
     voice: selectedVoice,
     rate,
@@ -320,6 +512,7 @@ export function useTextToSpeech(options = {}) {
     stop,
     pause,
     resume,
+    prepareForUserGesture,
     normalizeTextForSpeech,
   }
 }

@@ -134,10 +134,22 @@ describe('featureIcons', () => {
     expect(criticalKeys).toContain('membership-credits')
     expect(criticalKeys).toContain('growth-radar')
     expect(criticalKeys).toContain('announcement')
+    expect(criticalKeys).toContain('loading')
     expect(getCriticalFeatureIconSource('growth-radar')?.webp).toContain('growth-radar.webp')
+    expect(getCriticalFeatureIconSource('loading')?.webp).toContain('loading.webp')
     expect(Object.keys(featureIcons)).toHaveLength(criticalKeys.length)
     expect(Object.keys(featureIconSources)).toEqual(Object.keys(featureIcons))
     expect(Object.keys(featureIconLabels)).toEqual(orderedFeatureIconKeys)
+  })
+
+  it('should resolve the loading icon synchronously without falling back to the notification bell', () => {
+    const loadingSource = getFeatureIconSource('loading')
+
+    expect(getFeatureIcon('loading')).toContain('loading.png')
+    expect(loadingSource.png).toContain('loading.png')
+    expect(loadingSource.webp).toContain('loading.webp')
+    expect(loadingSource.png).not.toContain('system-notifications')
+    expect(loadingSource.webp).not.toContain('system-notifications')
   })
 
   it('should fallback to system notifications for unknown feature icon keys', () => {

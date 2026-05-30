@@ -30,6 +30,42 @@
 
     <el-alert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" class="page-error" />
 
+    <el-card shadow="never" class="filter-card">
+      <div class="filter-row">
+        <el-input
+          v-model.trim="keyword"
+          class="filter-item keyword"
+          placeholder="按标题或内容搜索"
+          clearable
+          @keyup.enter="handleFilterChange"
+          @clear="handleFilterChange"
+        />
+        <el-select v-model="filterForm.type" class="filter-item" placeholder="按类型筛选" @change="handleFilterChange">
+          <el-option label="全部类型" value="all" />
+          <el-option label="系统公告" value="system" />
+          <el-option label="活动通知" value="activity" />
+          <el-option label="版本更新" value="update" />
+          <el-option label="维护通知" value="maintenance" />
+        </el-select>
+        <el-select v-model="filterForm.status" class="filter-item" placeholder="按状态筛选" @change="handleFilterChange">
+          <el-option label="全部状态" value="all" />
+          <el-option label="草稿" value="0" />
+          <el-option label="已发布" value="1" />
+        </el-select>
+        <el-select v-model="filterForm.targetType" class="filter-item" placeholder="按目标用户筛选" @change="handleFilterChange">
+          <el-option label="全部目标用户" value="all" />
+          <el-option label="全部用户" value="all-users" />
+          <el-option label="VIP用户" value="vip" />
+          <el-option label="普通用户" value="normal" />
+        </el-select>
+        <el-button class="filter-action-btn" @click="handleFilterChange">筛选</el-button>
+        <el-button class="reset-btn" @click="resetFilters">重置筛选</el-button>
+      </div>
+      <div class="filter-result">
+        当前筛选结果：<span class="result-count">{{ notificationList.length }}</span> / {{ total }} 条
+      </div>
+    </el-card>
+
     <el-card shadow="never" class="table-card">
       <el-table
         :data="notificationList"
@@ -184,6 +220,12 @@ const selectedNotifications = ref([])
 const currentPage = ref(1)
 const size = ref(20)
 const total = ref(0)
+const keyword = ref('')
+const filterForm = reactive({
+  type: 'all',
+  status: 'all',
+  targetType: 'all'
+})
 const dialogVisible = ref(false)
 const isDetail = ref(false)
 const currentItem = ref(null)
@@ -211,11 +253,22 @@ const getTypeTag = (type) => {
   return map[type] || ''
 }
 
+const buildQueryParams = () => {
+  const params = { page: currentPage.value, size: size.value }
+  if (filterForm.type !== 'all') params.type = filterForm.type
+  if (filterForm.status !== 'all') params.status = Number(filterForm.status)
+  if (filterForm.targetType !== 'all') {
+    params.targetType = filterForm.targetType === 'all-users' ? 'all' : filterForm.targetType
+  }
+  if (keyword.value) params.keyword = keyword.value
+  return params
+}
+
 const loadNotifications = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
-    const res = await getAdminNotifications({ page: currentPage.value, size: size.value })
+    const res = await getAdminNotifications(buildQueryParams())
     const data = res?.data || {}
     notificationList.value = data.records || []
     total.value = normalizeNumber(data.total)
@@ -245,6 +298,20 @@ const handlePageSizeChange = (pageSize) => {
 
 const handleSelectionChange = (selection) => {
   selectedNotifications.value = selection
+}
+
+const handleFilterChange = () => {
+  currentPage.value = 1
+  loadNotifications()
+}
+
+const resetFilters = () => {
+  keyword.value = ''
+  filterForm.type = 'all'
+  filterForm.status = 'all'
+  filterForm.targetType = 'all'
+  currentPage.value = 1
+  loadNotifications()
 }
 
 const openCreateDialog = () => {
@@ -365,6 +432,18 @@ onMounted(loadNotifications)
   box-shadow: 0 6px 20px rgba(230, 126, 34, 0.3); color: #fff;
 }
 .page-error { margin-bottom: 2px; }
+.filter-card {
+  border: 1px solid rgba(217, 196, 170, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(143, 69, 27, 0.05);
+}
+.filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.filter-item { width: 170px; }
+.filter-item.keyword { width: min(280px, 100%); }
+.filter-action-btn,
+.reset-btn { border-radius: 10px; font-weight: 600; }
+.filter-result { margin-top: 12px; color: #8a6f56; font-size: 13px; }
+.result-count { color: #8f451b; font-weight: 700; }
 .table-card {
   border: 1px solid rgba(217, 196, 170, 0.25);
   border-radius: 18px;
@@ -390,6 +469,8 @@ onMounted(loadNotifications)
 @media (max-width: 768px) {
   .page-header { align-items: flex-start; flex-direction: column; }
   .header-actions { justify-content: flex-start; }
+  .filter-row { align-items: stretch; flex-direction: column; }
+  .filter-item, .filter-item.keyword { width: 100%; }
   .pagination-wrap { justify-content: flex-start; overflow-x: auto; }
 }
 </style>

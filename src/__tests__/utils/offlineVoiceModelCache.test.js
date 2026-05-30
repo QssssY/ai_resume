@@ -191,6 +191,81 @@ describe('offlineVoiceModelCache', () => {
     expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn').status).toBe('ready')
   })
 
+  it('skips downloading again when the current browser cache already has the ready package', async () => {
+    const cacheMatch = vi.fn(() => Promise.resolve({ ok: true }))
+    const cachePut = vi.fn(() => Promise.resolve())
+    global.caches.open = vi.fn(() => Promise.resolve({
+      match: cacheMatch,
+      put: cachePut,
+      delete: vi.fn(() => Promise.resolve(true))
+    }))
+    saveOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn', {
+      status: 'ready',
+      progress: 100,
+      version: '2026.05',
+      manifestUrl: '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json',
+      runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js',
+      files: [
+        { path: 'sherpa-onnx-asr.js', url: '/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-asr.js', size: 10 },
+        { path: 'sherpa-onnx-wasm-main-asr.data', url: '/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-wasm-main-asr.data', size: 30 }
+      ]
+    })
+
+    const status = await downloadModelFromManifest(
+      'stt:sherpa_onnx:zh_cn',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
+    )
+
+    expect(status).toMatchObject({
+      status: 'ready',
+      progress: 100,
+      version: '2026.05'
+    })
+    expect(cacheMatch).toHaveBeenCalledTimes(2)
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(cachePut).not.toHaveBeenCalled()
+  })
+
+  it('keeps previous cached files deletable when a ready package retry fails at manifest loading', async () => {
+    const cacheDelete = vi.fn(() => Promise.resolve(true))
+    global.caches.open = vi.fn(() => Promise.resolve({
+      match: vi.fn(() => Promise.resolve(null)),
+      put: vi.fn(() => Promise.resolve()),
+      delete: cacheDelete
+    }))
+    saveOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn', {
+      status: 'ready',
+      progress: 100,
+      version: '2026.05',
+      manifestUrl: '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json',
+      runtime: '/voice-models/sherpa-onnx/zh-cn-streaming/runtime.js',
+      files: [
+        { path: 'sherpa-onnx-asr.js', url: '/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-asr.js', size: 10 }
+      ]
+    })
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: () => 'text/html' },
+      text: () => Promise.resolve('<html><body>index fallback</body></html>')
+    })
+
+    await expect(downloadModelFromManifest(
+      'stt:sherpa_onnx:zh_cn',
+      '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
+    )).rejects.toThrow('离线语音模型清单不是 JSON')
+
+    expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')).toMatchObject({
+      status: 'failed',
+      files: [
+        { path: 'sherpa-onnx-asr.js', url: '/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-asr.js', size: 10 }
+      ]
+    })
+
+    await clearModelCache('stt:sherpa_onnx:zh_cn')
+
+    expect(cacheDelete).toHaveBeenCalledWith('/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-asr.js')
+  })
+
   it('fails clearly when a model file request returns the SPA html fallback', async () => {
     global.fetch
       .mockResolvedValueOnce({
@@ -281,6 +356,30 @@ describe('offlineVoiceModelCache', () => {
     await clearModelCache('stt:sherpa_onnx:zh_cn')
 
     expect(cacheDelete).toHaveBeenCalledWith('/voice-models/sherpa-onnx/zh-cn-streaming/model.onnx')
+    expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn').status).toBe('pending')
+  })
+
+  it('clears old cache entries by model prefix when previous failed metadata lost file urls', async () => {
+    const staleRequest = { url: 'http://localhost/voice-models/sherpa-onnx/zh-cn-streaming/sherpa-onnx-asr.js' }
+    const unrelatedRequest = { url: 'http://localhost/assets/app.js' }
+    const cacheDelete = vi.fn(() => Promise.resolve(true))
+    global.caches.open = vi.fn(() => Promise.resolve({
+      match: vi.fn(() => Promise.resolve(null)),
+      put: vi.fn(),
+      delete: cacheDelete,
+      keys: vi.fn(() => Promise.resolve([staleRequest, unrelatedRequest]))
+    }))
+    saveOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn', {
+      status: 'failed',
+      progress: 0,
+      manifestUrl: '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json',
+      files: []
+    })
+
+    await clearModelCache('stt:sherpa_onnx:zh_cn')
+
+    expect(cacheDelete).toHaveBeenCalledWith(staleRequest)
+    expect(cacheDelete).not.toHaveBeenCalledWith(unrelatedRequest)
     expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn').status).toBe('pending')
   })
 })

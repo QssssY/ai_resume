@@ -300,66 +300,70 @@
 
               <template v-else>
                 <p class="offline-real-stt-note">真实离线识别：浏览器/系统识别不可用时，可下载 sherpa-onnx 中文模型到浏览器本地缓存。</p>
-            <div class="offline-voice-grid">
-              <div class="offline-voice-card">
-                <div>
-                  <strong>语音识别引擎</strong>
-                  <span>{{ recognitionEngineSummary }}</span>
-                </div>
-                <n-tag round :bordered="false">sherpa-onnx</n-tag>
-                <p>浏览器/系统识别不可用时，可下载 sherpa-onnx 中文离线语音包并缓存到浏览器本地。</p>
-                <div class="offline-model-status">
-                  <div class="offline-model-actions">
-                    <n-button
-                      secondary
-                      class="preference-action"
-                      :loading="offlineSttDownloading"
-                      :disabled="!offlineVoiceStorageSupport.supported || offlineSttDeleting"
-                      @click="handleOfflineSttDownload"
-                    >
-                      下载离线语音引擎
-                    </n-button>
-                    <el-button
-                      v-if="canClearOfflineSttModel"
-                      type="danger"
-                      class="preference-action offline-delete-action"
-                      :loading="offlineSttDeleting"
-                      :disabled="offlineSttDownloading"
-                      @click="handleOfflineSttClearConfirm"
-                    >
-                      删除资源包
-                    </el-button>
+                <div class="offline-voice-grid">
+                  <div class="offline-voice-card">
+                    <div class="offline-card-heading">
+                      <div>
+                        <strong>语音识别引擎</strong>
+                        <span>{{ recognitionEngineSummary }}</span>
+                      </div>
+                      <n-tag round :bordered="false">sherpa-onnx</n-tag>
+                    </div>
+                    <p>浏览器/系统识别不可用时，可下载 sherpa-onnx 中文离线语音包并缓存到浏览器本地。</p>
+                    <div class="offline-model-status">
+                      <span>缓存能力：{{ offlineStorageSupportText }}</span>
+                      <span>模型状态：{{ offlineSttStatusText }}</span>
+                    </div>
+                    <div class="offline-model-actions">
+                      <n-button
+                        secondary
+                        class="preference-action"
+                        :loading="offlineSttDownloading"
+                        :disabled="!canDownloadOfflineSttModel"
+                        @click="handleOfflineSttDownload"
+                      >
+                        {{ offlineSttDownloadButtonText }}
+                      </n-button>
+                      <el-button
+                        v-if="canClearOfflineSttModel"
+                        type="danger"
+                        class="preference-action offline-delete-action"
+                        :loading="offlineSttDeleting"
+                        :disabled="offlineSttDownloading"
+                        @click="handleOfflineSttClearConfirm"
+                      >
+                        删除资源包
+                      </el-button>
+                    </div>
                   </div>
-                  <span>缓存能力：{{ offlineStorageSupportText }}</span>
-                  <span>模型状态：{{ offlineSttStatusText }}</span>
-                </div>
-              </div>
 
-              <div class="offline-voice-card">
-                <div>
-                  <strong>高品质离线音色包</strong>
-                  <span>{{ ttsEngineSummary }}</span>
+                  <div class="offline-voice-card">
+                    <div class="offline-card-heading">
+                      <div>
+                        <strong>高品质离线音色包</strong>
+                        <span>{{ ttsEngineSummary }}</span>
+                      </div>
+                      <n-tag round :bordered="false">Kokoro</n-tag>
+                    </div>
+                    <p>当前继续使用浏览器系统音色；后续阶段再接入 Kokoro 本地合成，避免本轮引入约 90MB 模型包。</p>
+                    <div class="offline-model-status">
+                      <span>系统 TTS：{{ previewTextToSpeech.engineStatus.value === 'system-tts' ? '可用' : '不可用' }}</span>
+                      <span>增强音色：{{ offlineTtsStatusText }}</span>
+                    </div>
+                    <div class="offline-model-actions">
+                      <n-button secondary class="preference-action" disabled>下载高品质语音包</n-button>
+                      <el-button
+                        v-if="canClearOfflineTtsModel"
+                        type="danger"
+                        class="preference-action offline-delete-action"
+                        :loading="offlineTtsDeleting"
+                        @click="handleOfflineTtsClearConfirm"
+                      >
+                        删除音色包
+                      </el-button>
+                    </div>
+                  </div>
                 </div>
-                <n-tag round :bordered="false">Kokoro</n-tag>
-                <p>当前继续使用浏览器系统音色；后续阶段再接入 Kokoro 本地合成，避免本轮引入约 90MB 模型包。</p>
-                <div class="offline-model-status">
-                  <span>系统 TTS：{{ previewTextToSpeech.engineStatus.value === 'system-tts' ? '可用' : '不可用' }}</span>
-                  <span>增强音色：{{ offlineTtsStatusText }}</span>
-                </div>
-                <div class="offline-model-actions">
-                  <n-button secondary class="preference-action" disabled>下载高品质语音包</n-button>
-                  <el-button
-                    v-if="canClearOfflineTtsModel"
-                    type="danger"
-                    class="preference-action offline-delete-action"
-                    :loading="offlineTtsDeleting"
-                    @click="handleOfflineTtsClearConfirm"
-                  >
-                    删除音色包
-                  </el-button>
-                </div>
-              </div>
-            </div>
               </template>
               </div>
             </Transition>
@@ -1232,6 +1236,19 @@ const formatOfflineModelStatus = (status) => {
 
 const offlineSttStatusText = computed(() => formatOfflineModelStatus(offlineSttModelStatus.value))
 const offlineTtsStatusText = computed(() => formatOfflineModelStatus(offlineTtsModelStatus.value))
+const offlineSttDownloadButtonText = computed(() => {
+  if (!offlineVoiceStorageSupport.supported) return '浏览器不支持缓存'
+  if (offlineSttDownloading.value) return `下载中 ${offlineSttModelStatus.value?.progress || 0}%`
+  if (offlineSttModelStatus.value?.status === 'ready') return '已缓存离线语音引擎'
+  if (offlineSttModelStatus.value?.status === 'failed') return '重新下载离线语音引擎'
+  return '下载离线语音引擎'
+})
+const canDownloadOfflineSttModel = computed(() => (
+  offlineVoiceStorageSupport.supported &&
+  !offlineSttDownloading.value &&
+  !offlineSttDeleting.value &&
+  offlineSttModelStatus.value?.status !== 'ready'
+))
 const canClearOfflineSttModel = computed(() => (
   // 已安装资源包和下载失败残留都允许用户自主删除，避免浏览器缓存被动长期占用空间。
   ['ready', 'failed'].includes(offlineSttModelStatus.value?.status)
@@ -1698,6 +1715,8 @@ const handleVoicePreview = () => {
   previewTextToSpeech.pitch.value = Number(interviewPreferenceForm.value.voicePitch)
   previewTextToSpeech.volume.value = Number(interviewPreferenceForm.value.voiceVolume)
   previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
+  // Chrome 的 voices 可能只有在用户点击手势内唤醒后才加载，试听前先预热以避免落到机械的系统默认音色。
+  previewTextToSpeech.prepareForUserGesture?.()
   previewTextToSpeech.speak('你好，我是你的 AI 面试官。')
 }
 
@@ -1726,6 +1745,7 @@ const handleVoicePreferenceReset = () => {
 }
 
 const handleOfflineSttDownload = async () => {
+  if (!canDownloadOfflineSttModel.value) return
   offlineSttDownloading.value = true
   try {
     offlineSttModelStatus.value = await downloadModelFromManifest(
@@ -1739,7 +1759,13 @@ const handleOfflineSttDownload = async () => {
         }
       }
     )
-    ElMessage.success('离线语音识别模型已缓存到当前浏览器')
+    // 离线包下载成功后同步切换识别偏好，否则面试页仍会按 system_local 走浏览器/系统识别。
+    syncPreferenceForms(saveSettingsPreferences({
+      ...interviewPreferenceForm.value,
+      voiceRecognitionEngine: 'offline_sherpa',
+      offlineSttEngine: 'sherpa_onnx'
+    }))
+    ElMessage.success('离线语音识别模型已缓存到当前浏览器，后续语音面试将优先使用离线引擎')
   } catch (err) {
     offlineSttModelStatus.value = getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')
     ElMessage.error(err?.message || '离线语音识别模型下载失败')
@@ -2778,18 +2804,29 @@ onBeforeUnmount(() => {
 .offline-voice-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .offline-voice-card {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
+  padding: 18px;
   border: 1px solid var(--border-card);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--bg-page);
+}
+
+.offline-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.offline-card-heading > div {
+  min-width: 0;
 }
 
 .offline-voice-card strong,
@@ -2822,6 +2859,18 @@ onBeforeUnmount(() => {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   overflow-wrap: anywhere;
+}
+
+.offline-model-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.offline-model-actions .preference-action {
+  margin: 0;
 }
 
 .danger-zone {
@@ -2984,6 +3033,16 @@ onBeforeUnmount(() => {
   .offline-voice-grid,
   .offline-model-status {
     grid-template-columns: 1fr;
+  }
+
+  .offline-card-heading,
+  .offline-model-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .offline-model-actions .preference-action {
+    width: 100%;
   }
 
   .voice-preview-button {

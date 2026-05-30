@@ -1,7 +1,18 @@
 import adminRequest from '@/utils/adminRequest'
 
+function normalizeNotificationParams(params = {}) {
+  const mergedParams = { page: 1, size: 20, ...params }
+  return Object.fromEntries(
+    Object.entries(mergedParams).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  )
+}
+
 export function getAdminNotifications(params = {}) {
-  return adminRequest({ url: '/api/admin/notifications', method: 'get', params: { page: 1, size: 20, ...params } })
+  return adminRequest({
+    url: '/api/admin/notifications',
+    method: 'get',
+    params: normalizeNotificationParams(params)
+  })
 }
 
 export function getAdminNotificationDetail(id) {
