@@ -47,13 +47,13 @@ describe('offlineVoiceModelCache', () => {
   })
 
   it('normalizes invalid status metadata to pending defaults', () => {
-    saveOfflineVoiceModelStatus('tts:kokoro', {
+    saveOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn', {
       status: 'invalid',
       progress: 180
     })
 
-    expect(getOfflineVoiceModelStatus('tts:kokoro')).toMatchObject({
-      modelKey: 'tts:kokoro',
+    expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')).toMatchObject({
+      modelKey: 'stt:sherpa_onnx:zh_cn',
       status: 'pending',
       progress: 0
     })
@@ -133,7 +133,7 @@ describe('offlineVoiceModelCache', () => {
     await expect(readModelManifest(
       'stt:sherpa_onnx:zh_cn',
       '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
-    )).rejects.toThrow('离线语音模型清单不是 JSON，请确认模型文件已部署到 /voice-models/sherpa-onnx/zh-cn-streaming/manifest.json')
+    )).rejects.toThrow('离线语音识别模型清单不是 JSON，请确认模型文件已部署到 /voice-models/sherpa-onnx/zh-cn-streaming/manifest.json')
   })
 
   it('reports a friendly parse error when manifest json is malformed', async () => {
@@ -146,7 +146,7 @@ describe('offlineVoiceModelCache', () => {
     await expect(readModelManifest(
       'stt:sherpa_onnx:zh_cn',
       '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
-    )).rejects.toThrow('离线语音模型清单解析失败，请检查 /voice-models/sherpa-onnx/zh-cn-streaming/manifest.json')
+    )).rejects.toThrow('离线语音识别模型清单解析失败，请检查 /voice-models/sherpa-onnx/zh-cn-streaming/manifest.json')
   })
 
   it('downloads manifest files into Cache API and reports progress', async () => {
@@ -252,7 +252,7 @@ describe('offlineVoiceModelCache', () => {
     await expect(downloadModelFromManifest(
       'stt:sherpa_onnx:zh_cn',
       '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
-    )).rejects.toThrow('离线语音模型清单不是 JSON')
+    )).rejects.toThrow('离线语音识别模型清单不是 JSON')
 
     expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')).toMatchObject({
       status: 'failed',
@@ -287,7 +287,7 @@ describe('offlineVoiceModelCache', () => {
     await expect(downloadModelFromManifest(
       'stt:sherpa_onnx:zh_cn',
       '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
-    )).rejects.toThrow('离线语音模型文件不是有效模型资源，请确认已部署 sherpa-onnx-wasm-main-asr.data')
+    )).rejects.toThrow('离线语音识别模型文件不是有效模型资源，请确认已部署 sherpa-onnx-wasm-main-asr.data')
 
     expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')).toMatchObject({
       status: 'failed',
@@ -311,7 +311,7 @@ describe('offlineVoiceModelCache', () => {
     await expect(downloadModelFromManifest(
       'stt:sherpa_onnx:zh_cn',
       '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
-    )).rejects.toThrow('离线语音模型文件请求失败，请先将 sherpa-onnx-asr.js 部署到同源静态目录')
+    )).rejects.toThrow('离线语音识别模型文件请求失败，请先将 sherpa-onnx-asr.js 部署到同源静态目录')
 
     expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')).toMatchObject({
       status: 'failed',
@@ -329,7 +329,7 @@ describe('offlineVoiceModelCache', () => {
     await expect(downloadModelFromManifest(
       'stt:sherpa_onnx:zh_cn',
       '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json'
-    )).rejects.toThrow('离线语音模型清单不是 JSON')
+    )).rejects.toThrow('离线语音识别模型清单不是 JSON')
 
     expect(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')).toMatchObject({
       status: 'failed',

@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import ElementPlus, { ElMessageBox } from 'element-plus'
+import ElementPlus, { ElMessage, ElMessageBox } from 'element-plus'
 import SettingsView from '@/views/settings/SettingsView.vue'
 import { getGrowthOverview } from '@/api/growth'
 import { clearInterviewHistory, getInterviewJobRoles } from '@/api/interview'
@@ -262,6 +262,8 @@ describe('SettingsView', () => {
     expect(source).toContain('.settings-panel-body')
     expect(source).toContain('.settings-fill-note')
     expect(source).toContain('.profile-overview-card')
+    expect(source).toContain('.profile-support-grid')
+    expect(source).toContain('.onboarding-intro-grid')
     expect(source).toContain('.settings-nav-item.active::after')
     expect(source).not.toMatch(/\.settings-nav-item::before[\s\S]*?width:\s*3px/)
     expect(source).not.toMatch(/\.info-item::before[\s\S]*?width:\s*3px/)
@@ -270,6 +272,7 @@ describe('SettingsView', () => {
     expect(wrapper.find('.settings-workspace').exists()).toBe(true)
     expect(wrapper.find('.settings-panel-body').exists()).toBe(true)
     expect(wrapper.find('.profile-overview-card').exists()).toBe(true)
+    expect(wrapper.find('.profile-support-grid').exists()).toBe(true)
 
     await switchSection(wrapper, 'notification')
     expect(wrapper.text()).toContain('通知偏好')
@@ -282,6 +285,7 @@ describe('SettingsView', () => {
     await switchSection(wrapper, 'onboarding')
     expect(wrapper.text()).toContain('新手引导')
     expect(wrapper.find('.settings-fill-note').exists()).toBe(true)
+    expect(wrapper.find('.onboarding-intro-grid').exists()).toBe(true)
   }, 15000)
 
   it('uses settings sub navigation, Naive UI controls, and route-safe motion contracts', () => {
@@ -331,9 +335,9 @@ describe('SettingsView', () => {
     await waitForSecurityTransition()
 
     expect(wrapper.vm.interviewSubTab).toBe('offline')
-    expect(wrapper.text()).toContain('真实离线识别')
+    expect(wrapper.find('.offline-overview').exists()).toBe(true)
+    expect(wrapper.find('.offline-support-panel').exists()).toBe(true)
     expect(wrapper.text()).toContain('sherpa-onnx')
-    expect(wrapper.text()).toContain('Kokoro')
   }, 15000)
 
   it('downloads and deletes the offline STT resource package from settings center', async () => {
@@ -435,13 +439,15 @@ describe('SettingsView', () => {
     await waitForSecurityTransition()
 
     const source = settingsViewSource()
-    const offlinePanel = wrapper.find('.offline-voice-grid')
+    const offlinePanel = wrapper.find('.offline-voice-layout')
 
     expect(offlinePanel.find('.offline-model-actions').exists()).toBe(true)
+    expect(offlinePanel.find('.offline-support-panel').exists()).toBe(true)
     expect(offlinePanel.find('.offline-model-status .offline-model-actions').exists()).toBe(false)
     expect(offlinePanel.findAll('.offline-model-status span').map((item) => item.text())).toContain('模型状态：已缓存')
     expect(source).toMatch(/\.offline-model-actions\s*\{[\s\S]*?display:\s*flex;/)
     expect(source).toMatch(/\.offline-model-status\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/)
+    expect(source).toMatch(/\.offline-voice-layout\s*\{[\s\S]*?grid-template-columns:\s*minmax\(320px, 1\.05fr\) minmax\(260px, 0\.95fr\);/)
     expect(source).toMatch(/@media \(max-width: 640px\)[\s\S]*\.offline-model-actions\s*\{[\s\S]*?flex-direction:\s*column;/)
   })
 
@@ -470,40 +476,6 @@ describe('SettingsView', () => {
     confirmSpy.mockRestore()
   })
 
-  it('allows users to delete a cached offline TTS package without enabling download', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    await switchSection(wrapper, 'interview')
-    wrapper.vm.interviewSubTab = 'offline'
-    wrapper.vm.offlineTtsModelStatus = {
-      modelKey: 'tts:kokoro',
-      status: 'ready',
-      progress: 100
-    }
-    await flushPromises()
-    await waitForSecurityTransition()
-
-    expect(wrapper.text()).toContain('删除音色包')
-    expect(wrapper.text()).toContain('下载高品质语音包')
-
-    const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
-    await wrapper.vm.handleOfflineTtsClearConfirm()
-    await flushPromises()
-
-    expect(confirmSpy).toHaveBeenCalledWith(
-      '将删除当前浏览器已缓存的 Kokoro 高品质离线音色包。删除后会继续使用浏览器系统 TTS 音色，后续可重新下载。',
-      '删除高品质离线音色包',
-      expect.objectContaining({
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
-        type: 'warning'
-      })
-    )
-    expect(clearModelCache).toHaveBeenCalledWith('tts:kokoro')
-    expect(wrapper.vm.offlineTtsModelStatus.status).toBe('pending')
-
-    confirmSpy.mockRestore()
-  })
 
   it('shows subscription plan name without exposing internal identifiers', async () => {
     const wrapper = mountView()
@@ -597,7 +569,6 @@ describe('SettingsView', () => {
     wrapper.vm.interviewPreferenceForm.voiceRecognitionLanguage = 'en-US'
     wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine = 'offline_sherpa'
     wrapper.vm.interviewPreferenceForm.offlineSttEngine = 'sherpa_onnx'
-    wrapper.vm.interviewPreferenceForm.offlineTtsEngine = 'system'
     wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
     wrapper.vm.interviewPreferenceForm.voiceName = 'Microsoft Xiaoxiao Natural'
     wrapper.vm.interviewPreferenceForm.voiceURI = 'xiaoxiao-uri'
@@ -624,7 +595,6 @@ describe('SettingsView', () => {
       voiceRecognitionLanguage: 'en-US',
       voiceRecognitionEngine: 'offline_sherpa',
       offlineSttEngine: 'sherpa_onnx',
-      offlineTtsEngine: 'system',
       voicePreferredType: 'custom',
       voiceName: 'Microsoft Xiaoxiao Natural',
       voiceURI: 'xiaoxiao-uri',
@@ -647,7 +617,6 @@ describe('SettingsView', () => {
     wrapper.vm.interviewPreferenceForm.voiceRecognitionLanguage = 'en-US'
     wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine = 'offline_sherpa'
     wrapper.vm.interviewPreferenceForm.offlineSttEngine = 'sherpa_onnx'
-    wrapper.vm.interviewPreferenceForm.offlineTtsEngine = 'system'
     wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
     wrapper.vm.interviewPreferenceForm.voiceName = 'Microsoft Xiaoxiao Natural'
     wrapper.vm.interviewPreferenceForm.voiceURI = 'xiaoxiao-uri'
@@ -668,7 +637,6 @@ describe('SettingsView', () => {
       voiceRecognitionLanguage: 'auto',
       voiceRecognitionEngine: 'system_local',
       offlineSttEngine: 'sherpa_onnx',
-      offlineTtsEngine: 'system',
       voicePreferredType: 'natural_zh',
       voiceName: '',
       voiceURI: '',
@@ -729,6 +697,103 @@ describe('SettingsView', () => {
     expect(window.speechSynthesis.resume).toHaveBeenCalled()
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
     expect(window.speechSynthesis.speak.mock.calls[0][0].voice.name).toBe('Microsoft Xiaoxiao Natural')
+  }, 15000)
+
+  it('previews the default Chinese natural voice through browser TTS', async () => {
+    saveSettingsPreferences({
+      voicePreferredType: 'natural_zh'
+    })
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      {
+        name: 'Microsoft Xiaoxiao Natural',
+        lang: 'zh-CN',
+        voiceURI: 'xiaoxiao-uri',
+        localService: true
+      }
+    ])
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    await wrapper.vm.handleVoicePreview()
+    await flushPromises()
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
+    expect(window.speechSynthesis.speak.mock.calls[0][0].text).toBe('你好，我是你的 AI 面试官。')
+    expect(window.speechSynthesis.speak.mock.calls[0][0].voice.name).toBe('Microsoft Xiaoxiao Natural')
+  }, 15000)
+
+  it('shows the actual browser voice when male preference is degraded in Chrome', async () => {
+    saveSettingsPreferences({ voicePreferredType: 'male' })
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      {
+        name: 'Microsoft Xiaoxiao Natural',
+        lang: 'zh-CN',
+        voiceURI: 'xiaoxiao-uri',
+        localService: true
+      },
+      {
+        name: 'Google 普通话（中国大陆）',
+        lang: 'zh-CN',
+        voiceURI: 'google-zh-cn',
+        localService: false
+      }
+    ])
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    const status = wrapper.find('[data-testid="browser-tts-voice-status"]')
+    expect(status.exists()).toBe(true)
+    expect(status.text()).toContain('没有暴露中文男声')
+    expect(status.text()).toContain('Google 普通话（中国大陆）')
+  }, 15000)
+
+  it('keeps browser TTS status below the voice controls to avoid squeezing the row', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    const status = wrapper.find('[data-testid="browser-tts-voice-status"]')
+    expect(wrapper.find('.voice-preference-main').exists()).toBe(true)
+    expect(status.exists()).toBe(true)
+    expect(status.element.parentElement.classList.contains('voice-preference-row')).toBe(true)
+    expect(status.element.previousElementSibling.classList.contains('voice-preference-main')).toBe(true)
+  }, 15000)
+
+  it('does not show a gendered Chrome voice as the default Chinese natural voice fallback', async () => {
+    saveSettingsPreferences({ voicePreferredType: 'natural_zh' })
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      {
+        name: 'Microsoft Kangkang - Chinese (Simplified, PRC)',
+        lang: 'zh-CN',
+        voiceURI: 'kangkang-uri',
+        localService: true
+      }
+    ])
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    expect(wrapper.vm.previewTextToSpeech.voice.value).toBeNull()
+    expect(wrapper.vm.browserTtsVoiceStatusText).toContain('浏览器默认')
+    expect(wrapper.vm.browserTtsVoiceStatusText).not.toContain('Microsoft Kangkang')
   }, 15000)
 
   it('loads server settings and renders resume retention preference', async () => {

@@ -207,6 +207,7 @@
           <div class="voice-call-title">{{ voiceCallTitle }}</div>
           <div class="voice-call-desc">{{ voiceCallDescription }}</div>
           <div class="voice-engine-status">{{ voiceRecognitionEngineText }}</div>
+          <div class="voice-engine-status voice-tts-status">{{ voiceTtsEngineText }}</div>
           <div class="voice-call-time">{{ formatCallDuration(voiceCall.callDuration.value) }}</div>
 
           <div v-if="voiceCall.pendingMessage.value" class="voice-pending-text voice-pending-floating">
@@ -256,6 +257,7 @@
               <div class="voice-call-title">{{ voiceCallTitle }}</div>
               <div class="voice-call-desc">{{ voiceCallDescription }}</div>
               <div class="voice-engine-status">{{ voiceRecognitionEngineText }}</div>
+              <div class="voice-engine-status voice-tts-status">{{ voiceTtsEngineText }}</div>
             </div>
           </div>
           <div class="voice-call-time">{{ formatCallDuration(voiceCall.callDuration.value) }}</div>
@@ -494,7 +496,19 @@ const textToSpeech = useTextToSpeech({
     name: settingsPreferences.voiceName,
     voiceURI: settingsPreferences.voiceURI,
     lang: settingsPreferences.voiceLang,
-  },
+  }
+});
+
+const voiceTtsEngineText = computed(() => {
+  const status = textToSpeech.voicePreferenceStatus.value;
+  const selectedVoiceName = status.selectedVoiceName || '浏览器系统默认 voice';
+  if (status.isDegraded && status.requestedType === 'male') {
+    return `播报音色：当前浏览器没有中文男声，实际使用 ${selectedVoiceName}`;
+  }
+  if (status.isDegraded && status.requestedType === 'female') {
+    return `播报音色：当前浏览器没有中文女声，实际使用 ${selectedVoiceName}`;
+  }
+  return `播报音色：${selectedVoiceName}`;
 });
 
 const voiceCall = useVoiceCall({

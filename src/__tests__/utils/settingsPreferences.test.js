@@ -36,7 +36,6 @@ describe('settingsPreferences', () => {
       voiceRecognitionLanguage: 'en-US',
       voiceRecognitionEngine: 'offline_sherpa',
       offlineSttEngine: 'sherpa_onnx',
-      offlineTtsEngine: 'system',
       voicePreferredType: 'custom',
       voiceName: 'Microsoft Xiaoxiao Natural',
       voiceURI: 'xiaoxiao-uri',
@@ -63,7 +62,6 @@ describe('settingsPreferences', () => {
       voiceRecognitionLanguage: 'en-US',
       voiceRecognitionEngine: 'offline_sherpa',
       offlineSttEngine: 'sherpa_onnx',
-      offlineTtsEngine: 'system',
       voicePreferredType: 'custom',
       voiceName: 'Microsoft Xiaoxiao Natural',
       voiceURI: 'xiaoxiao-uri',
@@ -71,6 +69,18 @@ describe('settingsPreferences', () => {
       interviewRetentionDays: 90,
       resumeRetentionDays: 180
     })
+  })
+
+  it('drops legacy offline TTS preferences from normalized settings', () => {
+    const normalized = normalizeSettingsPreferences({
+      offlineTtsEngine: 'legacy_offline_tts',
+      offlineTtsVoiceType: 'male',
+      voicePreferredType: 'female'
+    })
+
+    expect(normalized).not.toHaveProperty('offlineTtsEngine')
+    expect(normalized).not.toHaveProperty('offlineTtsVoiceType')
+    expect(normalized.voicePreferredType).toBe('female')
   })
 
   it('normalizes invalid stored interview preferences to defaults', () => {
@@ -89,7 +99,8 @@ describe('settingsPreferences', () => {
       voiceRecognitionLanguage: 'fr-FR',
       voiceRecognitionEngine: 'remote',
       offlineSttEngine: 'vosk',
-      offlineTtsEngine: 'kokoro',
+      offlineTtsEngine: 'remote',
+      offlineTtsVoiceType: 'robot',
       voicePreferredType: 'remote',
       voiceName: 123,
       voiceURI: null,

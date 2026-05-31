@@ -87,12 +87,12 @@ const writeStatusMap = (statusMap) => {
 
 const assertCacheApi = () => {
   if (typeof caches === 'undefined') {
-    throw new Error('当前浏览器不支持 Cache API，无法缓存离线语音模型')
+    throw new Error('当前浏览器不支持 Cache API，无法缓存离线语音识别模型')
   }
 }
 
 /**
- * 检测浏览器是否具备离线语音模型持久化所需的基础能力。
+ * 检测浏览器是否具备离线语音识别模型持久化所需能力。
  */
 export function getOfflineVoiceStorageSupport() {
   const indexedDB = typeof window !== 'undefined' && 'indexedDB' in window
@@ -105,7 +105,7 @@ export function getOfflineVoiceStorageSupport() {
 }
 
 /**
- * 读取某个离线模型的本地缓存状态。
+ * 读取某个离线识别模型的本地缓存状态。
  */
 export function getOfflineVoiceModelStatus(modelKey) {
   const statusMap = readStatusMap()
@@ -113,7 +113,7 @@ export function getOfflineVoiceModelStatus(modelKey) {
 }
 
 /**
- * 保存离线模型状态元数据，真实模型文件由 Cache API 单独持久化。
+ * 保存离线识别模型状态元数据，真实模型文件由 Cache API 单独持久化。
  */
 export function saveOfflineVoiceModelStatus(modelKey, status) {
   const statusMap = readStatusMap()
@@ -124,12 +124,12 @@ export function saveOfflineVoiceModelStatus(modelKey, status) {
 }
 
 /**
- * 读取静态目录中的模型清单，并把相对路径归一为可缓存 URL。
+ * 读取静态目录中的识别模型清单，并把相对路径归一为可缓存 URL。
  */
 export async function readModelManifest(modelKey, manifestUrl) {
   const response = await fetch(manifestUrl, { cache: 'no-cache' })
   if (!response.ok) {
-    throw new Error(`离线语音模型清单加载失败: ${response.status}`)
+    throw new Error(`离线语音识别模型清单加载失败: ${response.status}`)
   }
   const contentType = response.headers?.get?.('content-type') || ''
   const bodyText = await response.text()
@@ -141,14 +141,14 @@ export async function readModelManifest(modelKey, manifestUrl) {
     /^<!doctype\s+html/i.test(trimmedBody) ||
     /^<html[\s>]/i.test(trimmedBody)
   ) {
-    throw new Error(`离线语音模型清单不是 JSON，请确认模型文件已部署到 ${manifestUrl}`)
+    throw new Error(`离线语音识别模型清单不是 JSON，请确认模型文件已部署到 ${manifestUrl}`)
   }
 
   let manifest
   try {
     manifest = JSON.parse(bodyText)
   } catch {
-    throw new Error(`离线语音模型清单解析失败，请检查 ${manifestUrl}`)
+    throw new Error(`离线语音识别模型清单解析失败，请检查 ${manifestUrl}`)
   }
   const baseUrl = manifestUrl.slice(0, manifestUrl.lastIndexOf('/') + 1)
   return {
@@ -162,7 +162,7 @@ export async function readModelManifest(modelKey, manifestUrl) {
 }
 
 /**
- * 按 manifest 下载并缓存模型文件。音频模型只保存在浏览器本地，不上传用户音频。
+ * 按 manifest 下载并缓存识别模型文件。音频识别资源只保存在当前浏览器本地，不上传用户音频。
  */
 export async function downloadModelFromManifest(modelKey, manifestUrl, onProgress) {
   assertCacheApi()
@@ -174,7 +174,6 @@ export async function downloadModelFromManifest(modelKey, manifestUrl, onProgres
   try {
     manifest = await readModelManifest(modelKey, manifestUrl)
   } catch (error) {
-    // 清单不可用时保留旧文件清单，避免失败重试后丢失可删除的 Cache API 条目。
     saveOfflineVoiceModelStatus(modelKey, {
       status: 'failed',
       progress: 0,
@@ -187,7 +186,7 @@ export async function downloadModelFromManifest(modelKey, manifestUrl, onProgres
   }
   const files = manifest.files
   if (!files.length) {
-    throw new Error('离线语音模型清单没有可下载文件')
+    throw new Error('离线语音识别模型清单没有可下载文件')
   }
 
   const totalSize = files.reduce((sum, file) => sum + Number(file.size || 0), 0)
@@ -215,7 +214,7 @@ export async function downloadModelFromManifest(modelKey, manifestUrl, onProgres
         runtime: manifest.runtime,
         files
       })
-      throw new Error(`离线语音模型文件请求失败，请先将 ${file.path} 部署到同源静态目录`)
+      throw new Error(`离线语音识别模型文件请求失败，请先将 ${file.path} 部署到同源静态目录`)
     }
     if (!response.ok || await isHtmlResponse(response)) {
       saveOfflineVoiceModelStatus(modelKey, {
@@ -226,7 +225,7 @@ export async function downloadModelFromManifest(modelKey, manifestUrl, onProgres
         runtime: manifest.runtime,
         files
       })
-      throw new Error(`离线语音模型文件不是有效模型资源，请确认已部署 ${file.path}`)
+      throw new Error(`离线语音识别模型文件不是有效模型资源，请确认已部署 ${file.path}`)
     }
     await cache.put(file.url, response.clone())
     loadedSize += Number(file.size || 0)
@@ -266,7 +265,7 @@ export async function isModelCached(modelKey) {
 }
 
 /**
- * 清理某个离线模型的本地缓存和状态。
+ * 清理某个离线识别模型的本地缓存和状态。
  */
 export async function clearModelCache(modelKey) {
   const status = getOfflineVoiceModelStatus(modelKey)
@@ -277,7 +276,7 @@ export async function clearModelCache(modelKey) {
     } else if (typeof cache.keys === 'function') {
       const cachePrefix = resolveCachePrefix(status)
       const cachedRequests = await cache.keys()
-      // 兼容旧失败状态：files 被清空时按 manifest 所在目录清理残留模型文件，避免长期占用浏览器缓存。
+      // 兼容旧失败状态：files 为空时按 manifest 所在目录清理残留模型文件，避免长期占用浏览器缓存。
       await Promise.all(cachedRequests
         .filter((request) => isCacheRequestUnderPrefix(request, cachePrefix))
         .map((request) => cache.delete(request)))
@@ -288,6 +287,7 @@ export async function clearModelCache(modelKey) {
     progress: 0,
     version: '',
     manifestUrl: '',
+    runtime: '',
     files: []
   })
 }

@@ -27,7 +27,7 @@
       }
     }
     if (!response?.ok) {
-      throw new Error(`离线语音模型运行时文件不可用: ${url}`)
+      throw new Error(`离线语音识别模型运行时文件不可用: ${url}`)
     }
     const blob = await response.blob()
     const expectedType = resolveRuntimeMimeType(url)

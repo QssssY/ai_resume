@@ -69,6 +69,21 @@
                 <strong>{{ profileRegisterTimeText }}</strong>
               </div>
             </div>
+
+            <div class="profile-support-grid" aria-label="账号能力说明">
+              <div class="profile-support-card">
+                <strong>账号内权益</strong>
+                <span>会员身份、订阅套餐和每日额度跟随当前账号，换设备登录后仍以账号资料为准。</span>
+              </div>
+              <div class="profile-support-card">
+                <strong>本机偏好</strong>
+                <span>主题、语音、通知显示和面试默认项保存在当前浏览器，适合按设备分别配置。</span>
+              </div>
+              <div class="profile-support-card">
+                <strong>常用数据</strong>
+                <span>简历诊断、模拟面试、成长记录和通知中心会围绕当前账号持续归档。</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -164,30 +179,39 @@
               </template>
 
               <template v-else-if="interviewSubTab === 'voice'">
-              <div class="preference-row stacked">
-                <div>
-                  <strong>AI 播报声音</strong>
-                  <span>使用当前浏览器可用的系统语音，音色偏好只保存在本机。</span>
+              <div class="preference-row stacked voice-preference-row">
+                <div class="voice-preference-main">
+                  <div class="voice-preference-copy">
+                    <strong>AI 播报声音</strong>
+                    <span>使用当前浏览器可用的系统语音，音色偏好只保存在本机。</span>
+                  </div>
+                  <div class="voice-control">
+                    <n-select
+                      v-model:value="interviewPreferenceForm.voicePreferredType"
+                      class="preference-select"
+                      :options="voicePreferredTypeOptions"
+                      @update:value="handleVoicePreferredTypeChange"
+                    />
+                    <n-button
+                      type="primary"
+                      secondary
+                      class="voice-preview-button"
+                      title="试听"
+                      aria-label="试听当前 AI 播报声音"
+                      :disabled="!previewTextToSpeech.isSupported.value"
+                      @click="handleVoicePreview"
+                    >
+                    <FeatureIcon name="announcement" size="md" class="voice-preview-icon" />
+                    </n-button>
+                  </div>
                 </div>
-                <div class="voice-control">
-                  <n-select
-                    v-model:value="interviewPreferenceForm.voicePreferredType"
-                    class="preference-select"
-                    :options="voicePreferredTypeOptions"
-                    @update:value="handleVoicePreferredTypeChange"
-                  />
-                  <n-button
-                    type="primary"
-                    secondary
-                    class="voice-preview-button"
-                    title="试听"
-                    aria-label="试听当前 AI 播报声音"
-                    :disabled="!previewTextToSpeech.isSupported.value"
-                    @click="handleVoicePreview"
-                  >
-                  <FeatureIcon name="announcement" size="md" class="voice-preview-icon" />
-                  </n-button>
-                </div>
+                <p
+                  class="voice-selection-status"
+                  :class="{ degraded: previewTextToSpeech.voicePreferenceStatus.value.isDegraded }"
+                  data-testid="browser-tts-voice-status"
+                >
+                  {{ browserTtsVoiceStatusText }}
+                </p>
               </div>
               <div
                 v-if="interviewPreferenceForm.voicePreferredType === 'custom'"
@@ -299,8 +323,14 @@
               </template>
 
               <template v-else>
-                <p class="offline-real-stt-note">真实离线识别：浏览器/系统识别不可用时，可下载 sherpa-onnx 中文模型到浏览器本地缓存。</p>
-                <div class="offline-voice-grid">
+                <div class="offline-overview">
+                  <div>
+                    <strong>离线增强现在只保留语音识别</strong>
+                    <span>AI 播报继续使用浏览器/系统 TTS；离线资源只服务于面试收音转文字。</span>
+                  </div>
+                  <n-tag type="success" round :bordered="false">STT 刚需保留</n-tag>
+                </div>
+                <div class="offline-voice-layout">
                   <div class="offline-voice-card">
                     <div class="offline-card-heading">
                       <div>
@@ -337,30 +367,28 @@
                     </div>
                   </div>
 
-                  <div class="offline-voice-card">
-                    <div class="offline-card-heading">
+                  <div class="offline-support-panel">
+                    <div class="offline-support-heading">
+                      <strong>工作方式</strong>
+                      <span>面试语音会先走可用的浏览器/系统识别；不可用或你选择离线优先时，再使用本地 sherpa-onnx。</span>
+                    </div>
+                    <div class="offline-support-steps">
                       <div>
-                        <strong>高品质离线音色包</strong>
-                        <span>{{ ttsEngineSummary }}</span>
+                        <strong>1</strong>
+                        <span>下载中文识别模型到浏览器缓存</span>
                       </div>
-                      <n-tag round :bordered="false">Kokoro</n-tag>
+                      <div>
+                        <strong>2</strong>
+                        <span>开始语音面试时加载本地 Worker</span>
+                      </div>
+                      <div>
+                        <strong>3</strong>
+                        <span>断网或系统识别不可用时继续转写</span>
+                      </div>
                     </div>
-                    <p>当前继续使用浏览器系统音色；后续阶段再接入 Kokoro 本地合成，避免本轮引入约 90MB 模型包。</p>
-                    <div class="offline-model-status">
-                      <span>系统 TTS：{{ previewTextToSpeech.engineStatus.value === 'system-tts' ? '可用' : '不可用' }}</span>
-                      <span>增强音色：{{ offlineTtsStatusText }}</span>
-                    </div>
-                    <div class="offline-model-actions">
-                      <n-button secondary class="preference-action" disabled>下载高品质语音包</n-button>
-                      <el-button
-                        v-if="canClearOfflineTtsModel"
-                        type="danger"
-                        class="preference-action offline-delete-action"
-                        :loading="offlineTtsDeleting"
-                        @click="handleOfflineTtsClearConfirm"
-                      >
-                        删除音色包
-                      </el-button>
+                    <div class="offline-support-note">
+                      <strong>保留边界</strong>
+                      <span>这里不会再下载离线语音合成资源；需要清理时只删除识别资源包。</span>
                     </div>
                   </div>
                 </div>
@@ -880,9 +908,27 @@
           </div>
 
           <div class="settings-panel-body compact-action-panel">
-            <div class="settings-fill-note">
+            <div class="onboarding-intro-grid" aria-label="新手引导内容说明">
+              <div class="onboarding-intro-card">
+                <strong>简历诊断</strong>
+                <span>从上传简历开始，查看评分、优化建议和历史诊断记录。</span>
+              </div>
+              <div class="onboarding-intro-card">
+                <strong>模拟面试</strong>
+                <span>熟悉岗位、难度、语音通话和面试报告的主要入口。</span>
+              </div>
+              <div class="onboarding-intro-card">
+                <strong>模板与社区</strong>
+                <span>了解模板库、社区分享和报告复盘可以放在哪里继续使用。</span>
+              </div>
+              <div class="onboarding-intro-card">
+                <strong>会员与设置</strong>
+                <span>确认额度、订阅状态、通知偏好和本机显示设置的位置。</span>
+              </div>
+            </div>
+            <div class="settings-fill-note onboarding-action-note">
               <strong>重新熟悉功能入口</strong>
-              <span>新手引导会覆盖简历诊断、模拟面试、模板库、社区和会员额度等常用路径。</span>
+              <span>引导会按常用路径串起核心功能，不会修改你的简历、面试记录或当前偏好。</span>
             </div>
             <n-button type="primary" secondary @click="showOnboarding = true">
               重新查看新手引导
@@ -1110,10 +1156,8 @@ const interviewPreferenceForm = ref(getSettingsPreferences())
 const previewTextToSpeech = useTextToSpeech()
 const offlineVoiceStorageSupport = getOfflineVoiceStorageSupport()
 const offlineSttModelStatus = ref(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn'))
-const offlineTtsModelStatus = ref(getOfflineVoiceModelStatus('tts:kokoro'))
 const offlineSttDownloading = ref(false)
 const offlineSttDeleting = ref(false)
-const offlineTtsDeleting = ref(false)
 
 const themeChoice = ref(themeStore.followSystem ? 'system' : themeStore.manualTheme)
 const resolvedThemeText = computed(() => themeStore.resolvedTheme === 'dark' ? '暗色' : '亮色')
@@ -1221,12 +1265,6 @@ const recognitionEngineSummary = computed(() => (
     : '离线模型已安装时优先使用 sherpa-onnx；未安装时仍先尝试浏览器识别。'
 ))
 
-const ttsEngineSummary = computed(() => (
-  previewTextToSpeech.engineStatus.value === 'system-tts'
-    ? '当前使用浏览器系统 TTS 音色。'
-    : '当前浏览器不支持系统 TTS。'
-))
-
 const formatOfflineModelStatus = (status) => {
   if (status.status === 'ready') return '已缓存'
   if (status.status === 'downloading') return `下载中 ${status.progress}%`
@@ -1235,7 +1273,6 @@ const formatOfflineModelStatus = (status) => {
 }
 
 const offlineSttStatusText = computed(() => formatOfflineModelStatus(offlineSttModelStatus.value))
-const offlineTtsStatusText = computed(() => formatOfflineModelStatus(offlineTtsModelStatus.value))
 const offlineSttDownloadButtonText = computed(() => {
   if (!offlineVoiceStorageSupport.supported) return '浏览器不支持缓存'
   if (offlineSttDownloading.value) return `下载中 ${offlineSttModelStatus.value?.progress || 0}%`
@@ -1252,10 +1289,6 @@ const canDownloadOfflineSttModel = computed(() => (
 const canClearOfflineSttModel = computed(() => (
   // 已安装资源包和下载失败残留都允许用户自主删除，避免浏览器缓存被动长期占用空间。
   ['ready', 'failed'].includes(offlineSttModelStatus.value?.status)
-))
-const canClearOfflineTtsModel = computed(() => (
-  // Kokoro 下载本轮仍未开放；如果浏览器已有缓存状态，也必须提供删除入口。
-  ['ready', 'failed'].includes(offlineTtsModelStatus.value?.status)
 ))
 
 const browserVoiceOptions = computed(() => previewTextToSpeech.voices.value.map((voice) => ({
@@ -1283,6 +1316,24 @@ const buildVoicePreferenceFromForm = () => ({
   name: interviewPreferenceForm.value.voiceName,
   voiceURI: interviewPreferenceForm.value.voiceURI,
   lang: interviewPreferenceForm.value.voiceLang
+})
+previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
+
+const browserTtsVoiceStatusText = computed(() => {
+  const status = previewTextToSpeech.voicePreferenceStatus.value
+  const selectedVoiceName = status.selectedVoiceName || '浏览器默认中文 voice'
+  if (!previewTextToSpeech.isSupported.value) return '当前浏览器不支持系统 TTS。'
+  if (status.requestedType === 'system') return '当前使用浏览器系统默认 voice。'
+  if (status.usesBrowserDefaultVoice) {
+    return '当前使用浏览器默认中文 voice；如果 Chrome 没有暴露可区分的中文男声/女声，听感可能仍由系统默认音色决定。'
+  }
+  if (status.isDegraded && status.requestedType === 'male') {
+    return `当前浏览器没有暴露中文男声，实际音色：${selectedVoiceName}。`
+  }
+  if (status.isDegraded && status.requestedType === 'female') {
+    return `当前浏览器没有暴露中文女声，实际音色：${selectedVoiceName}。`
+  }
+  return `实际音色：${selectedVoiceName}。`
 })
 
 const validateConfirmPassword = (rule, value, callback) => {
@@ -1374,6 +1425,7 @@ const syncPreferenceForms = (preferences) => {
   const nextPreferences = { ...preferences }
   notificationForm.value = nextPreferences
   interviewPreferenceForm.value = { ...nextPreferences }
+  previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
 }
 
 const buildServerSettingsPayload = () => ({
@@ -1730,7 +1782,6 @@ const handleVoicePreferenceReset = () => {
     voiceRecognitionLanguage: DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionLanguage,
     voiceRecognitionEngine: DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionEngine,
     offlineSttEngine: DEFAULT_SETTINGS_PREFERENCES.offlineSttEngine,
-    offlineTtsEngine: DEFAULT_SETTINGS_PREFERENCES.offlineTtsEngine,
     voicePreferredType: DEFAULT_SETTINGS_PREFERENCES.voicePreferredType,
     voiceName: DEFAULT_SETTINGS_PREFERENCES.voiceName,
     voiceURI: DEFAULT_SETTINGS_PREFERENCES.voiceURI,
@@ -1801,36 +1852,6 @@ const handleOfflineSttClearConfirm = async () => {
   } catch (err) {
     if (!confirmed) return
     ElMessage.error(err?.message || '离线语音识别资源包删除失败')
-  }
-}
-
-const handleOfflineTtsClear = async () => {
-  offlineTtsDeleting.value = true
-  try {
-    offlineTtsModelStatus.value = await clearModelCache('tts:kokoro')
-    ElMessage.success('高品质离线音色包已删除')
-  } finally {
-    offlineTtsDeleting.value = false
-  }
-}
-
-const handleOfflineTtsClearConfirm = async () => {
-  let confirmed = false
-  try {
-    await ElMessageBox.confirm(
-      '将删除当前浏览器已缓存的 Kokoro 高品质离线音色包。删除后会继续使用浏览器系统 TTS 音色，后续可重新下载。',
-      '删除高品质离线音色包',
-      {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    confirmed = true
-    await handleOfflineTtsClear()
-  } catch (err) {
-    if (!confirmed) return
-    ElMessage.error(err?.message || '高品质离线音色包删除失败')
   }
 }
 
@@ -1942,6 +1963,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   clearAccountDeleteTimer()
 })
+
 </script>
 
 <style scoped>
@@ -2220,6 +2242,38 @@ onBeforeUnmount(() => {
 
 .profile-info-grid {
   margin-bottom: 0;
+}
+
+.profile-support-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-support-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-card) 84%, var(--orange-main) 16%);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-page) 92%, var(--orange-main) 8%), var(--bg-page));
+}
+
+.profile-support-card strong,
+.profile-support-card span {
+  display: block;
+}
+
+.profile-support-card strong {
+  color: var(--text-title);
+  font-size: 14px;
+}
+
+.profile-support-card span {
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .info-grid {
@@ -2711,6 +2765,37 @@ onBeforeUnmount(() => {
   transform: scale(0.97);
 }
 
+.voice-preference-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.voice-preference-main {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+}
+
+.voice-preference-copy {
+  min-width: 0;
+}
+
+.voice-selection-status {
+  width: min(100%, 720px);
+  margin: 0;
+  color: var(--settings-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.voice-selection-status.degraded {
+  color: #b45309;
+}
 .voice-control {
   flex: 0 0 auto;
   display: flex;
@@ -2801,10 +2886,40 @@ onBeforeUnmount(() => {
   line-height: 1.5;
 }
 
-.offline-voice-grid {
+.offline-overview {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--border-card) 82%, var(--orange-main) 18%);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-page) 84%, var(--orange-main) 16%), var(--bg-card));
+}
+
+.offline-overview strong,
+.offline-overview span {
+  display: block;
+}
+
+.offline-overview strong {
+  color: var(--text-title);
+  font-size: 15px;
+}
+
+.offline-overview span {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.offline-voice-layout {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(320px, 1.05fr) minmax(260px, 0.95fr);
   gap: 16px;
+  align-items: stretch;
 }
 
 .offline-voice-card {
@@ -2871,6 +2986,78 @@ onBeforeUnmount(() => {
 
 .offline-model-actions .preference-action {
   margin: 0;
+}
+
+.offline-support-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--border-card) 78%, var(--orange-main) 22%);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-page) 90%, var(--orange-main) 10%), var(--bg-card));
+}
+
+.offline-support-heading strong,
+.offline-support-heading span,
+.offline-support-note strong,
+.offline-support-note span {
+  display: block;
+}
+
+.offline-support-heading strong,
+.offline-support-note strong {
+  color: var(--text-title);
+  font-size: 14px;
+}
+
+.offline-support-heading span,
+.offline-support-note span {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.offline-support-steps {
+  display: grid;
+  gap: 10px;
+}
+
+.offline-support-steps > div {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  background: var(--bg-page);
+}
+
+.offline-support-steps strong {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--orange-main);
+  color: #fff;
+  font-size: 13px;
+}
+
+.offline-support-steps span {
+  color: var(--text-body);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.offline-support-note {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-divider);
 }
 
 .danger-zone {
@@ -2953,7 +3140,42 @@ onBeforeUnmount(() => {
 }
 
 .compact-action-panel {
-  justify-content: center;
+  justify-content: flex-start;
+}
+
+.onboarding-intro-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.onboarding-intro-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  background: var(--bg-page);
+}
+
+.onboarding-intro-card strong,
+.onboarding-intro-card span {
+  display: block;
+}
+
+.onboarding-intro-card strong {
+  color: var(--text-title);
+  font-size: 15px;
+}
+
+.onboarding-intro-card span {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.onboarding-action-note {
+  margin-top: auto;
 }
 
 .membership-note {
@@ -3005,7 +3227,8 @@ onBeforeUnmount(() => {
   .profile-summary,
   .profile-name-row,
   .preference-row,
-  .preference-row.stacked {
+  .preference-row.stacked,
+  .offline-overview {
     flex-direction: column;
     align-items: stretch;
   }
@@ -3023,6 +3246,11 @@ onBeforeUnmount(() => {
     width: 100%;
   }
 
+  .voice-preference-main {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
   .voice-control {
     width: 100%;
     display: grid;
@@ -3030,7 +3258,16 @@ onBeforeUnmount(() => {
     align-items: center;
   }
 
-  .offline-voice-grid,
+  .profile-support-grid,
+  .offline-voice-layout,
+  .onboarding-intro-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .offline-voice-layout {
+    align-items: stretch;
+  }
+
   .offline-model-status {
     grid-template-columns: 1fr;
   }

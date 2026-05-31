@@ -28,6 +28,7 @@ export function useTextToSpeech(options = {}) {
   const pitch = ref(Number(options.pitch ?? 1.06))
   const volume = ref(Number(options.volume ?? 1))
   const voicePreference = ref(options.voicePreference || { type: 'natural_zh' })
+  const genderPreferenceTypes = new Set(['female', 'male'])
 
   let buffer = ''
   let pendingCount = 0
@@ -65,6 +66,14 @@ export function useTextToSpeech(options = {}) {
   const isMaleVoiceName = (name) => /yunxi|yunyang|yunjian|kangkang|male|man|boy|david|mark|george|daniel/.test(name)
   const isLegacySystemVoiceName = (name) => /desktop|huihui|zira|david|heami|hanhan|ichiro|haruka|hazel|hedda/.test(name)
   const isLegacySystemVoice = (voice) => isLegacySystemVoiceName((voice?.name || '').toLowerCase())
+  const isChineseVoice = (voice) => (voice?.lang || '').toLowerCase().startsWith('zh')
+  const isHighQualityChineseVoiceName = (name) => /xiaoxiao|xiaoyi|xiaobei|yunxi|xiaoxuan|natural|neural|premium/.test(name)
+  const getVoiceGender = (voice) => {
+    const name = (voice?.name || '').toLowerCase()
+    if (isMaleVoiceName(name)) return 'male'
+    if (isFemaleVoiceName(name)) return 'female'
+    return 'unknown'
+  }
 
   const getVoiceScore = (voice, preferredType = 'natural_zh') => {
     const lang = voice.lang?.toLowerCase() || ''
@@ -72,11 +81,13 @@ export function useTextToSpeech(options = {}) {
     let score = 0
     if (lang.startsWith('zh')) score += 20
     if (lang === 'zh-cn' || lang === 'zh-hans') score += 8
-    if (/xiaoxiao|xiaoyi|xiaobei|yunxi|xiaoxuan|natural|neural|premium/.test(name)) score += 18
-    if (/google/.test(name)) score += 12
+    if (isHighQualityChineseVoiceName(name)) score += 18
+    if (/google/.test(name)) score += 4
     if (/microsoft/.test(name)) score += 4
-    if (voice.localService === true) score += isLegacySystemVoiceName(name) ? 1 : 6
-    if (voice.localService === false) score += /google|natural|neural|premium/.test(name) ? 2 : -2
+    // Chrome 在部分环境会暴露远程 Google 中文 voice，但网络或服务不可用时 speak 会被接受却没有声音。
+    // 默认中文播报优先保证能出声：本地中文 voice 的可靠性高于普通远程 voice，真正的 Natural/Neural 仍保留高分。
+    if (voice.localService === true) score += isLegacySystemVoiceName(name) ? 8 : 14
+    if (voice.localService === false) score += /natural|neural|premium/.test(name) ? 2 : -16
     // Chrome 常把 Windows 旧式本地语音也标为可用；这些 voice 稳定但机械，默认自然音色不应优先选择。
     if (isLegacySystemVoiceName(name)) score -= 8
     if (preferredType === 'female' && isFemaleVoiceName(name)) score += 16
@@ -96,26 +107,88 @@ export function useTextToSpeech(options = {}) {
     )) || null
   }
 
-  const pickPreferredVoice = (availableVoices, preference = voicePreference.value) => {
+  const pickPreferredVoice = (availableVoices, preference = voicePreference.value, options = {}) => {
     if (preference?.type === 'system') return null
     if (preference?.type === 'custom') {
       const customVoice = matchCustomVoice(availableVoices, preference)
       if (customVoice) return customVoice
     }
-    return [...availableVoices]
+    const pickHighestScoredVoice = (voiceList) => [...voiceList]
       .sort((left, right) => getVoiceScore(right, preference?.type) - getVoiceScore(left, preference?.type))[0]
       || null
+    if (genderPreferenceTypes.has(preference?.type)) {
+      const matchedGenderVoices = availableVoices.filter((voice) => getVoiceGender(voice) === preference.type)
+      if (matchedGenderVoices.length > 0) return pickHighestScoredVoice(matchedGenderVoices)
+      const neutralChineseVoices = availableVoices.filter((voice) => (
+        isChineseVoice(voice) && getVoiceGender(voice) === 'unknown'
+      ))
+      if (neutralChineseVoices.length > 0) return pickHighestScoredVoice(neutralChineseVoices)
+      // Chrome 只暴露相反性别 voice 时，不强行绑定错误性别；交回浏览器默认 voice，避免“男声/女声/默认”都被同一个显式 voice 覆盖。
+      return null
+    }
+    if (!preference?.type || preference.type === 'natural_zh') {
+      const chineseVoices = availableVoices.filter(isChineseVoice)
+      const highQualityChineseVoices = chineseVoices.filter((voice) => (
+        isHighQualityChineseVoiceName((voice?.name || '').toLowerCase())
+      ))
+      if (highQualityChineseVoices.length > 0) return pickHighestScoredVoice(highQualityChineseVoices)
+      const localChineseVoices = chineseVoices.filter((voice) => voice.localService === true)
+      if (options.allowGenderedDefaultFallback && localChineseVoices.length > 0) {
+        return pickHighestScoredVoice(chineseVoices)
+      }
+      if (localChineseVoices.length > 0 && chineseVoices.length > 1) {
+        return pickHighestScoredVoice(chineseVoices)
+      }
+      const neutralChineseVoices = chineseVoices.filter((voice) => getVoiceGender(voice) === 'unknown')
+      if (neutralChineseVoices.length > 0) return pickHighestScoredVoice(neutralChineseVoices)
+      if (chineseVoices.length === 1 && getVoiceGender(chineseVoices[0]) !== 'unknown') {
+        // 只有一个明确性别的老式本地 voice 时，默认自然音色不主动指定它，保留用户原本的浏览器默认发声策略。
+        return null
+      }
+    }
+    return pickHighestScoredVoice(availableVoices)
   }
+
+  const voicePreferenceStatus = computed(() => {
+    const requestedType = voicePreference.value?.type || 'natural_zh'
+    const selected = selectedVoice.value
+    const selectedGender = getVoiceGender(selected)
+    const isGenderPreference = genderPreferenceTypes.has(requestedType)
+    const hasRequestedGenderVoice = isGenderPreference && voices.value.some((voice) => (
+      isChineseVoice(voice) && getVoiceGender(voice) === requestedType
+    ))
+    return {
+      requestedType,
+      selectedVoiceName: selected?.name || '',
+      selectedVoiceURI: selected?.voiceURI || '',
+      selectedVoiceLang: selected?.lang || '',
+      selectedGender,
+      usesBrowserDefaultVoice: !selected,
+      hasRequestedGenderVoice,
+      isDegraded: Boolean(isGenderPreference && selectedGender !== requestedType),
+    }
+  })
 
   const hasPreferredNonLegacyVoice = () => {
     const preferredVoice = pickPreferredVoice(voices.value)
-    return Boolean(preferredVoice && !isLegacySystemVoice(preferredVoice))
+    const preferredName = (preferredVoice?.name || '').toLowerCase()
+    return Boolean(
+      preferredVoice &&
+      !isLegacySystemVoice(preferredVoice) &&
+      isHighQualityChineseVoiceName(preferredName)
+    )
   }
 
-  const refreshVoices = () => {
+  const hasDeferredSingleGenderedDefaultVoice = () => {
+    if (voicePreference.value?.type && voicePreference.value.type !== 'natural_zh') return false
+    const chineseVoices = voices.value.filter(isChineseVoice)
+    return chineseVoices.length === 1 && getVoiceGender(chineseVoices[0]) !== 'unknown'
+  }
+
+  const refreshVoices = (options = {}) => {
     if (!isSupported.value || !speechSynthesisRef.value) return
     voices.value = speechSynthesisRef.value.getVoices()
-    selectedVoice.value = pickPreferredVoice(voices.value)
+    selectedVoice.value = pickPreferredVoice(voices.value, voicePreference.value, options)
   }
 
   const resolveVoiceReadyWaiters = () => {
@@ -139,7 +212,7 @@ export function useTextToSpeech(options = {}) {
   const waitForVoicesReady = (isReady = () => voices.value.length > 0) => {
     refreshVoices()
     if (!isSupported.value || !speechSynthesisRef.value || isReady()) {
-      return Promise.resolve()
+      return Promise.resolve(true)
     }
     return new Promise((resolve) => {
       const waiter = {
@@ -147,12 +220,12 @@ export function useTextToSpeech(options = {}) {
         timer: null,
         resolve: () => {
           voiceReadyResolvers = voiceReadyResolvers.filter((item) => item !== waiter)
-          resolve()
+          resolve(true)
         },
       }
       waiter.timer = setTimeout(() => {
         voiceReadyResolvers = voiceReadyResolvers.filter((item) => item !== waiter)
-        resolve()
+        resolve(false)
       }, 800)
       voiceReadyResolvers.push(waiter)
     })
@@ -215,8 +288,10 @@ export function useTextToSpeech(options = {}) {
     const shouldWaitForHigherQualityVoice = Boolean(
       (userGesturePrepared || speechOptions.allowDefaultVoice) &&
       voicePreference.value?.type !== 'system' &&
-      selectedVoice.value &&
-      isLegacySystemVoice(selectedVoice.value)
+      (
+        (selectedVoice.value && isLegacySystemVoice(selectedVoice.value)) ||
+        hasDeferredSingleGenderedDefaultVoice()
+      )
     )
     if (voices.value.length > 0 && !shouldWaitForHigherQualityVoice) {
       userGesturePrepared = false
@@ -240,12 +315,16 @@ export function useTextToSpeech(options = {}) {
     if (voiceReadyPredicate !== false) {
       isPreparingQueuedUtterance = true
       // Chrome 可能先返回 Huihui Desktop 等旧式机械音色，再异步补齐 Google/自然音色；点击手势内短暂等待更优 voice。
-      void waitForVoicesReady(voiceReadyPredicate).then(() => {
+      void waitForVoicesReady(voiceReadyPredicate).then((ready) => {
         isPreparingQueuedUtterance = false
+        const voiceOverride = ready
+          ? null
+          : pickPreferredVoice(voices.value, voicePreference.value, { allowGenderedDefaultFallback: true })
+        if (!ready) selectedVoice.value = voiceOverride
         if (nextItem.runId !== speechRunId || activeUtterances.size > 0) return
         speechQueue.shift()
         // 浏览器 speechSynthesis 自身的多 utterance 队列在 Chrome 中不稳定；这里改为应用层串行，只在上一句结束后再交给浏览器下一句。
-        enqueueNow(nextItem.text, nextItem.speechOptions)
+        enqueueNow(nextItem.text, { ...nextItem.speechOptions, voiceOverride })
       })
       return
     }
@@ -349,11 +428,12 @@ export function useTextToSpeech(options = {}) {
       onStart: speechOptions.onStart,
       onEnd: speechOptions.onEnd,
     })
-    utterance.lang = selectedVoice.value?.lang || 'zh-CN'
+    const utteranceVoice = speechOptions.voiceOverride || selectedVoice.value
+    utterance.lang = utteranceVoice?.lang || 'zh-CN'
     utterance.rate = rate.value
     utterance.pitch = pitch.value
     utterance.volume = volume.value
-    if (selectedVoice.value) utterance.voice = selectedVoice.value
+    if (utteranceVoice) utterance.voice = utteranceVoice
     utterance.onstart = () => markUtteranceStart(utterance)
     utterance.onend = () => markUtteranceEnd(utterance)
     utterance.onerror = (event) => markUtteranceEnd(utterance, event?.error || 'error')
@@ -498,6 +578,7 @@ export function useTextToSpeech(options = {}) {
     isPaused,
     engineStatus,
     enhancedVoiceReady,
+    voicePreferenceStatus,
     activeUtteranceCount,
     voices,
     voice: selectedVoice,

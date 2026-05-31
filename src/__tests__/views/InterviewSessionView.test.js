@@ -7,6 +7,7 @@ import ElementPlus, { ElMessage } from 'element-plus'
 import InterviewSessionView from '@/views/interview/InterviewSessionView.vue'
 import { getInterviewSession, streamInterviewMessage } from '@/api/interview'
 import { saveSettingsPreferences } from '@/utils/settingsPreferences'
+import { saveOfflineVoiceModelStatus } from '@/utils/offlineVoiceModelCache'
 import { useSpeechToText } from '@/composables/useSpeechToText'
 
 const push = vi.fn()
@@ -604,6 +605,7 @@ describe('InterviewSessionView', () => {
     saveSettingsPreferences({
       voiceRecognitionEngine: 'offline_sherpa'
     })
+
     getInterviewSession.mockResolvedValue({
       data: {
         ...baseSession,
@@ -622,7 +624,6 @@ describe('InterviewSessionView', () => {
     expect(voiceSttPrepareOfflineRecognition).toHaveBeenCalledTimes(1)
     expect(voiceSttStart).not.toHaveBeenCalled()
   })
-
   it('speaks the opening message once when the first voice call starts', async () => {
     getInterviewSession.mockResolvedValue({
       data: {

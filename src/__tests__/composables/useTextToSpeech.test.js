@@ -182,7 +182,7 @@ describe('useTextToSpeech', () => {
     vi.useRealTimers()
   })
 
-  it('waits for better Chrome voices when the first user gesture only exposes legacy system voices', async () => {
+  it('keeps local Chrome system voices when a later remote Google voice is the only alternative', async () => {
     vi.useFakeTimers()
     let currentVoices = [
       { lang: 'zh-CN', name: 'Microsoft Huihui Desktop', voiceURI: 'huihui-desktop', localService: true },
@@ -202,8 +202,13 @@ describe('useTextToSpeech', () => {
     window.speechSynthesis.onvoiceschanged()
     await Promise.resolve()
 
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(900)
+    await Promise.resolve()
+
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
-    expect(spokenUtterances[0].voice.name).toBe('Google 普通话（中国大陆）')
+    expect(spokenUtterances[0].voice.name).toBe('Microsoft Huihui Desktop')
     vi.useRealTimers()
   })
 
@@ -357,6 +362,61 @@ describe('useTextToSpeech', () => {
     expect(spokenUtterances[0].voice.name).toBe('Microsoft Yunxi Natural')
   })
 
+  it('keeps default natural Chinese on browser default when Chrome only exposes a gendered legacy voice', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Kangkang - Chinese (Simplified, PRC)', voiceURI: 'kangkang-uri', localService: true },
+    ])
+    const tts = useTextToSpeech({ voicePreference: { type: 'natural_zh' } })
+
+    tts.speak('Hello.')
+
+    expect(tts.voice.value).toBeNull()
+    expect(spokenUtterances[0].voice).toBeUndefined()
+    expect(spokenUtterances[0].lang).toBe('zh-CN')
+    expect(tts.voicePreferenceStatus.value).toMatchObject({
+      requestedType: 'natural_zh',
+      selectedGender: 'unknown',
+      usesBrowserDefaultVoice: true,
+    })
+  })
+
+  it('does not use an explicit male voice when female preference is unavailable in Chrome', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Kangkang - Chinese (Simplified, PRC)', voiceURI: 'kangkang-uri', localService: true },
+    ])
+    const tts = useTextToSpeech({ voicePreference: { type: 'female' } })
+
+    tts.speak('Hello.')
+
+    expect(tts.voice.value).toBeNull()
+    expect(spokenUtterances[0].voice).toBeUndefined()
+    expect(tts.voicePreferenceStatus.value).toMatchObject({
+      requestedType: 'female',
+      selectedGender: 'unknown',
+      isDegraded: true,
+      hasRequestedGenderVoice: false,
+      usesBrowserDefaultVoice: true,
+    })
+  })
+
+  it('marks male preference degraded and avoids explicit female voices when Chrome exposes no male voice', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural', voiceURI: 'xiaoxiao-uri', localService: true },
+      { lang: 'zh-CN', name: 'Google 普通话（中国大陆）', voiceURI: 'google-zh-cn', localService: false },
+    ])
+    const tts = useTextToSpeech({ voicePreference: { type: 'male' } })
+
+    tts.speak('Hello.')
+
+    expect(spokenUtterances[0].voice.name).toBe('Google 普通话（中国大陆）')
+    expect(tts.voicePreferenceStatus.value).toMatchObject({
+      requestedType: 'male',
+      selectedGender: 'unknown',
+      isDegraded: true,
+      hasRequestedGenderVoice: false,
+    })
+  })
+
   it('prefers local Chinese voices over generic remote browser voices for default playback reliability', () => {
     window.speechSynthesis.getVoices = vi.fn(() => [
       { lang: 'zh-CN', name: 'Browser Chinese Voice', voiceURI: 'browser-zh-cn', localService: false },
@@ -369,7 +429,7 @@ describe('useTextToSpeech', () => {
     expect(spokenUtterances[0].voice.name).toBe('Windows Chinese Voice')
   })
 
-  it('prefers recognizable natural Chrome Chinese voices over generic local system voices', () => {
+  it('prefers local Chrome Chinese voices over remote Google voices for playback reliability', () => {
     window.speechSynthesis.getVoices = vi.fn(() => [
       { lang: 'zh-CN', name: 'Microsoft Huihui Desktop', voiceURI: 'huihui-desktop', localService: true },
       { lang: 'zh-CN', name: 'Google 普通话（中国大陆）', voiceURI: 'google-zh-cn', localService: false },
@@ -378,7 +438,7 @@ describe('useTextToSpeech', () => {
 
     tts.speak('你好，我是你的 AI 面试官。')
 
-    expect(spokenUtterances[0].voice.name).toBe('Google 普通话（中国大陆）')
+    expect(spokenUtterances[0].voice.name).toBe('Microsoft Huihui Desktop')
   })
 
   it('stop clears speech queue', () => {
