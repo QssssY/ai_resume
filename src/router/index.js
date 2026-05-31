@@ -4,6 +4,7 @@ import { hasAdminRole, isAdminLoggedIn } from '@/utils/adminAuth'
 import {
   adminAiEngineRouteLoader,
   adminAuditLogRouteLoader,
+  adminCommunityReviewRouteLoader,
   adminDashboardRouteLoader,
   adminFeedbackRouteLoader,
   adminGrowthConfigRouteLoader,
@@ -47,6 +48,12 @@ const routes = [
         path: 'dashboard',
         name: 'AdminDashboard',
         component: adminDashboardRouteLoader,
+        meta: { useLayout: false, requiresAdminAuth: true }
+      },
+      {
+        path: 'community',
+        name: 'AdminCommunityReview',
+        component: adminCommunityReviewRouteLoader,
         meta: { useLayout: false, requiresAdminAuth: true }
       },
       {

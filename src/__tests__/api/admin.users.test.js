@@ -5,7 +5,15 @@ vi.mock('@/utils/adminRequest', () => ({
 }))
 
 import adminRequest from '@/utils/adminRequest'
-import { getAdminUsers, getAdminUserStats, updateUsersBatchStatus } from '@/api/admin/users'
+import {
+  banAdminUser,
+  banAdminUsersBatch,
+  getAdminUsers,
+  getAdminUserStats,
+  unbanAdminUser,
+  unbanAdminUsersBatch,
+  updateUsersBatchStatus
+} from '@/api/admin/users'
 
 describe('admin users API', () => {
   beforeEach(() => {
@@ -55,6 +63,49 @@ describe('admin users API', () => {
     expect(adminRequest).toHaveBeenCalledWith({
       url: '/api/admin/users/stats',
       method: 'get'
+    })
+  })
+
+  it('banAdminUser sends duration and reason to the new ban endpoint', async () => {
+    await banAdminUser('9007199254740993', { duration: '7d', reason: '违规发布色情内容' })
+
+    expect(adminRequest).toHaveBeenCalledWith({
+      url: '/api/admin/users/9007199254740993/ban',
+      method: 'put',
+      data: { duration: '7d', reason: '违规发布色情内容' }
+    })
+  })
+
+  it('unbanAdminUser sends optional reason to the new unban endpoint', async () => {
+    await unbanAdminUser(123, { reason: '申诉通过' })
+
+    expect(adminRequest).toHaveBeenCalledWith({
+      url: '/api/admin/users/123/unban',
+      method: 'put',
+      data: { reason: '申诉通过' }
+    })
+  })
+
+  it('batch ban and unban endpoints keep ids as strings', async () => {
+    await banAdminUsersBatch({ ids: ['9007199254740993', 123], duration: '30d', reason: '批量风控' })
+    await unbanAdminUsersBatch({ ids: ['9007199254740993', 123], reason: '批量恢复' })
+
+    expect(adminRequest).toHaveBeenNthCalledWith(1, {
+      url: '/api/admin/users/batch/ban',
+      method: 'put',
+      data: {
+        ids: ['9007199254740993', '123'],
+        duration: '30d',
+        reason: '批量风控'
+      }
+    })
+    expect(adminRequest).toHaveBeenNthCalledWith(2, {
+      url: '/api/admin/users/batch/unban',
+      method: 'put',
+      data: {
+        ids: ['9007199254740993', '123'],
+        reason: '批量恢复'
+      }
     })
   })
 })

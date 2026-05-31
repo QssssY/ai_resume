@@ -22,6 +22,7 @@ export function createResumePdfImagePages({
   pageWidth = A4_RESUME_PDF_PAGE.width,
   pageHeight = A4_RESUME_PDF_PAGE.height,
   margin = 0,
+  minSinglePageScale = 0.9,
 }) {
   if (canvasWidth <= 0 || canvasHeight <= 0) {
     throw new Error('canvas size must be positive')
@@ -29,15 +30,27 @@ export function createResumePdfImagePages({
   if (pageWidth <= margin * 2 || pageHeight <= margin * 2) {
     throw new Error('pdf content size must be positive')
   }
+  if (minSinglePageScale <= 0 || minSinglePageScale > 1) {
+    throw new Error('single page scale must be within (0, 1]')
+  }
 
   const contentWidth = pageWidth - margin * 2
   const contentHeight = pageHeight - margin * 2
-  const renderWidth = contentWidth
-  const renderHeight = (canvasHeight * renderWidth) / canvasWidth
+  let renderWidth = contentWidth
+  let renderHeight = (canvasHeight * renderWidth) / canvasWidth
+
+  const singlePageScale = contentHeight / renderHeight
+  if (singlePageScale < 1 && singlePageScale >= minSinglePageScale) {
+    // 接近一页的简历优先轻微缩小并居中，避免少量尾部内容被硬切到第二页。
+    renderWidth = contentWidth * singlePageScale
+    renderHeight = contentHeight
+  }
+
+  const x = margin + (contentWidth - renderWidth) / 2
   const pageCount = Math.max(1, Math.ceil(renderHeight / contentHeight - 1e-9))
 
   return Array.from({ length: pageCount }, (_, index) => ({
-    x: margin,
+    x,
     y: margin - index * contentHeight,
     width: renderWidth,
     height: renderHeight,

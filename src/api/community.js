@@ -38,6 +38,7 @@ export function getPostDetail(postId) {
  * @param {string} data.content - 内容
  * @param {string[]} data.images - 图片URL数组
  * @param {string} [data.sharedInterviewSessionId] - 分享面试报告时关联的会话ID
+ * @returns {Promise<{data: {id: number|string, reviewStatus: 'approved'|'pending'}}>}
  */
 export function createPost(data) {
   return request({
@@ -116,6 +117,7 @@ export function getComments(postId, params) {
  * @param {Object} data
  * @param {string} data.content
  * @param {number|string} [data.parentCommentId] - 父评论ID（回复时传入）
+ * @returns {Promise<{data: {id: number|string, reviewStatus: 'approved'|'pending'}}>}
  */
 export function createComment(postId, data) {
   return request({
@@ -247,6 +249,52 @@ export function deletePost(postId) {
   }).then((response) => {
     clearApiCacheByPrefix('community')
     return response
+  })
+}
+
+/**
+ * 管理员在用户端社区下架帖子
+ * @param {number|string} postId
+ * @param {{reason: string}} data
+ */
+export function adminHidePost(postId, data) {
+  return request({
+    url: `/api/community/posts/${postId}/admin-hide`,
+    method: 'put',
+    data
+  }).then((response) => {
+    clearApiCacheByPrefix('community')
+    return response
+  })
+}
+
+/**
+ * 管理员在用户端社区下架评论或回复。
+ * @param {number|string} postId
+ * @param {number|string} commentId
+ * @param {{reason: string}} data
+ */
+export function adminHideComment(postId, commentId, data) {
+  return request({
+    url: `/api/community/posts/${postId}/comments/${commentId}/admin-hide`,
+    method: 'put',
+    data
+  }).then((response) => {
+    clearApiCacheByPrefix('community')
+    return response
+  })
+}
+
+/**
+ * 管理员在用户端发起账号封禁，使用普通登录态，由后端校验 role == 9。
+ * @param {number|string} userId
+ * @param {{duration: '1d'|'7d'|'30d'|'permanent', reason: string}} data
+ */
+export function adminBanUser(userId, data) {
+  return request({
+    url: `/api/admin/users/${encodeURIComponent(String(userId).trim())}/ban`,
+    method: 'put',
+    data
   })
 }
 

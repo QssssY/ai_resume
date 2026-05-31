@@ -107,6 +107,22 @@
             >
               <FeatureIcon name="delete" size="xs" />
             </button>
+            <button
+              v-if="isAdminUser"
+              class="btn-admin-hide-comment"
+              @click="handleAdminHideComment(comment)"
+              title="下架评论"
+            >
+              <FeatureIcon name="delete" size="xs" />
+            </button>
+            <button
+              v-if="canAdminBanUser(comment)"
+              class="btn-admin-ban-user"
+              @click="openBanDialog(comment)"
+              title="封禁用户"
+            >
+              <FeatureIcon name="warning" size="xs" />
+            </button>
           </div>
           <p class="comment-content clickable" @click.prevent="startReply(comment)">{{ comment.content }}</p>
           <ImageGrid v-if="comment.images && comment.images.length > 0" :images="comment.images" />
@@ -153,6 +169,22 @@
                       title="删除回复"
                     >
                       <FeatureIcon name="delete" size="xs" />
+                    </button>
+                    <button
+                      v-if="isAdminUser"
+                      class="btn-admin-hide-comment"
+                      @click="handleAdminHideReply(comment, reply)"
+                      title="下架回复"
+                    >
+                      <FeatureIcon name="delete" size="xs" />
+                    </button>
+                    <button
+                      v-if="canAdminBanUser(reply)"
+                      class="btn-admin-ban-user"
+                      @click="openBanDialog(reply)"
+                      title="封禁用户"
+                    >
+                      <FeatureIcon name="warning" size="xs" />
                     </button>
                   </div>
                   <p class="reply-content">{{ reply.content }}</p>
@@ -246,18 +278,35 @@
       <p class="empty-title">还没有评论</p>
       <p class="empty-desc">快来发表第一条评论吧</p>
     </div>
+
+    <AdminUserBanDialog
+      v-model="banDialogVisible"
+      :target-name="banTargetName"
+      :saving="banSaving"
+      @submit="submitBanUser"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getComments, createComment, deleteComment, getReplies, uploadPostImage } from '@/api/community'
+import {
+  adminBanUser,
+  adminHideComment,
+  getComments,
+  createComment,
+  deleteComment,
+  getReplies,
+  uploadPostImage
+} from '@/api/community'
 import { useUserStore } from '@/stores/user'
 import { optimizedImages } from '@/utils/optimizedImages'
+import AdminUserBanDialog from '@/components/admin/AdminUserBanDialog.vue'
 import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import ImageGrid from '@/components/community/ImageGrid.vue'
 import { formatTime } from '@/utils/community'
+import { normalizeAdminHideReason, validateAdminHideReason } from '@/utils/communityAdminHide'
 import { useScrollToComment } from '@/composables/useScrollToComment'
 
 const defaultAvatar = optimizedImages.userAvatar.webp
@@ -283,10 +332,14 @@ const props = defineProps({
 
 const emit = defineEmits(['commentDeleted', 'commentAdded'])
 
-const currentUserId = computed(() => userStore.userInfo?.id)
-
 const userStore = useUserStore()
+const currentUserId = computed(() => userStore.userInfo?.id)
 const userAvatar = computed(() => userStore.userInfo?.avatar || defaultAvatar)
+const isAdminUser = computed(() => userStore.userInfo?.role === 9)
+const banDialogVisible = ref(false)
+const banSaving = ref(false)
+const banTarget = ref(null)
+const banTargetName = computed(() => banTarget.value?.authorName || '目标用户')
 
 const shouldLoad = ref(false)
 const observerTarget = ref(null)
@@ -434,10 +487,19 @@ const handleSubmit = async () => {
       data.images = [...commentImages.value]
     }
     const res = await createComment(props.postId, data)
+    const reviewStatus = res?.data?.reviewStatus
+    if (reviewStatus !== 'approved') {
+      ElMessage.success('评论已提交审核，通过后将在评论区展示')
+      commentText.value = ''
+      commentImages.value = []
+      composerFocused.value = false
+      if (textareaRef.value) textareaRef.value.style.height = 'auto'
+      return
+    }
     ElMessage.success('评论发布成功')
     // 本地立即插入新评论
     const newComment = {
-      id: res.data,
+      id: res.data.id,
       postId: props.postId,
       userId: currentUserId.value,
       authorName: userStore.userInfo?.nickname || userStore.userInfo?.userName || '匿名用户',
@@ -565,7 +627,15 @@ const submitReply = async () => {
     if (replyImages.value.length > 0) {
       data.images = [...replyImages.value]
     }
-    await createComment(props.postId, data)
+    const res = await createComment(props.postId, data)
+    const reviewStatus = res?.data?.reviewStatus
+    if (reviewStatus !== 'approved') {
+      ElMessage.success('回复已提交审核，通过后将在评论区展示')
+      replyText.value = ''
+      replyImages.value = []
+      replyTarget.value = null
+      return
+    }
     ElMessage.success('回复成功')
     // 本地更新父评论的回复数
     const parentComment = comments.value.find(c => c.id === parentId)
@@ -633,6 +703,81 @@ const handleDeleteReply = async (parentComment, reply) => {
     if (err !== 'cancel') {
       console.error('删除回复失败:', err)
     }
+  }
+}
+
+const canAdminBanUser = (item) => {
+  if (!isAdminUser.value || !item?.userId) return false
+  return String(item.userId) !== String(currentUserId.value || '')
+}
+
+const promptAdminHideReason = async (title) => {
+  const { value } = await ElMessageBox.prompt('请输入下架原因，系统会通知对应用户。', title, {
+    confirmButtonText: '确认下架',
+    cancelButtonText: '取消',
+    inputType: 'textarea',
+    inputPlaceholder: '请输入200字以内的下架原因',
+    inputValidator: validateAdminHideReason,
+    type: 'warning'
+  })
+  return normalizeAdminHideReason(value)
+}
+
+const handleAdminHideComment = async (comment) => {
+  try {
+    const reason = await promptAdminHideReason('下架评论')
+    await adminHideComment(props.postId, comment.id, { reason })
+    const hiddenCount = 1 + Math.max(0, Number(comment.replyCount || 0))
+    comments.value = comments.value.filter(item => item.id !== comment.id)
+    delete repliesMap[comment.id]
+    expandedReplies.delete(comment.id)
+    showAllReplies.delete(comment.id)
+    total.value = Math.max(0, total.value - 1)
+    emit('commentDeleted', hiddenCount)
+    ElMessage.success('评论已下架，并已通知用户')
+  } catch (err) {
+    if (err === 'cancel' || err === 'close') return
+    console.error('管理员下架评论失败:', err)
+    ElMessage.error('下架失败，请稍后重试')
+  }
+}
+
+const handleAdminHideReply = async (parentComment, reply) => {
+  try {
+    const reason = await promptAdminHideReason('下架回复')
+    await adminHideComment(props.postId, reply.id, { reason })
+    repliesMap[parentComment.id] = (repliesMap[parentComment.id] || []).filter(item => item.id !== reply.id)
+    parentComment.replyCount = Math.max(0, Number(parentComment.replyCount || 0) - 1)
+    emit('commentDeleted', 1)
+    ElMessage.success('回复已下架，并已通知用户')
+  } catch (err) {
+    if (err === 'cancel' || err === 'close') return
+    console.error('管理员下架回复失败:', err)
+    ElMessage.error('下架失败，请稍后重试')
+  }
+}
+
+const openBanDialog = (item) => {
+  if (!item?.userId) {
+    ElMessage.error('无法识别要封禁的用户')
+    return
+  }
+  banTarget.value = item
+  banDialogVisible.value = true
+}
+
+const submitBanUser = async (payload) => {
+  if (!banTarget.value?.userId) return
+  banSaving.value = true
+  try {
+    await adminBanUser(banTarget.value.userId, payload)
+    ElMessage.success('用户已封禁')
+    banDialogVisible.value = false
+  } catch (err) {
+    console.error('管理员封禁评论用户失败:', err)
+    ElMessage.error('封禁失败，请稍后重试')
+  } finally {
+    banSaving.value = false
   }
 }
 
@@ -1096,6 +1241,38 @@ onUnmounted(() => {
 .btn-delete-comment:hover {
   color: var(--color-danger);
   background: rgba(245, 108, 108, 0.08);
+}
+
+.btn-admin-hide-comment,
+.btn-admin-ban-user {
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--text-placeholder);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+
+.comment-card:hover .btn-admin-hide-comment,
+.comment-card:hover .btn-admin-ban-user,
+.reply-card:hover .btn-admin-hide-comment,
+.reply-card:hover .btn-admin-ban-user {
+  opacity: 1;
+}
+
+.btn-admin-hide-comment:hover {
+  color: var(--color-danger);
+  background: rgba(245, 108, 108, 0.08);
+}
+
+.btn-admin-ban-user:hover {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.08);
 }
 
 .btn-delete-comment svg {

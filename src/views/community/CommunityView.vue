@@ -99,13 +99,17 @@
         <PostCard
           v-for="post in posts"
           :key="post.id"
-          v-memo="[post.id, post.title, post.content, post.sharedInterviewSessionId, post.images?.length, post.liked, post.favorited, post.likeCount, post.commentCount]"
+          v-memo="[post.id, post.userId, post.title, post.content, post.sharedInterviewSessionId, post.images?.length, post.liked, post.favorited, post.likeCount, post.commentCount, isAdminUser, currentUserId]"
           :post="post"
+          :can-admin-hide="isAdminUser"
+          :can-admin-ban="isAdminUser && String(post.userId || '') !== String(currentUserId || '')"
           class="post-feed-card"
           @click="goToDetail(post.id)"
           @like="handleLike(post)"
           @favorite="handleFavorite(post)"
           @share="handleShare(post)"
+          @admin-hide="handleAdminHide(post)"
+          @admin-ban-user="openBanDialog"
         />
       </template>
 
@@ -182,6 +186,13 @@
         </div>
       </div>
     </el-dialog>
+
+    <AdminUserBanDialog
+      v-model="banDialogVisible"
+      :target-name="banTargetName"
+      :saving="banSaving"
+      @submit="submitBanUser"
+    />
   </div>
 </template>
 
@@ -190,16 +201,20 @@ defineOptions({
   name: 'CommunityView'
 })
 
-import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { getPostList, togglePostLike, togglePostFavorite, getInteractionUnreadCount } from '@/api/community'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { adminBanUser, adminHidePost, getPostList, togglePostLike, togglePostFavorite, getInteractionUnreadCount } from '@/api/community'
+import { useUserStore } from '@/stores/user'
 import FeatureIcon from '@/components/common/FeatureIcon.vue'
+import AdminUserBanDialog from '@/components/admin/AdminUserBanDialog.vue'
 import PostCard from '@/components/community/PostCard.vue'
+import { normalizeAdminHideReason, validateAdminHideReason } from '@/utils/communityAdminHide'
 
 const PostEditor = defineAsyncComponent(() => import('@/components/community/PostEditor.vue'))
 
 const router = useRouter()
+const userStore = useUserStore()
 
 const activeTab = ref('all')
 const sortBy = ref('latest')
@@ -215,6 +230,12 @@ const shareLink = ref('')
 const unreadCount = ref(0)
 const isRefreshing = ref(false)
 const LAST_SEEN_KEY = 'community_last_interaction_seen'
+const isAdminUser = computed(() => userStore.userInfo?.role === 9)
+const currentUserId = computed(() => userStore.userInfo?.id)
+const banDialogVisible = ref(false)
+const banSaving = ref(false)
+const banTarget = ref(null)
+const banTargetName = computed(() => banTarget.value?.authorName || banTarget.value?.username || '目标用户')
 
 // 无限滚动相关
 const sentinelRef = ref(null)
@@ -334,6 +355,55 @@ const handleFavorite = async (post) => {
 const handleShare = (post) => {
   shareLink.value = `${window.location.origin}/community/post/${post.id}`
   showShareDialog.value = true
+}
+
+const promptAdminHideReason = async () => {
+  const { value } = await ElMessageBox.prompt('请填写下架原因，系统会通知发帖用户。', '下架帖子', {
+    confirmButtonText: '确认下架',
+    cancelButtonText: '取消',
+    inputType: 'textarea',
+    inputPlaceholder: '请填写200字以内的下架原因',
+    inputValidator: validateAdminHideReason,
+    type: 'warning'
+  })
+  return normalizeAdminHideReason(value)
+}
+
+const handleAdminHide = async (post) => {
+  try {
+    const reason = await promptAdminHideReason()
+    await adminHidePost(post.id, { reason })
+    posts.value = posts.value.filter(item => item.id !== post.id)
+    ElMessage.success('帖子已下架，并已通知用户')
+  } catch (err) {
+    if (err === 'cancel' || err === 'close') return
+    console.error('[社区] 管理员下架帖子失败:', err)
+    ElMessage.error('下架失败，请稍后重试')
+  }
+}
+
+const openBanDialog = (post) => {
+  if (!post?.userId) {
+    ElMessage.error('无法识别要封禁的用户')
+    return
+  }
+  banTarget.value = post
+  banDialogVisible.value = true
+}
+
+const submitBanUser = async (payload) => {
+  if (!banTarget.value?.userId) return
+  banSaving.value = true
+  try {
+    await adminBanUser(banTarget.value.userId, payload)
+    ElMessage.success('用户已封禁')
+    banDialogVisible.value = false
+  } catch (err) {
+    console.error('[社区] 管理员封禁用户失败:', err)
+    ElMessage.error('封禁失败，请稍后重试')
+  } finally {
+    banSaving.value = false
+  }
 }
 
 const copyLink = async () => {

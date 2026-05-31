@@ -50,6 +50,22 @@ describe('PostCard', () => {
     expect(wrapper.find('.post-summary').text()).toBe('面试经验内容')
   })
 
+  it('keeps very long titles readable without expanding the card height', () => {
+    const longTitle = Array.from({ length: 30 }, () => 'Long title').join(' ')
+    const wrapper = mount(PostCard, {
+      props: {
+        post: makePost({ title: longTitle })
+      }
+    })
+
+    const title = wrapper.find('.post-title')
+    expect(title.attributes('title')).toBe(longTitle)
+
+    const componentSource = source()
+    expect(componentSource).toMatch(/\.post-title\s*\{[\s\S]*?-webkit-line-clamp:\s*2/)
+    expect(componentSource).toMatch(/\.post-title\s*\{[\s\S]*?overflow:\s*hidden/)
+  })
+
   it('collapses long content by default and toggles without opening the detail page', async () => {
     const wrapper = mount(PostCard, {
       props: {
@@ -128,6 +144,54 @@ describe('PostCard', () => {
     await wrapper.find('.action-btn.favorited').trigger('click')
 
     expect(wrapper.emitted('favorite')).toHaveLength(1)
+    expect(wrapper.emitted('click')).toBeUndefined()
+  })
+
+  it('does not render the admin hide action for normal users', () => {
+    const wrapper = mount(PostCard, {
+      props: {
+        post: makePost(),
+        canAdminHide: false
+      }
+    })
+
+    expect(wrapper.find('.admin-hide-btn').exists()).toBe(false)
+  })
+
+  it('renders and emits the admin hide action for administrators', async () => {
+    const wrapper = mount(PostCard, {
+      props: {
+        post: makePost(),
+        canAdminHide: true
+      }
+    })
+
+    const button = wrapper.find('.admin-hide-btn')
+    expect(button.exists()).toBe(true)
+    expect(button.text()).toContain('下架')
+
+    await button.trigger('click')
+
+    expect(wrapper.emitted('admin-hide')).toHaveLength(1)
+    expect(wrapper.emitted('click')).toBeUndefined()
+  })
+
+  it('renders and emits the admin ban action for administrators', async () => {
+    const post = makePost({ userId: 'user-2' })
+    const wrapper = mount(PostCard, {
+      props: {
+        post,
+        canAdminBan: true
+      }
+    })
+
+    const button = wrapper.find('.admin-ban-btn')
+    expect(button.exists()).toBe(true)
+    expect(button.text()).toContain('封禁')
+
+    await button.trigger('click')
+
+    expect(wrapper.emitted('admin-ban-user')[0]).toEqual([post])
     expect(wrapper.emitted('click')).toBeUndefined()
   })
 

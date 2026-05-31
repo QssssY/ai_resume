@@ -187,13 +187,14 @@ const handleSubmit = async () => {
   if (!canSubmit.value) return
   submitting.value = true
   try {
-    await createPost({
+    const res = await createPost({
       category: form.value.category,
       title: form.value.title.trim(),
       content: form.value.content.trim(),
       images: form.value.images
     })
-    ElMessage.success('发布成功')
+    const reviewStatus = res?.data?.reviewStatus
+    ElMessage.success(reviewStatus === 'approved' ? '发布成功，已公开展示' : '已提交审核，通过后将在社区展示')
     emit('published')
   } catch (err) {
     console.error('发布失败:', err)

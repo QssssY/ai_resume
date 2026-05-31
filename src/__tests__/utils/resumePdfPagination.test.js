@@ -18,6 +18,22 @@ describe('resumePdfPagination', () => {
     expect(pages[0].height).toBeCloseTo(250, 6)
   })
 
+  it('should shrink a near-one-page resume instead of cutting a small tail to page two', () => {
+    const pages = createResumePdfImagePages({
+      canvasWidth: 1900,
+      canvasHeight: 2800,
+    })
+
+    expect(pages).toHaveLength(1)
+    expect(pages[0]).toMatchObject({
+      y: 0,
+      height: 297,
+      addPage: false,
+    })
+    expect(pages[0].x).toBeCloseTo(4.232142, 5)
+    expect(pages[0].width).toBeCloseTo(201.535714, 5)
+  })
+
   it('should paginate a long resume without shrinking width by height', () => {
     const pages = createResumePdfImagePages({
       canvasWidth: 2100,

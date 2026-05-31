@@ -33,71 +33,32 @@
       title="当前暂无监控数据，请稍后刷新或等待业务请求产生。"
     />
 
-    <section class="monitor-grid">
-      <article class="monitor-card">
-        <div class="card-icon resume-pending">
-          <el-icon><Document /></el-icon>
-        </div>
-        <div class="card-content">
-          <div class="label">待处理简历任务</div>
-          <div class="value">{{ monitorOverview.pendingResumeTaskCount }}</div>
-        </div>
-      </article>
-      <article class="monitor-card">
-        <div class="card-icon resume-processing">
-          <el-icon><Loading /></el-icon>
-        </div>
-        <div class="card-content">
-          <div class="label">处理中简历任务</div>
-          <div class="value">
-            {{ monitorOverview.processingResumeTaskCount }}
+    <section
+      v-for="section in metricSections"
+      :key="section.title"
+      class="monitor-section"
+    >
+      <div class="section-header">
+        <h3 class="section-title">{{ section.title }}</h3>
+      </div>
+      <div class="monitor-grid monitor-grid--four">
+        <article
+          v-for="item in section.items"
+          :key="item.label"
+          class="monitor-card"
+        >
+          <div class="card-icon" :class="item.iconClass">
+            <el-icon><component :is="item.icon" /></el-icon>
           </div>
-        </div>
-      </article>
-      <article class="monitor-card">
-        <div class="card-icon resume-failed">
-          <el-icon><WarningFilled /></el-icon>
-        </div>
-        <div class="card-content">
-          <div class="label">失败简历任务</div>
-          <div class="value danger">
-            {{ monitorOverview.failedResumeTaskCount }}
+          <div class="card-content">
+            <div class="label">{{ item.label }}</div>
+            <div class="value" :class="{ danger: item.danger }">
+              {{ item.value }}
+            </div>
+            <div v-if="item.detail" class="detail">{{ item.detail }}</div>
           </div>
-        </div>
-      </article>
-      <article class="monitor-card">
-        <div class="card-icon interview-active">
-          <el-icon><ChatDotRound /></el-icon>
-        </div>
-        <div class="card-content">
-          <div class="label">活跃面试会话</div>
-          <div class="value">
-            {{ monitorOverview.activeInterviewSessionCount }}
-          </div>
-        </div>
-      </article>
-      <article class="monitor-card">
-        <div class="card-icon interview-today">
-          <el-icon><Calendar /></el-icon>
-        </div>
-        <div class="card-content">
-          <div class="label">面试会话</div>
-          <div class="value">
-            {{ monitorOverview.todayInterviewSessionCount }}
-          </div>
-        </div>
-      </article>
-      <article class="monitor-card">
-        <div class="card-icon resume-today">
-          <el-icon><Files /></el-icon>
-        </div>
-        <div class="card-content">
-          <div class="label">简历诊断</div>
-          <div class="value">
-            {{ monitorOverview.todayResumeDiagnosisCount }}
-          </div>
-        </div>
-      </article>
+        </article>
+      </div>
     </section>
   </div>
 </template>
@@ -123,10 +84,134 @@ const monitorOverview = reactive({
   pendingResumeTaskCount: 0,
   processingResumeTaskCount: 0,
   failedResumeTaskCount: 0,
+  completedResumeTaskCount: 0,
   activeInterviewSessionCount: 0,
   todayInterviewSessionCount: 0,
   todayResumeDiagnosisCount: 0,
+  todayResumePolishCount: 0,
+  todayJobMatchCount: 0,
+  todayCommunityPostCount: 0,
+  pendingFeedbackCount: 0,
+  processingFeedbackCount: 0,
+  todayFeedbackCount: 0,
+  pendingCommunityPostCount: 0,
+  pendingCommunityCommentCount: 0,
+  pendingCommunityReviewCount: 0,
+  todayOrderCount: 0,
 });
+
+const toMonitorNumber = (value) => Number(value ?? 0);
+
+// 监控区块：按“运行态 / 今日业务量 / 待处理事项”组织，便于管理员先定位异常再处理待办。
+const metricSections = computed(() => [
+  {
+    title: "简历任务运行态",
+    items: [
+      {
+        label: "待处理简历任务",
+        value: monitorOverview.pendingResumeTaskCount,
+        icon: Document,
+        iconClass: "resume-pending",
+      },
+      {
+        label: "处理中简历任务",
+        value: monitorOverview.processingResumeTaskCount,
+        icon: Loading,
+        iconClass: "resume-processing",
+      },
+      {
+        label: "失败简历任务",
+        value: monitorOverview.failedResumeTaskCount,
+        icon: WarningFilled,
+        iconClass: "resume-failed",
+        danger: true,
+      },
+      {
+        label: "已完成简历任务",
+        value: monitorOverview.completedResumeTaskCount,
+        icon: Files,
+        iconClass: "resume-completed",
+      },
+    ],
+  },
+  {
+    title: "今日业务量",
+    items: [
+      {
+        label: "面试会话",
+        value: monitorOverview.todayInterviewSessionCount,
+        icon: Calendar,
+        iconClass: "interview-today",
+      },
+      {
+        label: "简历诊断",
+        value: monitorOverview.todayResumeDiagnosisCount,
+        icon: Files,
+        iconClass: "resume-today",
+      },
+      {
+        label: "AI 简历润色",
+        value: monitorOverview.todayResumePolishCount,
+        icon: Document,
+        iconClass: "resume-polish",
+      },
+      {
+        label: "JD 匹配分析",
+        value: monitorOverview.todayJobMatchCount,
+        icon: ChatDotRound,
+        iconClass: "job-match",
+      },
+      {
+        label: "社区发帖",
+        value: monitorOverview.todayCommunityPostCount,
+        icon: ChatDotRound,
+        iconClass: "community-post",
+      },
+      {
+        label: "用户反馈",
+        value: monitorOverview.todayFeedbackCount,
+        icon: WarningFilled,
+        iconClass: "feedback-today",
+      },
+      {
+        label: "今日订单",
+        value: monitorOverview.todayOrderCount,
+        icon: Calendar,
+        iconClass: "order-today",
+      },
+    ],
+  },
+  {
+    title: "待处理事项",
+    items: [
+      {
+        label: "活跃面试会话",
+        value: monitorOverview.activeInterviewSessionCount,
+        icon: ChatDotRound,
+        iconClass: "interview-active",
+      },
+      {
+        label: "反馈待处理",
+        value: monitorOverview.pendingFeedbackCount,
+        icon: Document,
+        iconClass: "feedback-pending",
+      },
+      {
+        label: "反馈处理中",
+        value: monitorOverview.processingFeedbackCount,
+        icon: Loading,
+        iconClass: "feedback-processing",
+      },
+      {
+        label: "社区待审总数",
+        value: monitorOverview.pendingCommunityReviewCount,
+        icon: WarningFilled,
+        iconClass: "community-review",
+        detail: `待审帖子 ${monitorOverview.pendingCommunityPostCount} / 待审评论 ${monitorOverview.pendingCommunityCommentCount}`,
+      },
+    ],
+  },
+]);
 
 /**
  * 监控数据是否为空。
@@ -147,12 +232,23 @@ const loadMonitorOverview = async () => {
   try {
     const res = await getAdminMonitorOverview();
     const d = res?.data || {};
-    monitorOverview.pendingResumeTaskCount = Number(d.pendingResumeTaskCount ?? 0);
-    monitorOverview.processingResumeTaskCount = Number(d.processingResumeTaskCount ?? 0);
-    monitorOverview.failedResumeTaskCount = Number(d.failedResumeTaskCount ?? 0);
-    monitorOverview.activeInterviewSessionCount = Number(d.activeInterviewSessionCount ?? 0);
-    monitorOverview.todayInterviewSessionCount = Number(d.todayInterviewSessionCount ?? 0);
-    monitorOverview.todayResumeDiagnosisCount = Number(d.todayResumeDiagnosisCount ?? 0);
+    monitorOverview.pendingResumeTaskCount = toMonitorNumber(d.pendingResumeTaskCount);
+    monitorOverview.processingResumeTaskCount = toMonitorNumber(d.processingResumeTaskCount);
+    monitorOverview.failedResumeTaskCount = toMonitorNumber(d.failedResumeTaskCount);
+    monitorOverview.completedResumeTaskCount = toMonitorNumber(d.completedResumeTaskCount);
+    monitorOverview.activeInterviewSessionCount = toMonitorNumber(d.activeInterviewSessionCount);
+    monitorOverview.todayInterviewSessionCount = toMonitorNumber(d.todayInterviewSessionCount);
+    monitorOverview.todayResumeDiagnosisCount = toMonitorNumber(d.todayResumeDiagnosisCount);
+    monitorOverview.todayResumePolishCount = toMonitorNumber(d.todayResumePolishCount);
+    monitorOverview.todayJobMatchCount = toMonitorNumber(d.todayJobMatchCount);
+    monitorOverview.todayCommunityPostCount = toMonitorNumber(d.todayCommunityPostCount);
+    monitorOverview.pendingFeedbackCount = toMonitorNumber(d.pendingFeedbackCount);
+    monitorOverview.processingFeedbackCount = toMonitorNumber(d.processingFeedbackCount);
+    monitorOverview.todayFeedbackCount = toMonitorNumber(d.todayFeedbackCount);
+    monitorOverview.pendingCommunityPostCount = toMonitorNumber(d.pendingCommunityPostCount);
+    monitorOverview.pendingCommunityCommentCount = toMonitorNumber(d.pendingCommunityCommentCount);
+    monitorOverview.pendingCommunityReviewCount = toMonitorNumber(d.pendingCommunityReviewCount);
+    monitorOverview.todayOrderCount = toMonitorNumber(d.todayOrderCount);
   } catch (error) {
     errorMessage.value = error?.message || "加载监控总览失败";
   } finally {
@@ -223,10 +319,33 @@ onMounted(() => {
   margin-bottom: 2px;
 }
 
+.monitor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-title {
+  margin: 0;
+  color: #5a4030;
+  font-size: 17px;
+  font-weight: 700;
+}
+
 .monitor-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 16px;
+}
+
+.monitor-grid--four {
+  /* 桌面端固定四列，避免宽屏把“今日业务量”自动挤成六列。 */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .monitor-card {
@@ -237,7 +356,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 18px;
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 116px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
   box-shadow: 0 6px 20px rgba(143, 69, 27, 0.06);
 }
 
@@ -272,6 +395,11 @@ onMounted(() => {
   color: var(--bg-card);
 }
 
+.card-icon.resume-completed {
+  background: linear-gradient(135deg, #c8f7c5 0%, #27ae60 100%);
+  color: var(--bg-card);
+}
+
 .card-icon.interview-active {
   background: linear-gradient(135deg, #55efc4 0%, #00b894 100%);
   color: var(--bg-card);
@@ -287,8 +415,41 @@ onMounted(() => {
   color: var(--bg-card);
 }
 
+.card-icon.resume-polish {
+  background: linear-gradient(135deg, #fab1a0 0%, #e17055 100%);
+  color: var(--bg-card);
+}
+
+.card-icon.job-match {
+  background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%);
+  color: var(--bg-card);
+}
+
+.card-icon.community-post {
+  background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+  color: var(--bg-card);
+}
+
+.card-icon.feedback-today,
+.card-icon.feedback-pending,
+.card-icon.feedback-processing {
+  background: linear-gradient(135deg, #ffeaa7 0%, #f39c12 100%);
+  color: #7a3f00;
+}
+
+.card-icon.order-today {
+  background: linear-gradient(135deg, #dfe6e9 0%, #636e72 100%);
+  color: var(--bg-card);
+}
+
+.card-icon.community-review {
+  background: linear-gradient(135deg, #ff7675 0%, #c0392b 100%);
+  color: var(--bg-card);
+}
+
 .card-content {
   flex: 1;
+  min-width: 0;
 }
 
 .label {
@@ -303,15 +464,23 @@ onMounted(() => {
   font-weight: 700;
   color: #5a4030;
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 .value.danger {
   color: #d63031;
 }
 
-@media (max-width: 1200px) {
-  .monitor-grid {
-    grid-template-columns: repeat(2, minmax(180px, 1fr));
+.detail {
+  margin-top: 8px;
+  color: #a08060;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 1180px) {
+  .monitor-grid--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -322,7 +491,7 @@ onMounted(() => {
     gap: 12px;
   }
 
-  .monitor-grid {
+  .monitor-grid--four {
     grid-template-columns: 1fr;
   }
 

@@ -58,6 +58,36 @@ export function updateAdminUserStatus(userId, status) {
 }
 
 /**
+ * 管理员封禁单个用户。
+ * @param {string | number} userId
+ * @param {{duration: '1d'|'7d'|'30d'|'permanent', reason: string}} data
+ * @returns {Promise}
+ */
+export function banAdminUser(userId, data) {
+  const safeUserId = normalizeUserId(userId)
+  return adminRequest({
+    url: `/api/admin/users/${encodeURIComponent(safeUserId)}/ban`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 管理员解封单个用户。
+ * @param {string | number} userId
+ * @param {{reason?: string}} [data]
+ * @returns {Promise}
+ */
+export function unbanAdminUser(userId, data = {}) {
+  const safeUserId = normalizeUserId(userId)
+  return adminRequest({
+    url: `/api/admin/users/${encodeURIComponent(safeUserId)}/unban`,
+    method: 'put',
+    data
+  })
+}
+
+/**
  * 获取用户权益详情。
  * @param {string | number} userId
  * @returns {Promise}
@@ -136,5 +166,37 @@ export function updateUsersBatchStatus(ids, status) {
     url: '/api/admin/users/batch/status',
     method: 'put',
     data: { ids: ids.map((id) => normalizeUserId(id)), isActive: status }
+  })
+}
+
+/**
+ * 管理员批量封禁用户。
+ * @param {{ids: Array<string|number>, duration: '1d'|'7d'|'30d'|'permanent', reason: string}} data
+ * @returns {Promise}
+ */
+export function banAdminUsersBatch(data) {
+  return adminRequest({
+    url: '/api/admin/users/batch/ban',
+    method: 'put',
+    data: {
+      ...data,
+      ids: (data.ids || []).map((id) => normalizeUserId(id))
+    }
+  })
+}
+
+/**
+ * 管理员批量解封用户。
+ * @param {{ids: Array<string|number>, reason?: string}} data
+ * @returns {Promise}
+ */
+export function unbanAdminUsersBatch(data) {
+  return adminRequest({
+    url: '/api/admin/users/batch/unban',
+    method: 'put',
+    data: {
+      ...data,
+      ids: (data.ids || []).map((id) => normalizeUserId(id))
+    }
   })
 }

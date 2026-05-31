@@ -7,8 +7,14 @@ import {
   deleteComment,
   getReplies,
   uploadPostImage,
-  getCommentDetail
+  getCommentDetail,
+  adminHideComment,
+  adminBanUser
 } from '@/api/community'
+
+const userStoreState = vi.hoisted(() => ({
+  userInfo: { id: 1, nickname: 'tester', avatar: '', userName: 'tester', role: 0 }
+}))
 
 // ── Mocks ──────────────────────────────────────────────────────────────
 
@@ -23,13 +29,13 @@ vi.mock('@/api/community', () => ({
   deleteComment: vi.fn(),
   getReplies: vi.fn(),
   uploadPostImage: vi.fn(),
-  getCommentDetail: vi.fn()
+  getCommentDetail: vi.fn(),
+  adminHideComment: vi.fn(),
+  adminBanUser: vi.fn()
 }))
 
 vi.mock('@/stores/user', () => ({
-  useUserStore: vi.fn(() => ({
-    userInfo: { id: 1, nickname: 'tester', avatar: '', userName: 'tester' }
-  }))
+  useUserStore: vi.fn(() => userStoreState)
 }))
 
 vi.mock('@/utils/community', () => ({
@@ -48,7 +54,8 @@ vi.mock('element-plus', async () => {
       info: vi.fn()
     },
     ElMessageBox: {
-      confirm: vi.fn()
+      confirm: vi.fn(),
+      prompt: vi.fn()
     }
   }
 })
@@ -80,6 +87,11 @@ const mountSection = (propsOverrides = {}) =>
           props: ['images'],
           template: '<div class="image-grid-stub" />'
         },
+        AdminUserBanDialog: {
+          props: ['modelValue', 'targetName', 'saving'],
+          emits: ['update:modelValue', 'submit'],
+          template: '<div class="admin-user-ban-dialog-stub" />'
+        },
         TransitionGroup: {
           template: '<div class="transition-group-stub"><slot /></div>'
         },
@@ -106,6 +118,7 @@ describe('CommentSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    userStoreState.userInfo = { id: 1, nickname: 'tester', avatar: '', userName: 'tester', role: 0 }
     // Default: no comments
     mockCommentList([])
   })
@@ -433,6 +446,105 @@ describe('CommentSection', () => {
 
       // Assert: createComment was NOT called
       expect(createComment).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('自动审核状态下的评论提交', () => {
+    it('does not optimistically insert pending comments', async () => {
+      const { ElMessage } = await import('element-plus')
+      const wrapper = mountSection({ scrollToId: 'c1' })
+      getCommentDetail.mockResolvedValue({ code: 200, data: null })
+      mockCommentList([])
+      await flushPromises()
+
+      wrapper.vm.commentText = '我有一张截图'
+      createComment.mockResolvedValue({ code: 200, data: { id: 3001, reviewStatus: 'pending' } })
+
+      await wrapper.vm.handleSubmit()
+      await flushPromises()
+
+      expect(ElMessage.success).toHaveBeenCalledWith('评论已提交审核，通过后将在评论区展示')
+      expect(wrapper.vm.comments).toHaveLength(0)
+      expect(wrapper.vm.total).toBe(0)
+      expect(wrapper.vm.commentText).toBe('')
+    })
+
+    it('optimistically inserts auto approved comments', async () => {
+      const { ElMessage } = await import('element-plus')
+      const wrapper = mountSection({ scrollToId: 'c1' })
+      getCommentDetail.mockResolvedValue({ code: 200, data: null })
+      mockCommentList([])
+      await flushPromises()
+
+      wrapper.vm.commentText = '我也遇到过类似问题'
+      createComment.mockResolvedValue({ code: 200, data: { id: 3002, reviewStatus: 'approved' } })
+
+      await wrapper.vm.handleSubmit()
+      await flushPromises()
+
+      expect(ElMessage.success).toHaveBeenCalledWith('评论发布成功')
+      expect(wrapper.vm.comments).toHaveLength(1)
+      expect(wrapper.vm.comments[0].id).toBe(3002)
+      expect(wrapper.vm.comments[0].content).toBe('我也遇到过类似问题')
+    })
+  })
+
+  describe('管理员评论治理', () => {
+    const makeComment = (overrides = {}) => ({
+      id: 'c1',
+      userId: 'user-2',
+      authorName: '违规用户',
+      content: '违规评论',
+      replyCount: 2,
+      deletable: false,
+      createTime: '2026-05-31T10:00:00',
+      ...overrides
+    })
+
+    it('普通用户看不到评论下架和封禁入口', async () => {
+      mockCommentList([makeComment()])
+      getCommentDetail.mockResolvedValue({ code: 200, data: null })
+
+      const wrapper = mountSection({ scrollToId: 'c1' })
+      await flushPromises()
+
+      expect(wrapper.find('.btn-admin-hide-comment').exists()).toBe(false)
+      expect(wrapper.find('.btn-admin-ban-user').exists()).toBe(false)
+    })
+
+    it('管理员下架顶级评论后移除整串并按数量通知父组件回退评论数', async () => {
+      const { ElMessageBox } = await import('element-plus')
+      userStoreState.userInfo = { id: 'admin-1', nickname: 'admin', avatar: '', userName: 'admin', role: 9 }
+      mockCommentList([makeComment()])
+      getCommentDetail.mockResolvedValue({ code: 200, data: null })
+      ElMessageBox.prompt.mockResolvedValue({ value: '  违规引流  ' })
+      adminHideComment.mockResolvedValue({ code: 200 })
+
+      const wrapper = mountSection({ scrollToId: 'c1' })
+      await flushPromises()
+
+      await wrapper.find('.btn-admin-hide-comment').trigger('click')
+      await flushPromises()
+
+      expect(adminHideComment).toHaveBeenCalledWith(1, 'c1', { reason: '违规引流' })
+      expect(wrapper.vm.comments).toHaveLength(0)
+      expect(wrapper.emitted('commentDeleted')[0]).toEqual([3])
+    })
+
+    it('管理员封禁评论作者时提交时长和原因', async () => {
+      userStoreState.userInfo = { id: 'admin-1', nickname: 'admin', avatar: '', userName: 'admin', role: 9 }
+      mockCommentList([makeComment()])
+      getCommentDetail.mockResolvedValue({ code: 200, data: null })
+      adminBanUser.mockResolvedValue({ code: 200 })
+
+      const wrapper = mountSection({ scrollToId: 'c1' })
+      await flushPromises()
+
+      await wrapper.find('.btn-admin-ban-user').trigger('click')
+      await wrapper.vm.submitBanUser({ duration: '7d', reason: '多次违规' })
+      await flushPromises()
+
+      expect(adminBanUser).toHaveBeenCalledWith('user-2', { duration: '7d', reason: '多次违规' })
     })
   })
 })

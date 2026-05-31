@@ -48,7 +48,22 @@
           </div>
 
           <div class="post-body">
-            <h1 v-if="displayTitle" class="post-title">{{ displayTitle }}</h1>
+            <h1
+              v-if="displayTitle"
+              class="post-title"
+              :class="{ 'collapsed-title': shouldCollapseTitle }"
+              :title="displayTitle"
+            >
+              {{ displayTitle }}
+            </h1>
+            <button
+              v-if="shouldCollapseTitle"
+              type="button"
+              class="title-dialog-btn"
+              @click="showFullTitleDialog = true"
+            >
+              查看完整标题
+            </button>
             <p class="post-content" :class="{ collapsed: shouldCollapseContent && !contentExpanded }">{{ post.content }}</p>
             <button
               v-if="shouldCollapseContent"
@@ -92,6 +107,22 @@
               <FeatureIcon name="share" size="xs" />
               <span>分享</span>
             </button>
+            <button
+              v-if="isAdminUser"
+              class="act-btn admin-hide-detail-btn"
+              @click="handleAdminHide"
+            >
+              <FeatureIcon name="delete" size="xs" />
+              <span>下架</span>
+            </button>
+            <button
+              v-if="canAdminBanAuthor"
+              class="act-btn admin-ban-detail-btn"
+              @click="openBanDialog"
+            >
+              <FeatureIcon name="warning" size="xs" />
+              <span>封禁作者</span>
+            </button>
           </div>
         </div>
       </section>
@@ -99,7 +130,7 @@
       <!-- 下半部分：评论区 -->
       <section ref="commentSectionRef" class="comment-area">
         <div class="comment-inner">
-          <CommentSection :key="postId" :post-id="postId" :post-user-id="post?.userId" :scroll-to-id="scrollToId" :scroll-to-parent-id="scrollToParentId" @comment-deleted="post.commentCount = Math.max(0, (post.commentCount || 0) - 1)" @comment-added="post.commentCount = (post.commentCount || 0) + 1" />
+          <CommentSection :key="postId" :post-id="postId" :post-user-id="post?.userId" :scroll-to-id="scrollToId" :scroll-to-parent-id="scrollToParentId" @comment-deleted="handleCommentDeleted" @comment-added="post.commentCount = (post.commentCount || 0) + 1" />
         </div>
       </section>
     </template>
@@ -119,24 +150,50 @@
         </div>
       </div>
     </el-dialog>
+
+    <el-dialog
+      v-if="showFullTitleDialog"
+      v-model="showFullTitleDialog"
+      title="完整标题"
+      width="520px"
+      :append-to-body="true"
+      class="full-title-dialog"
+    >
+      <p class="full-title-text">{{ displayTitle }}</p>
+    </el-dialog>
+
+    <AdminUserBanDialog
+      v-model="banDialogVisible"
+      :target-name="post?.authorName || '帖子作者'"
+      :saving="banSaving"
+      @submit="submitBanUser"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { getPostDetail, togglePostLike, togglePostFavorite } from '@/api/community'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { adminBanUser, adminHidePost, getPostDetail, togglePostLike, togglePostFavorite } from '@/api/community'
+import { useUserStore } from '@/stores/user'
+import AdminUserBanDialog from '@/components/admin/AdminUserBanDialog.vue'
 import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import ImageGrid from '@/components/community/ImageGrid.vue'
 import CommentSection from '@/components/community/CommentSection.vue'
 import { optimizedImages } from '@/utils/optimizedImages'
 import { formatTime, categoryLabel } from '@/utils/community'
+import {
+  DETAIL_TITLE_COLLAPSE_LENGTH,
+  normalizeAdminHideReason,
+  validateAdminHideReason
+} from '@/utils/communityAdminHide'
 
 const defaultAvatar = optimizedImages.userAvatar.webp
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 const postId = computed(() => route.params.postId)
 const scrollToId = computed(() => route.query.commentId || null)
 const scrollToParentId = computed(() => route.query.parentCommentId || null)
@@ -146,8 +203,16 @@ const loading = ref(true)
 const loadError = ref(false)
 const commentSectionRef = ref(null)
 const showShareDialog = ref(false)
+const showFullTitleDialog = ref(false)
 const shareLink = ref('')
 const contentExpanded = ref(false)
+const isAdminUser = computed(() => userStore.userInfo?.role === 9)
+const banDialogVisible = ref(false)
+const banSaving = ref(false)
+const canAdminBanAuthor = computed(() => {
+  if (!isAdminUser.value || !post.value?.userId) return false
+  return String(post.value.userId) !== String(userStore.userInfo?.id || '')
+})
 
 // 旧报告分享帖可能没有 title 字段，详情页需要兜底显示稳定标题。
 const displayTitle = computed(() => {
@@ -158,6 +223,9 @@ const displayTitle = computed(() => {
 
 // 详情页默认收起超长正文，避免长文本直接占满首屏和评论入口。
 const shouldCollapseContent = computed(() => (post.value?.content || '').length > 600)
+
+// 超长标题默认压缩展示，完整标题交给弹窗查看，避免详情页首屏被标题挤满。
+const shouldCollapseTitle = computed(() => displayTitle.value.length > DETAIL_TITLE_COLLAPSE_LENGTH)
 
 // 路由参数变化时重新加载（Vue Router 会复用组件，onMounted 不会重新触发）
 watch(() => route.params.postId, (newId, oldId) => {
@@ -204,6 +272,55 @@ const handleShare = () => {
   showShareDialog.value = true
 }
 
+const promptAdminHideReason = async () => {
+  const { value } = await ElMessageBox.prompt('请填写下架原因，系统会通知发帖用户。', '下架帖子', {
+    confirmButtonText: '确认下架',
+    cancelButtonText: '取消',
+    inputType: 'textarea',
+    inputPlaceholder: '请填写200字以内的下架原因',
+    inputValidator: validateAdminHideReason,
+    type: 'warning'
+  })
+  return normalizeAdminHideReason(value)
+}
+
+const handleAdminHide = async () => {
+  if (!post.value) return
+  try {
+    const reason = await promptAdminHideReason()
+    await adminHidePost(post.value.id, { reason })
+    ElMessage.success('帖子已下架，并已通知用户')
+    router.push('/community')
+  } catch (err) {
+    if (err === 'cancel' || err === 'close') return
+    console.error('[帖子详情] 管理员下架帖子失败:', err)
+    ElMessage.error('下架失败，请稍后重试')
+  }
+}
+
+const openBanDialog = () => {
+  if (!post.value?.userId) {
+    ElMessage.error('无法识别要封禁的用户')
+    return
+  }
+  banDialogVisible.value = true
+}
+
+const submitBanUser = async (payload) => {
+  if (!post.value?.userId) return
+  banSaving.value = true
+  try {
+    await adminBanUser(post.value.userId, payload)
+    ElMessage.success('用户已封禁')
+    banDialogVisible.value = false
+  } catch (err) {
+    console.error('[帖子详情] 管理员封禁用户失败:', err)
+    ElMessage.error('封禁失败，请稍后重试')
+  } finally {
+    banSaving.value = false
+  }
+}
+
 const copyLink = async () => {
   try {
     await navigator.clipboard.writeText(shareLink.value)
@@ -216,6 +333,10 @@ const copyLink = async () => {
 
 const scrollToComments = () => {
   commentSectionRef.value?.scrollIntoView({ behavior: 'smooth' })
+}
+
+const handleCommentDeleted = (count = 1) => {
+  post.value.commentCount = Math.max(0, (post.value.commentCount || 0) - Number(count || 1))
 }
 
 const loadPost = async () => {
@@ -447,6 +568,40 @@ loadPost()
   word-break: break-word;
 }
 
+.post-title.collapsed-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.title-dialog-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin: -2px 0 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--orange-main);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.title-dialog-btn:hover {
+  color: var(--orange-deep);
+}
+
+.full-title-text {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 15px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .post-content {
   font-size: 15px;
   color: var(--text-body);
@@ -566,6 +721,27 @@ loadPost()
 
 .act-btn.active-fav:hover {
   background: rgba(245, 166, 35, 0.1);
+}
+
+.admin-hide-detail-btn {
+  margin-left: auto;
+  color: var(--color-danger);
+  background: rgba(245, 63, 63, 0.06);
+}
+
+.admin-hide-detail-btn:hover {
+  color: var(--color-danger);
+  background: rgba(245, 63, 63, 0.1);
+}
+
+.admin-ban-detail-btn {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.06);
+}
+
+.admin-ban-detail-btn:hover {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.1);
 }
 
 .act-btn svg {

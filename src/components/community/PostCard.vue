@@ -23,7 +23,7 @@
 
     <!-- 内容摘要 -->
     <div class="card-body">
-      <h2 v-if="displayTitle" class="post-title">{{ displayTitle }}</h2>
+      <h2 v-if="displayTitle" class="post-title" :title="displayTitle">{{ displayTitle }}</h2>
       <p class="post-summary" :class="{ collapsed: shouldCollapseContent && !contentExpanded }">{{ post.content }}</p>
       <button
         v-if="shouldCollapseContent"
@@ -77,6 +77,22 @@
         <FeatureIcon name="share" size="sm" />
         <span>分享</span>
       </button>
+      <button
+        v-if="canAdminHide"
+        class="action-btn admin-hide-btn"
+        @click.stop="$emit('admin-hide')"
+      >
+        <FeatureIcon name="delete" size="sm" />
+        <span>下架</span>
+      </button>
+      <button
+        v-if="canAdminBan"
+        class="action-btn admin-ban-btn"
+        @click.stop="$emit('admin-ban-user', post)"
+      >
+        <FeatureIcon name="warning" size="sm" />
+        <span>封禁</span>
+      </button>
     </div>
   </div>
 </template>
@@ -94,10 +110,18 @@ const props = defineProps({
   post: {
     type: Object,
     required: true
+  },
+  canAdminHide: {
+    type: Boolean,
+    default: false
+  },
+  canAdminBan: {
+    type: Boolean,
+    default: false
   }
 })
 
-defineEmits(['click', 'like', 'favorite', 'share'])
+defineEmits(['click', 'like', 'favorite', 'share', 'admin-hide', 'admin-ban-user'])
 
 const contentExpanded = ref(false)
 
@@ -282,6 +306,10 @@ const shouldCollapseContent = computed(() => (props.post.content || '').length >
 }
 
 .post-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   margin: 0 0 8px;
   color: var(--text-title);
   font-size: 16px;
@@ -434,6 +462,25 @@ const shouldCollapseContent = computed(() => (props.post.content || '').length >
   background: color-mix(in srgb, var(--bg-card) 58%, #f5a623 42%);
   border-color: #f5a623;
   box-shadow: 0 10px 24px rgba(245, 166, 35, 0.22);
+}
+
+.admin-hide-btn {
+  margin-left: auto;
+  color: var(--color-danger);
+}
+
+.admin-hide-btn:hover {
+  background: rgba(245, 63, 63, 0.08);
+  color: var(--color-danger);
+}
+
+.admin-ban-btn {
+  color: #b42318;
+}
+
+.admin-ban-btn:hover {
+  background: rgba(180, 35, 24, 0.08);
+  color: #b42318;
 }
 
 .action-btn svg {

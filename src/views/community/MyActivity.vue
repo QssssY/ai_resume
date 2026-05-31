@@ -86,16 +86,29 @@
     <div v-else-if="['mine', 'liked', 'favorited'].includes(activeTab) && currentTabState.posts.value.length > 0" class="post-list">
       <DynamicScroller :items="currentTabState.posts.value" :min-item-size="150" key-field="id" class="post-list-inner virtual-activity-list" :buffer="700">
         <template #default="{ item: post, active }">
-          <DynamicScrollerItem :item="post" :active="active" :size-dependencies="[post.title, post.content, post.images?.length, post.likeCount, post.commentCount]">
+          <DynamicScrollerItem :item="post" :active="active" :size-dependencies="[post.title, post.content, post.images?.length, post.likeCount, post.commentCount, post.reviewStatus, post.reviewReason]">
         <div class="my-post-card virtual-activity-card">
           <div class="card-main" @click="goToDetail(post.id)">
             <div class="card-header">
               <span class="category-dot" :class="post.category"></span>
               <span class="category-label">{{ categoryLabel(post.category) }}</span>
+              <span
+                v-if="activeTab === 'mine' && shouldShowReviewStatus(post.reviewStatus)"
+                class="review-status-badge"
+                :class="`review-${post.reviewStatus}`"
+              >
+                {{ reviewStatusText(post.reviewStatus) }}
+              </span>
               <span class="card-time">{{ formatTime(post.createTime) }}</span>
             </div>
             <h2 v-if="post.title" class="card-title">{{ post.title }}</h2>
             <p class="card-content">{{ post.content }}</p>
+            <p
+              v-if="activeTab === 'mine' && post.reviewReason"
+              class="review-reason"
+            >
+              原因：{{ post.reviewReason }}
+            </p>
             <div v-if="post.sharedInterviewSessionId" class="card-report-link">
               <FeatureIcon name="interview-report" size="xs" />
               <span>面试报告链接</span>
@@ -408,6 +421,19 @@ const emptyInfo = computed(() => {
   }
   return map[activeTab.value]
 })
+
+// 我的帖子需要回显审核状态，让作者知道内容是否仍在审核池或已被处理。
+const reviewStatusText = (status) => {
+  const map = {
+    pending: '待审核',
+    rejected: '未通过',
+    hidden: '已隐藏',
+    approved: '已通过'
+  }
+  return map[status] || '待审核'
+}
+
+const shouldShowReviewStatus = (status) => status && status !== 'approved'
 
 const getImageCount = (imagesJson) => {
   if (!imagesJson) return 0
@@ -975,6 +1001,36 @@ onMounted(() => {
   letter-spacing: 0.3px;
 }
 
+.review-status-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.review-status-badge.review-pending {
+  color: #ad5b00;
+  background: #fff4df;
+  border: 1px solid #ffd79a;
+}
+
+.review-status-badge.review-rejected {
+  color: #c93535;
+  background: #fff0f0;
+  border: 1px solid #ffcaca;
+}
+
+.review-status-badge.review-hidden {
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #d8e0e8;
+}
+
 .card-time {
   font-size: 12px;
   color: var(--text-placeholder);
@@ -999,6 +1055,18 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 700;
   line-height: 1.45;
+  word-break: break-word;
+}
+
+.review-reason {
+  margin: -2px 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff7f7;
+  border: 1px solid #ffd7d7;
+  color: #b63b3b;
+  font-size: 12px;
+  line-height: 1.5;
   word-break: break-word;
 }
 

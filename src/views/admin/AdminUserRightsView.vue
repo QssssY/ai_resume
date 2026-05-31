@@ -157,6 +157,22 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="封禁到期" min-width="170" align="center">
+          <template #header>
+            <div class="table-header">封禁到期</div>
+          </template>
+          <template #default="{ row }">
+            {{ formatBanUntil(row) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="封禁原因" min-width="180" align="center" show-overflow-tooltip>
+          <template #header>
+            <div class="table-header">封禁原因</div>
+          </template>
+          <template #default="{ row }">
+            <span class="ban-reason-text">{{ row.banReason || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="会员到期时间" min-width="180" align="center">
           <template #header>
             <div class="table-header">会员到期时间</div>
@@ -196,7 +212,7 @@
                 @click="handleToggleStatus(row)"
                 class="action-btn"
               >
-                {{ isEnabledUser(row) ? '禁用' : '启用' }}
+                {{ isEnabledUser(row) ? '封禁' : '解封' }}
               </el-button>
             </div>
           </template>
@@ -468,6 +484,14 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <AdminUserBanDialog
+      v-model="banDialogVisible"
+      :title="banDialogTitle"
+      :target-name="banTargetName"
+      :saving="banSaving"
+      @submit="submitBanDialog"
+    />
   </div>
 </template>
 
@@ -480,12 +504,15 @@ import {
   getAdminUsers,
   getAdminUserStats,
   getMembershipPlansForAdmin,
+  banAdminUser,
+  unbanAdminUser,
+  banAdminUsersBatch,
+  unbanAdminUsersBatch,
   updateAdminUserRights,
   updateAdminUserQuota,
-  updateAdminUserStatus,
-  updateUsersBatchStatus,
   normalizeUserId
 } from '@/api/admin/users'
+import AdminUserBanDialog from '@/components/admin/AdminUserBanDialog.vue'
 import { getAdminUserInterviews, getAdminUserResumeTasks } from '@/api/admin/userData'
 import {
   confirmAdminRiskAction,
@@ -503,6 +530,15 @@ const userTableRef = ref(null)
 // 批量选择状态：用于批量操作
 const selectedUsers = ref([])
 const hasSelectedUsers = computed(() => selectedUsers.value && selectedUsers.value.length > 0)
+const banDialogVisible = ref(false)
+const banSaving = ref(false)
+const banDialogMode = ref('single')
+const banTargetRow = ref(null)
+const banDialogTitle = computed(() => banDialogMode.value === 'batch' ? '批量封禁用户' : '封禁用户')
+const banTargetName = computed(() => {
+  if (banDialogMode.value === 'batch') return `${selectedUsers.value.length} 个用户`
+  return banTargetRow.value?.username || banTargetRow.value?.nickname || readUserId(banTargetRow.value) || '目标用户'
+})
 const keyword = ref('')
 const filterForm = reactive({
   role: 'all',
@@ -712,6 +748,11 @@ const formatDateTime = (value) => {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
+const formatBanUntil = (row) => {
+  if (isEnabledUser(row)) return '-'
+  return row?.bannedUntil ? formatDateTime(row.bannedUntil) : '永久'
+}
+
 /**
  * 将任意输入转换为非负整数。
  * 作用：接口返回空值时兜底为 0，避免数字组件显示异常。
@@ -886,7 +927,7 @@ const exportFilteredUsersCsv = async () => {
       return
     }
 
-    const headers = ['用户ID', '用户名', '角色', '状态', '会员到期时间', '会员状态', '创建时间']
+    const headers = ['用户ID', '用户名', '角色', '状态', '封禁到期', '封禁原因', '会员到期时间', '会员状态', '创建时间']
     const rows = records.map((item) => {
       const vipState = getVipState(item)
       const _userId = normalizeUserId(item.userId ?? item.id)
@@ -895,6 +936,8 @@ const exportFilteredUsersCsv = async () => {
         item.username || '',
         item.roleDesc || '',
         isEnabledUser(item) ? '正常' : '封禁',
+        formatBanUntil(item),
+        item.banReason || '',
         formatDateTime(item.vipExpireTime),
         vipState === 'active' ? '会员有效' : (vipState === 'expired' ? '会员过期' : '非会员'),
         formatDateTime(item.createTime)
@@ -1108,25 +1151,49 @@ const handleToggleStatus = async (row) => {
     return
   }
 
-  const nextStatus = isEnabledUser(row) ? 0 : 1
-  const actionText = nextStatus === 1 ? '解封' : '封禁'
+  if (isEnabledUser(row)) {
+    banDialogMode.value = 'single'
+    banTargetRow.value = row
+    banDialogVisible.value = true
+    return
+  }
+
   try {
     await confirmAdminRiskAction({
-      title: `${actionText}确认`,
-      actionText: `${actionText}用户`,
+      title: '解封确认',
+      actionText: '解封用户',
       targetName: row.username,
-      impactHint: nextStatus === 0
-        ? '封禁后该用户将无法继续使用核心功能，请确认已完成风险评估。'
-        : '解封后该用户将恢复访问能力，请确认账号状态已核验。',
+      impactHint: '解封后该用户将恢复访问能力，请确认账号状态已核验。',
       type: 'warning'
     })
-    await updateAdminUserStatus(userId, nextStatus)
-    showAdminSuccess(`用户已${actionText}`)
+    await unbanAdminUser(userId, { reason: '管理员手动解封' })
+    showAdminSuccess('用户已解封')
     await fetchUserList()
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
-      showAdminError(error?.message || `${actionText}用户失败`)
+      showAdminError(error?.message || '解封用户失败')
     }
+  }
+}
+
+const submitBanDialog = async (payload) => {
+  banSaving.value = true
+  try {
+    if (banDialogMode.value === 'batch') {
+      const ids = selectedUsers.value.map(item => readUserId(item)).filter(Boolean)
+      await banAdminUsersBatch({ ids, ...payload })
+      showAdminSuccess(`成功封禁 ${ids.length} 个用户`)
+    } else {
+      const userId = readUserId(banTargetRow.value)
+      await banAdminUser(userId, payload)
+      showAdminSuccess('用户已封禁')
+    }
+    banDialogVisible.value = false
+    await fetchUserList()
+  } catch (error) {
+    showAdminError(error?.message || '封禁用户失败')
+  } finally {
+    banSaving.value = false
   }
 }
 
@@ -1156,23 +1223,9 @@ const handleBatchDisable = async () => {
     return
   }
 
-  try {
-    await confirmAdminRiskAction({
-      title: '批量封禁确认',
-      actionText: '封禁选中的用户',
-      targetName: `${selectedUsers.value.length} 个用户`,
-      impactHint: '封禁后这些用户将无法继续使用核心功能，请确认已完成风险评估。',
-      type: 'warning'
-    })
-    const ids = selectedUsers.value.map(item => readUserId(item))
-    await updateUsersBatchStatus(ids, 0)
-    showAdminSuccess(`成功封禁 ${ids.length} 个用户`)
-    await fetchUserList()
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close') {
-      showAdminError(error?.message || '批量封禁失败')
-    }
-  }
+  banDialogMode.value = 'batch'
+  banTargetRow.value = null
+  banDialogVisible.value = true
 }
 
 /**
@@ -1193,7 +1246,7 @@ const handleBatchEnable = async () => {
       type: 'warning'
     })
     const ids = selectedUsers.value.map(item => readUserId(item))
-    await updateUsersBatchStatus(ids, 1)
+    await unbanAdminUsersBatch({ ids, reason: '管理员批量解封' })
     showAdminSuccess(`成功解封 ${ids.length} 个用户`)
     await fetchUserList()
   } catch (error) {
@@ -1444,6 +1497,15 @@ onMounted(async () => {
 .status-tag {
   border-radius: 4px;
   font-weight: 500;
+}
+
+.ban-reason-text {
+  display: inline-block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .action-group {

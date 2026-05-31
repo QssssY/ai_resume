@@ -4,13 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import CommunityView from '@/views/community/CommunityView.vue'
-import { getPostList, togglePostLike, togglePostFavorite, getInteractionUnreadCount } from '@/api/community'
-import { ElMessage } from 'element-plus'
+import { adminBanUser, adminHidePost, getPostList, togglePostLike, togglePostFavorite, getInteractionUnreadCount } from '@/api/community'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const observeMock = vi.fn()
 const disconnectMock = vi.fn()
 const unobserveMock = vi.fn()
 const intersectionObserverMock = vi.fn()
+const userStoreState = vi.hoisted(() => ({
+  userInfo: { id: 1, nickname: 'tester', avatar: '', role: 0 },
+  isLoggedIn: () => true
+}))
 
 class MockIntersectionObserver {
   constructor(callback, options) {
@@ -36,14 +40,13 @@ vi.mock('@/api/community', () => ({
   getPostList: vi.fn(),
   togglePostLike: vi.fn(),
   togglePostFavorite: vi.fn(),
+  adminHidePost: vi.fn(),
+  adminBanUser: vi.fn(),
   getInteractionUnreadCount: vi.fn()
 }))
 
 vi.mock('@/stores/user', () => ({
-  useUserStore: vi.fn(() => ({
-    userInfo: { id: 1, nickname: 'tester', avatar: '' },
-    isLoggedIn: () => true
-  }))
+  useUserStore: vi.fn(() => userStoreState)
 }))
 
 vi.mock('element-plus', async () => {
@@ -57,7 +60,8 @@ vi.mock('element-plus', async () => {
       info: vi.fn()
     },
     ElMessageBox: {
-      confirm: vi.fn()
+      confirm: vi.fn(),
+      prompt: vi.fn()
     }
   }
 })
@@ -73,8 +77,13 @@ const mountView = () => {
     global: {
       stubs: {
         PostCard: {
-          props: ['post'],
-          template: '<div class="post-card-stub" @like="$emit(\'like\')" @favorite="$emit(\'favorite\')" />'
+          props: ['post', 'canAdminHide', 'canAdminBan'],
+          template: '<div class="post-card-stub" @like="$emit(\'like\')" @favorite="$emit(\'favorite\')" @admin-hide="$emit(\'admin-hide\')" @admin-ban-user="$emit(\'admin-ban-user\', post)" />'
+        },
+        AdminUserBanDialog: {
+          props: ['modelValue', 'targetName', 'saving'],
+          emits: ['update:modelValue', 'submit'],
+          template: '<div class="admin-user-ban-dialog-stub" />'
         },
         PostEditor: {
           name: 'PostEditor',
@@ -113,6 +122,7 @@ describe('CommunityView', () => {
     disconnectMock.mockClear()
     unobserveMock.mockClear()
     intersectionObserverMock.mockClear()
+    userStoreState.userInfo = { id: 1, nickname: 'tester', avatar: '', role: 0 }
     global.IntersectionObserver = MockIntersectionObserver
     // Default: fetchPosts succeeds with empty list
     getPostList.mockResolvedValue({
@@ -284,6 +294,46 @@ describe('CommunityView', () => {
       } finally {
         scrollRoot.remove()
       }
+    })
+
+    it('管理员下架弹窗限制原因长度并提交裁剪后的原因', async () => {
+      userStoreState.userInfo = { id: 1, nickname: 'admin', avatar: '', role: 9 }
+      getPostList.mockResolvedValue({
+        code: 200,
+        data: { list: [makePost(1)], total: 1 }
+      })
+      ElMessageBox.prompt.mockResolvedValue({ value: '  包含违规引流内容  ' })
+      adminHidePost.mockResolvedValue({ code: 200 })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await wrapper.find('.post-card-stub').trigger('admin-hide')
+      await flushPromises()
+
+      const promptOptions = ElMessageBox.prompt.mock.calls[0][2]
+      expect(promptOptions.inputValidator(' ')).toBe('请输入下架原因')
+      expect(promptOptions.inputValidator('A'.repeat(201))).toBe('下架原因不能超过200字')
+      expect(promptOptions.inputPlaceholder).toContain('200字以内')
+      expect(adminHidePost).toHaveBeenCalledWith(1, { reason: '包含违规引流内容' })
+    })
+
+    it('管理员可从帖子卡片封禁作者并提交时长和原因', async () => {
+      userStoreState.userInfo = { id: 1, nickname: 'admin', avatar: '', role: 9 }
+      getPostList.mockResolvedValue({
+        code: 200,
+        data: { list: [makePost(1, { userId: 'user-2', authorName: 'bad-user' })], total: 1 }
+      })
+      adminBanUser.mockResolvedValue({ code: 200 })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await wrapper.find('.post-card-stub').trigger('admin-ban-user')
+      await wrapper.vm.submitBanUser({ duration: '30d', reason: '多次违规发帖' })
+      await flushPromises()
+
+      expect(adminBanUser).toHaveBeenCalledWith('user-2', { duration: '30d', reason: '多次违规发帖' })
     })
   })
 

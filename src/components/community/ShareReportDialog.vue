@@ -117,14 +117,15 @@ async function handleSubmit() {
   if (!canSubmit.value) return
   submitting.value = true
   try {
-    await createPost({
+    const res = await createPost({
       category: 'interview_exp',
       title: normalizedReportTitle.value,
       content: fullContent.value,
       images: [],
       sharedInterviewSessionId: props.sessionData?.sessionId || props.sessionData?.id || ''
     })
-    ElMessage.success('分享成功')
+    const reviewStatus = res?.data?.reviewStatus
+    ElMessage.success(reviewStatus === 'approved' ? '分享成功，已公开展示' : '已提交审核，通过后将在社区展示')
     emit('update:visible', false)
   } catch {
     ElMessage.error('分享失败，请重试')

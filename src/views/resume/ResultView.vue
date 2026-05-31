@@ -531,14 +531,15 @@
               <div class="polish-edit-hint">
                 支持直接编辑文案、切换标题样式、调整段落顺序；可导出为 PDF、Word 或图片格式。
               </div>
-              <div v-if="polishResult?.polishedResumeText" class="polish-preview-shell">
+              <div v-if="hasPolishTemplateContent" class="polish-preview-shell">
                 <ResumeTemplate
                   ref="resumeTemplateRef"
-                  :text="polishResult.polishedResumeText"
+                  :text="polishTemplateText"
                   :document-json="polishResult.documentJson || ''"
                   mode="preview"
                 />
               </div>
+              <div v-else class="job-match-empty">暂无可预览的润色简历内容</div>
             </div>
 
             <div class="polish-content-block">
@@ -629,6 +630,17 @@ const isPending = computed(() => task.value?.status === 0)
 const isProcessing = computed(() => task.value?.status === 1)
 const isCompleted = computed(() => task.value?.status === 2)
 const isFailed = computed(() => task.value?.status === 3)
+// 润色模板可由 AI 原文、保存后的结构化文档或编辑后纯文本恢复，避免只缺少原文时整块预览消失。
+const hasPolishTemplateContent = computed(() => Boolean(
+  polishResult.value?.polishedResumeText ||
+  polishResult.value?.documentJson ||
+  polishResult.value?.editedPlainText
+))
+const polishTemplateText = computed(() =>
+  polishResult.value?.polishedResumeText ||
+  polishResult.value?.editedPlainText ||
+  ''
+)
 const PENDING_POLL_INTERVAL = 3000
 const PROCESSING_POLL_INTERVAL = 2000
 const POLL_MAX_ROUNDS = 90

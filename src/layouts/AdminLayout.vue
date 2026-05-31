@@ -66,6 +66,7 @@ import {
   Collection,
   DataAnalysis,
   Document,
+  Flag,
   List,
   Odometer,
   Setting,
@@ -104,6 +105,7 @@ const navGroups = computed(() => [
     groupLabel: "运营管理",
     items: [
       { path: "/admin/users", label: "用户权益", icon: UserFilled },
+      { path: "/admin/community", label: "社区审核", icon: Flag },
       { path: "/admin/audit-logs", label: "审计日志", icon: List },
       { path: "/admin/notifications", label: "通知公告", icon: Bell },
       { path: "/admin/feedback", label: "问题反馈", icon: ChatLineRound },

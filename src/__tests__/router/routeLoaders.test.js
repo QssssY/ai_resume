@@ -23,10 +23,12 @@ describe('routeLoaders', () => {
     const source = sourceFile('src/router/routeLoaders.js')
 
     expect(source).toContain('adminDashboardRouteLoader')
+    expect(source).toContain('adminCommunityReviewRouteLoader')
     expect(source).toContain('adminMonitorRouteLoader')
     expect(source).toContain('adminMembershipPlanRouteLoader')
     expect(source).toContain("'/admin/dashboard': adminDashboardRouteLoader")
     expect(source).toContain("'/admin/monitor': adminMonitorRouteLoader")
+    expect(source).toContain("'/admin/community': adminCommunityReviewRouteLoader")
     expect(source).toContain("'/admin/membership/plans': adminMembershipPlanRouteLoader")
     expect(source).toContain('const prefetchedAdminRoutes = new Set()')
     expect(source).toContain('export function prefetchAdminRoute(path)')
@@ -62,5 +64,13 @@ describe('routeLoaders', () => {
     expect(routerSource).toContain('resumeResultRouteLoader')
     expect(routerSource).toMatch(/path:\s*'\/resume\/result\/:taskId',[\s\S]*component:\s*resumeResultRouteLoader/)
     expect(routerSource).not.toContain("component: () => import('@/views/resume/ResultView.vue')")
+  })
+
+  it('registers the admin community review route with admin authentication', () => {
+    const routerSource = sourceFile('src/router/index.js')
+
+    expect(routerSource).toContain('adminCommunityReviewRouteLoader')
+    expect(routerSource).toMatch(/path:\s*'community',[\s\S]*name:\s*'AdminCommunityReview',[\s\S]*component:\s*adminCommunityReviewRouteLoader/)
+    expect(routerSource).toMatch(/path:\s*'community',[\s\S]*requiresAdminAuth:\s*true/)
   })
 })

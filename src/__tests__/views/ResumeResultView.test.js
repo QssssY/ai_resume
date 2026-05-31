@@ -68,6 +68,10 @@ vi.mock('@/api/resume', () => ({
   savePolishDocument: vi.fn(),
 }))
 
+vi.mock('@/api/onboarding', () => ({
+  completeOnboardingTask: vi.fn(() => Promise.resolve()),
+}))
+
 vi.mock('@/utils/resumePdfPagination', () => ({
   createResumePdfImagePages: vi.fn(),
 }))
@@ -173,6 +177,30 @@ describe('ResumeResultView', () => {
 
     expect(source).toContain('<FeatureIcon name="job-match-analysis" size="xs" class="button-feature-icon" />')
     expect(source).toContain('<FeatureIcon name="resume-optimization" size="xs" class="button-feature-icon" />')
+  })
+
+  it('renders the polish template when saved document data exists without original polished text', async () => {
+    getResumeTask.mockResolvedValue({
+      data: {
+        taskId: 'completed-task',
+        status: 2,
+        result: '{"overallEvaluation":{"totalScore":80}}',
+        latestPolishResult: {
+          polishRecordId: 'polish-1',
+          resumeTaskId: 'completed-task',
+          polishedResumeText: '',
+          documentJson: '{"header":{"sectionTitle":"个人信息"},"sections":[]}',
+          editedPlainText: '编辑后的简历内容',
+          modificationNotes: ['优化项目描述'],
+        },
+      },
+    })
+    routeState.params.taskId = 'completed-task'
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('.polish-preview-shell').exists()).toBe(true)
   })
 
   it('does not statically import export helpers into the initial result page chunk', () => {

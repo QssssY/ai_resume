@@ -44,30 +44,38 @@ const mountEditor = () =>
 const communityApiSource = () =>
   readFileSync(resolve(process.cwd(), 'src/api/community.js'), 'utf8')
 
+const submitPost = async (wrapper) => {
+  wrapper.vm.form.title = '一次有收获的前端面试复盘'
+  wrapper.vm.form.content = 'Share a useful interview note.'
+  await wrapper.vm.handleSubmit()
+}
+
 describe('PostEditor', () => {
-  it('documents the required title and optional shared report session fields on createPost', () => {
+  it('documents the create response review status on createPost', () => {
     const source = communityApiSource()
 
     expect(source).toMatch(/@param \{string\} data\.title/)
     expect(source).toMatch(/@param \{string\} \[data\.sharedInterviewSessionId\]/)
+    expect(source).toMatch(/reviewStatus: 'approved'\|'pending'/)
   })
 
-  it('emits a published business event after the editor-owned success toast', async () => {
-    createPost.mockResolvedValue({ code: 200 })
+  it('shows public success when backend auto approves the post', async () => {
+    createPost.mockResolvedValue({ code: 200, data: { id: 1001, reviewStatus: 'approved' } })
     const wrapper = mountEditor()
 
-    wrapper.vm.form.title = '一次有收获的前端面试复盘'
-    wrapper.vm.form.content = 'Share a useful interview note.'
-    await wrapper.vm.handleSubmit()
+    await submitPost(wrapper)
 
-    expect(createPost).toHaveBeenCalledWith({
-      category: 'interview_exp',
-      title: '一次有收获的前端面试复盘',
-      content: 'Share a useful interview note.',
-      images: [],
-    })
-    expect(ElMessage.success).toHaveBeenCalledTimes(1)
+    expect(ElMessage.success).toHaveBeenCalledWith('发布成功，已公开展示')
     expect(wrapper.emitted('published')).toHaveLength(1)
-    expect(wrapper.emitted('success')).toBeUndefined()
+  })
+
+  it('shows review success when backend keeps the post pending', async () => {
+    createPost.mockResolvedValue({ code: 200, data: { id: 1002, reviewStatus: 'pending' } })
+    const wrapper = mountEditor()
+
+    await submitPost(wrapper)
+
+    expect(ElMessage.success).toHaveBeenCalledWith('已提交审核，通过后将在社区展示')
+    expect(wrapper.emitted('published')).toHaveLength(1)
   })
 })

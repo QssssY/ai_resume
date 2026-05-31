@@ -6,6 +6,7 @@ export const resumeResultRouteLoader = () => import('@/views/resume/ResultView.v
 export const interviewEntryRouteLoader = () => import('@/views/interview/InterviewEntryView.vue')
 export const offerAssistRouteLoader = () => import('@/views/offer/OfferAssistView.vue')
 export const adminDashboardRouteLoader = () => import('@/views/admin/AdminDashboardView.vue')
+export const adminCommunityReviewRouteLoader = () => import('@/views/admin/AdminCommunityReviewView.vue')
 export const adminMonitorRouteLoader = () => import('@/views/admin/AdminMonitorView.vue')
 export const adminUserRightsRouteLoader = () => import('@/views/admin/AdminUserRightsView.vue')
 export const adminAuditLogRouteLoader = () => import('@/views/admin/AdminAuditLogView.vue')
@@ -31,6 +32,7 @@ export const prefetchableUserRouteLoaders = {
 
 export const prefetchableAdminRouteLoaders = {
   '/admin/dashboard': adminDashboardRouteLoader,
+  '/admin/community': adminCommunityReviewRouteLoader,
   '/admin/monitor': adminMonitorRouteLoader,
   '/admin/users': adminUserRightsRouteLoader,
   '/admin/audit-logs': adminAuditLogRouteLoader,

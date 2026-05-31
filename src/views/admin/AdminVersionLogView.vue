@@ -22,6 +22,35 @@
 
     <el-alert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" class="page-error" />
 
+    <el-card shadow="never" class="filter-card">
+      <div class="filter-row">
+        <el-input
+          v-model.trim="keyword"
+          class="filter-item keyword"
+          placeholder="按版本号、标题或内容搜索"
+          clearable
+          @keyup.enter="handleFilterChange"
+          @clear="handleFilterChange"
+        />
+        <el-select v-model="filterForm.type" class="filter-item" placeholder="按类型筛选" @change="handleFilterChange">
+          <el-option label="全部类型" value="all" />
+          <el-option label="大版本" value="major" />
+          <el-option label="小版本" value="minor" />
+          <el-option label="修补" value="patch" />
+        </el-select>
+        <el-select v-model="filterForm.status" class="filter-item" placeholder="按状态筛选" @change="handleFilterChange">
+          <el-option label="全部状态" value="all" />
+          <el-option label="草稿" value="0" />
+          <el-option label="已发布" value="1" />
+        </el-select>
+        <el-button class="filter-action-btn" @click="handleFilterChange">筛选</el-button>
+        <el-button class="reset-btn" @click="resetFilters">重置筛选</el-button>
+      </div>
+      <div class="filter-result">
+        当前筛选结果：<span class="result-count">{{ versionList.length }}</span> / {{ total }} 条
+      </div>
+    </el-card>
+
     <el-card shadow="never" class="table-card">
       <el-table
         :data="versionList"
@@ -157,6 +186,11 @@ const selectedVersions = ref([])
 const currentPage = ref(1)
 const size = ref(20)
 const total = ref(0)
+const keyword = ref('')
+const filterForm = reactive({
+  type: 'all',
+  status: 'all'
+})
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editingId = ref(null)
@@ -179,11 +213,20 @@ const formRules = {
 
 const normalizeNumber = (value) => Number(value || 0)
 
+const buildQueryParams = () => {
+  const params = { page: currentPage.value, size: size.value }
+  // 版本日志筛选交给后端处理，保证分页总数、当前页数据和批量操作基于同一查询口径。
+  if (filterForm.type !== 'all') params.type = filterForm.type
+  if (filterForm.status !== 'all') params.status = Number(filterForm.status)
+  if (keyword.value) params.keyword = keyword.value
+  return params
+}
+
 const loadVersionLogs = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
-    const res = await getAdminVersionLogs({ page: currentPage.value, size: size.value })
+    const res = await getAdminVersionLogs(buildQueryParams())
     const data = res?.data || {}
     versionList.value = data.records || []
     total.value = normalizeNumber(data.total)
@@ -213,6 +256,19 @@ const handlePageSizeChange = (pageSize) => {
 
 const handleSelectionChange = (selection) => {
   selectedVersions.value = selection
+}
+
+const handleFilterChange = () => {
+  currentPage.value = 1
+  loadVersionLogs()
+}
+
+const resetFilters = () => {
+  keyword.value = ''
+  filterForm.type = 'all'
+  filterForm.status = 'all'
+  currentPage.value = 1
+  loadVersionLogs()
 }
 
 const resetForm = () => {
@@ -348,6 +404,18 @@ onMounted(loadVersionLogs)
   box-shadow: 0 6px 20px rgba(230, 126, 34, 0.3); color: #fff;
 }
 .page-error { margin-bottom: 2px; }
+.filter-card {
+  border: 1px solid rgba(217, 196, 170, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(143, 69, 27, 0.05);
+}
+.filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.filter-item { width: 170px; }
+.filter-item.keyword { width: min(320px, 100%); }
+.filter-action-btn,
+.reset-btn { border-radius: 10px; font-weight: 600; }
+.filter-result { margin-top: 12px; color: #8a6f56; font-size: 13px; }
+.result-count { color: #8f451b; font-weight: 700; }
 .table-card {
   border: 1px solid rgba(217, 196, 170, 0.25);
   border-radius: 18px;
@@ -363,6 +431,8 @@ onMounted(loadVersionLogs)
 @media (max-width: 768px) {
   .page-header { align-items: flex-start; flex-direction: column; }
   .header-actions { justify-content: flex-start; }
+  .filter-row { align-items: stretch; flex-direction: column; }
+  .filter-item, .filter-item.keyword { width: 100%; }
   .pagination-wrap { justify-content: flex-start; overflow-x: auto; }
 }
 </style>

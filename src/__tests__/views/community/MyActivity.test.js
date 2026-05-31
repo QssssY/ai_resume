@@ -85,6 +85,47 @@ describe('MyActivity', () => {
     getInteractionUnreadCount.mockResolvedValue({ code: 200, data: 0 })
   })
 
+  it('should show review status and reason on my pending or rejected posts', async () => {
+    getMyPosts.mockResolvedValue({
+      code: 200,
+      data: {
+        total: 2,
+        list: [
+          {
+            id: 'p1',
+            category: 'interview_exp',
+            title: '待审核帖子',
+            content: '这是一条待审核内容',
+            reviewStatus: 'pending',
+            createTime: '2026-05-31T10:00:00',
+            likeCount: 0,
+            commentCount: 0,
+            images: []
+          },
+          {
+            id: 'p2',
+            category: 'referral',
+            title: '未通过帖子',
+            content: '这是一条未通过内容',
+            reviewStatus: 'rejected',
+            reviewReason: '包含不合适内容',
+            createTime: '2026-05-31T11:00:00',
+            likeCount: 0,
+            commentCount: 0,
+            images: []
+          }
+        ]
+      }
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('待审核')
+    expect(wrapper.text()).toContain('未通过')
+    expect(wrapper.text()).toContain('原因：包含不合适内容')
+  })
+
   it('should render commented tab through virtual scroller without throwing', async () => {
     getMyComments.mockResolvedValue({
       code: 200,

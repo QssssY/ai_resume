@@ -309,7 +309,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import ResumeInlineRichEditor from './ResumeInlineRichEditor.vue'
 import ResumeRichBlockEditor from './ResumeRichBlockEditor.vue'
@@ -434,8 +434,24 @@ function createEmptyHeaderModel() {
   }
 }
 
+function toPlainModel(value) {
+  const rawValue = toRaw(value)
+  if (Array.isArray(rawValue)) {
+    return rawValue.map((item) => toPlainModel(item))
+  }
+
+  if (rawValue && typeof rawValue === 'object') {
+    return Object.fromEntries(
+      Object.entries(rawValue).map(([key, item]) => [key, toPlainModel(item)]),
+    )
+  }
+
+  return rawValue
+}
+
 function cloneModel(value) {
-  return structuredClone(value)
+  // 历史快照只能保存纯数据，避免把 Vue 响应式 Proxy 传给 structuredClone 导致模板初始化中断。
+  return structuredClone(toPlainModel(value))
 }
 
 function generateClientId(prefix) {

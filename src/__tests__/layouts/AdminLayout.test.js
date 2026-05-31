@@ -9,6 +9,8 @@ describe('AdminLayout', () => {
     const source = sourceFile('src/layouts/AdminLayout.vue')
 
     expect(source).toContain('prefetchAdminRoute')
+    expect(source).toContain('社区审核')
+    expect(source).toContain('"/admin/community"')
     expect(source).toContain('@mouseenter="prefetchAdminNavigationRoute(item.path)"')
     expect(source).toContain('@focus="prefetchAdminNavigationRoute(item.path)"')
     expect(source).toContain('@touchstart.passive="prefetchAdminNavigationRoute(item.path)"')
