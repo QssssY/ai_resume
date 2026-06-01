@@ -170,8 +170,8 @@ const resetFilters = () => {
   loadAuditLogs()
 }
 
-// XLSX 导出
-const handleExport = () => {
+// XLSX 导出：等待按需加载和文件生成完成后再提示成功，避免首次导出时提示早于下载。
+const handleExport = async () => {
   if (logList.value.length === 0) {
     ElMessage.warning('暂无数据可导出')
     return
@@ -188,7 +188,7 @@ const handleExport = () => {
     row.remark || '',
     formatDate(row.createTime)
   ])
-  exportToXlsx({
+  await exportToXlsx({
     headers,
     rows,
     filename: `审计日志_${new Date().toISOString().slice(0, 10)}`,

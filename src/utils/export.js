@@ -1,8 +1,7 @@
 /**
  * XLSX 导出工具函数。
- * 使用 SheetJS (xlsx) 库生成标准 Excel 文件。
+ * 使用 SheetJS (xlsx) 库生成标准 Excel 文件，点击导出时再加载重依赖。
  */
-import * as XLSX from 'xlsx'
 
 /**
  * 将数据导出为 XLSX 文件。
@@ -12,7 +11,9 @@ import * as XLSX from 'xlsx'
  * @param {string} options.filename - 文件名（不含扩展名）
  * @param {string} [options.sheetName='Sheet1'] - 工作表名称
  */
-export function exportToXlsx({ headers, rows, filename, sheetName = 'Sheet1' }) {
+export async function exportToXlsx({ headers, rows, filename, sheetName = 'Sheet1' }) {
+  // xlsx 体积较大，只在用户真正导出时加载，避免拖慢管理端首次路由加载。
+  const XLSX = await import('xlsx')
   const worksheetData = [headers, ...rows]
   const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
 
