@@ -12,9 +12,15 @@ describe('vite config', () => {
     expect(source).toContain('include')
     expect(source).toContain("'chart.js'")
     expect(source).toContain("'vue-chartjs'")
-    expect(source).toContain("'xlsx'")
     expect(source).toContain("'element-plus'")
     expect(source).toContain("'@element-plus/icons-vue'")
     expect(source).toContain("'naive-ui'")
+  })
+
+  it('keeps xlsx out of dev pre-optimization so exports load it only on demand', () => {
+    const source = sourceFile('vite.config.js')
+    const optimizeDepsBlock = source.match(/optimizeDeps:\s*{[\s\S]*?},\n  test:/)?.[0] || ''
+
+    expect(optimizeDepsBlock).not.toContain("'xlsx'")
   })
 })
