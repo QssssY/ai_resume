@@ -24,6 +24,17 @@ export default defineConfig({
       deleteOriginFile: false
     })
   ],
+  // 开发环境预优化后台高频重依赖，避免首次进入路由时 Vite 现场补扫描触发长等待或整页刷新。
+  optimizeDeps: {
+    include: [
+      'chart.js',
+      'vue-chartjs',
+      'xlsx',
+      'element-plus',
+      '@element-plus/icons-vue',
+      'naive-ui'
+    ]
+  },
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.{test,spec}.{js,ts}'],

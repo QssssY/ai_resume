@@ -73,6 +73,7 @@ export function prefetchAdminRoute(path) {
   })
 }
 
+const adminIdleWarmupRoutes = ['/admin/dashboard', '/admin/users', '/admin/ai-engines', '/admin/prompts', '/admin/monitor']
 const idleWarmupRoutes = ['/templates', '/community', '/growth', '/resume/upload', '/resume/result', '/interview/entry', '/offer']
 
 export function warmupHighFrequencyUserRoutes() {
@@ -84,6 +85,23 @@ export function warmupHighFrequencyUserRoutes() {
 
   if (typeof window === 'undefined') return null
 
+  if (typeof window.requestIdleCallback === 'function') {
+    return window.requestIdleCallback(runWarmup, { timeout: 3000 })
+  }
+
+  return window.setTimeout(runWarmup, 800)
+}
+
+export function warmupHighFrequencyAdminRoutes() {
+  const runWarmup = () => {
+    adminIdleWarmupRoutes.forEach((path) => {
+      prefetchAdminRoute(path)?.catch(() => {})
+    })
+  }
+
+  if (typeof window === 'undefined') return null
+
+  // 管理端只预热高频入口，降低首次切换白屏感，同时避免一次性拉取全部后台页面 chunk。
   if (typeof window.requestIdleCallback === 'function') {
     return window.requestIdleCallback(runWarmup, { timeout: 3000 })
   }

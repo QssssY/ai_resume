@@ -46,6 +46,19 @@
 
       <main class="admin-content">
         <div v-if="showAdminRouteLoading" class="admin-route-loading-bar" aria-hidden="true"></div>
+        <div
+          v-if="showAdminRouteLoading"
+          class="admin-route-loading-placeholder"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="admin-route-loading-placeholder-card">
+            <div class="admin-route-loading-placeholder-title">正在打开管理模块</div>
+            <div class="admin-route-loading-placeholder-line primary"></div>
+            <div class="admin-route-loading-placeholder-line"></div>
+            <div class="admin-route-loading-placeholder-line short"></div>
+          </div>
+        </div>
         <RouterView v-slot="{ Component }">
           <Transition name="admin-page-fade" mode="out-in">
             <component :is="Component" :key="route.fullPath" />
@@ -78,7 +91,7 @@ import {
 import { useAdminUserStore } from "@/stores/adminUser";
 import logoUrl from "@/assets/logo.png";
 import { showAdminError, showAdminSuccess } from "@/utils/adminFeedback";
-import { prefetchAdminRoute } from "@/router/routeLoaders";
+import { prefetchAdminRoute, warmupHighFrequencyAdminRoutes } from "@/router/routeLoaders";
 
 const route = useRoute();
 const router = useRouter();
@@ -89,6 +102,7 @@ let adminRouteLoadingHideTimer = null;
 let removeAdminRouteBeforeGuard = null;
 let removeAdminRouteAfterGuard = null;
 let removeAdminRouteErrorGuard = null;
+let adminWarmupHandle = null;
 
 // 管理端分组导航：统一信息架构层次，降低模块扩展后的认知成本。
 const navGroups = computed(() => [
@@ -190,6 +204,9 @@ onMounted(async () => {
     stopAdminRouteLoadingFeedback();
   });
 
+  // 后台壳加载完成后在浏览器空闲期预热高频模块，减少首次点击时的冷加载白屏。
+  adminWarmupHandle = warmupHighFrequencyAdminRoutes();
+
   if (adminStore.adminInfo) return;
   try {
     await adminStore.fetchAdminInfo();
@@ -217,6 +234,13 @@ onBeforeUnmount(() => {
   removeAdminRouteErrorGuard?.();
   window.clearTimeout(adminRouteLoadingTimer);
   window.clearTimeout(adminRouteLoadingHideTimer);
+  if (adminWarmupHandle !== null) {
+    // 同一 handle 可能来自 requestIdleCallback 或 setTimeout，卸载时两类调度都清理一次。
+    if (typeof window.cancelIdleCallback === "function") {
+      window.cancelIdleCallback(adminWarmupHandle);
+    }
+    window.clearTimeout(adminWarmupHandle);
+  }
 });
 </script>
 
@@ -411,6 +435,46 @@ onBeforeUnmount(() => {
   animation: admin-route-loading-sweep 0.9s ease-in-out infinite;
 }
 
+.admin-route-loading-placeholder {
+  position: absolute;
+  inset: 22px 24px auto;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.admin-route-loading-placeholder-card {
+  width: min(420px, 100%);
+  padding: 16px;
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-route-loading-placeholder-title {
+  margin-bottom: 14px;
+  color: var(--text-title);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin-route-loading-placeholder-line {
+  height: 10px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--bg-elevated), var(--bg-card-hover), var(--bg-elevated));
+  background-size: 180% 100%;
+  animation: admin-route-placeholder-pulse 1.1s ease-in-out infinite;
+}
+
+.admin-route-loading-placeholder-line.primary {
+  width: 82%;
+}
+
+.admin-route-loading-placeholder-line.short {
+  width: 46%;
+}
+
 .admin-page-fade-enter-active,
 .admin-page-fade-leave-active {
   transition: opacity 0.16s ease, transform 0.16s ease;
@@ -435,6 +499,15 @@ onBeforeUnmount(() => {
   }
 }
 
+@keyframes admin-route-placeholder-pulse {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -80% 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .admin-page-fade-enter-active,
   .admin-page-fade-leave-active {
@@ -450,6 +523,10 @@ onBeforeUnmount(() => {
   .admin-route-loading-bar::before {
     animation: none;
     width: 100%;
+  }
+
+  .admin-route-loading-placeholder-line {
+    animation: none;
   }
 }
 
@@ -484,6 +561,10 @@ onBeforeUnmount(() => {
   .admin-route-loading-bar {
     left: 16px;
     right: 16px;
+  }
+
+  .admin-route-loading-placeholder {
+    inset: 18px 16px auto;
   }
 }
 </style>
