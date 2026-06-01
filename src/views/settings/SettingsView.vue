@@ -322,77 +322,6 @@
               </div>
               </template>
 
-              <template v-else>
-                <div class="offline-overview">
-                  <div>
-                    <strong>离线增强现在只保留语音识别</strong>
-                    <span>AI 播报继续使用浏览器/系统 TTS；离线资源只服务于面试收音转文字。</span>
-                  </div>
-                  <n-tag type="success" round :bordered="false">STT 刚需保留</n-tag>
-                </div>
-                <div class="offline-voice-layout">
-                  <div class="offline-voice-card">
-                    <div class="offline-card-heading">
-                      <div>
-                        <strong>语音识别引擎</strong>
-                        <span>{{ recognitionEngineSummary }}</span>
-                      </div>
-                      <n-tag round :bordered="false">sherpa-onnx</n-tag>
-                    </div>
-                    <p>浏览器/系统识别不可用时，可下载 sherpa-onnx 中文离线语音包并缓存到浏览器本地。</p>
-                    <div class="offline-model-status">
-                      <span>缓存能力：{{ offlineStorageSupportText }}</span>
-                      <span>模型状态：{{ offlineSttStatusText }}</span>
-                    </div>
-                    <div class="offline-model-actions">
-                      <n-button
-                        secondary
-                        class="preference-action"
-                        :loading="offlineSttDownloading"
-                        :disabled="!canDownloadOfflineSttModel"
-                        @click="handleOfflineSttDownload"
-                      >
-                        {{ offlineSttDownloadButtonText }}
-                      </n-button>
-                      <el-button
-                        v-if="canClearOfflineSttModel"
-                        type="danger"
-                        class="preference-action offline-delete-action"
-                        :loading="offlineSttDeleting"
-                        :disabled="offlineSttDownloading"
-                        @click="handleOfflineSttClearConfirm"
-                      >
-                        删除资源包
-                      </el-button>
-                    </div>
-                  </div>
-
-                  <div class="offline-support-panel">
-                    <div class="offline-support-heading">
-                      <strong>工作方式</strong>
-                      <span>面试语音会先走可用的浏览器/系统识别；不可用或你选择离线优先时，再使用本地 sherpa-onnx。</span>
-                    </div>
-                    <div class="offline-support-steps">
-                      <div>
-                        <strong>1</strong>
-                        <span>下载中文识别模型到浏览器缓存</span>
-                      </div>
-                      <div>
-                        <strong>2</strong>
-                        <span>开始语音面试时加载本地 Worker</span>
-                      </div>
-                      <div>
-                        <strong>3</strong>
-                        <span>断网或系统识别不可用时继续转写</span>
-                      </div>
-                    </div>
-                    <div class="offline-support-note">
-                      <strong>保留边界</strong>
-                      <span>这里不会再下载离线语音合成资源；需要清理时只删除识别资源包。</span>
-                    </div>
-                  </div>
-                </div>
-              </template>
               </div>
             </Transition>
           </div>
@@ -1016,12 +945,6 @@ import {
   getSettingsPreferences,
   saveSettingsPreferences
 } from '@/utils/settingsPreferences'
-import {
-  clearModelCache,
-  downloadModelFromManifest,
-  getOfflineVoiceModelStatus,
-  getOfflineVoiceStorageSupport
-} from '@/utils/offlineVoiceModelCache'
 
 defineOptions({ name: 'SettingsView' })
 
@@ -1060,8 +983,7 @@ const sections = [
 
 const interviewSubTabs = [
   { key: 'basic', label: '面试偏好' },
-  { key: 'voice', label: '语音通话' },
-  { key: 'offline', label: '离线增强' }
+  { key: 'voice', label: '语音通话' }
 ]
 
 const themeOptions = [
@@ -1154,10 +1076,6 @@ const accountDeleteConfirmDialogVisible = ref(false)
 const notificationForm = ref(getSettingsPreferences())
 const interviewPreferenceForm = ref(getSettingsPreferences())
 const previewTextToSpeech = useTextToSpeech()
-const offlineVoiceStorageSupport = getOfflineVoiceStorageSupport()
-const offlineSttModelStatus = ref(getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn'))
-const offlineSttDownloading = ref(false)
-const offlineSttDeleting = ref(false)
 
 const themeChoice = ref(themeStore.followSystem ? 'system' : themeStore.manualTheme)
 const resolvedThemeText = computed(() => themeStore.resolvedTheme === 'dark' ? '暗色' : '亮色')
@@ -1254,42 +1172,6 @@ const formatSpeechRate = (value) => `${Number(value).toFixed(2)}x`
 const formatSpeechPitch = (value) => Number(value).toFixed(2)
 const formatSpeechVolume = (value) => `${Math.round(Number(value) * 100)}%`
 const buildVoiceKey = (voice) => `${voice.voiceURI || ''}|||${voice.name || ''}|||${voice.lang || ''}`
-
-const offlineStorageSupportText = computed(() => (
-  offlineVoiceStorageSupport.supported ? '可用' : '当前浏览器不支持持久化缓存'
-))
-
-const recognitionEngineSummary = computed(() => (
-  interviewPreferenceForm.value.voiceRecognitionEngine === 'system_local'
-    ? '默认先尝试浏览器/系统语音识别，失败时提示下载离线语音包。'
-    : '离线模型已安装时优先使用 sherpa-onnx；未安装时仍先尝试浏览器识别。'
-))
-
-const formatOfflineModelStatus = (status) => {
-  if (status.status === 'ready') return '已缓存'
-  if (status.status === 'downloading') return `下载中 ${status.progress}%`
-  if (status.status === 'failed') return '下载失败'
-  return '未下载'
-}
-
-const offlineSttStatusText = computed(() => formatOfflineModelStatus(offlineSttModelStatus.value))
-const offlineSttDownloadButtonText = computed(() => {
-  if (!offlineVoiceStorageSupport.supported) return '浏览器不支持缓存'
-  if (offlineSttDownloading.value) return `下载中 ${offlineSttModelStatus.value?.progress || 0}%`
-  if (offlineSttModelStatus.value?.status === 'ready') return '已缓存离线语音引擎'
-  if (offlineSttModelStatus.value?.status === 'failed') return '重新下载离线语音引擎'
-  return '下载离线语音引擎'
-})
-const canDownloadOfflineSttModel = computed(() => (
-  offlineVoiceStorageSupport.supported &&
-  !offlineSttDownloading.value &&
-  !offlineSttDeleting.value &&
-  offlineSttModelStatus.value?.status !== 'ready'
-))
-const canClearOfflineSttModel = computed(() => (
-  // 已安装资源包和下载失败残留都允许用户自主删除，避免浏览器缓存被动长期占用空间。
-  ['ready', 'failed'].includes(offlineSttModelStatus.value?.status)
-))
 
 const browserVoiceOptions = computed(() => previewTextToSpeech.voices.value.map((voice) => ({
   label: `${voice.name || 'Unknown'}${voice.lang ? ` (${voice.lang})` : ''}`,
@@ -1781,7 +1663,6 @@ const handleVoicePreferenceReset = () => {
     voiceAutoSubmitDelayMs: DEFAULT_SETTINGS_PREFERENCES.voiceAutoSubmitDelayMs,
     voiceRecognitionLanguage: DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionLanguage,
     voiceRecognitionEngine: DEFAULT_SETTINGS_PREFERENCES.voiceRecognitionEngine,
-    offlineSttEngine: DEFAULT_SETTINGS_PREFERENCES.offlineSttEngine,
     voicePreferredType: DEFAULT_SETTINGS_PREFERENCES.voicePreferredType,
     voiceName: DEFAULT_SETTINGS_PREFERENCES.voiceName,
     voiceURI: DEFAULT_SETTINGS_PREFERENCES.voiceURI,
@@ -1793,66 +1674,6 @@ const handleVoicePreferenceReset = () => {
   }))
   previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
   ElMessage.success('语音偏好已恢复默认')
-}
-
-const handleOfflineSttDownload = async () => {
-  if (!canDownloadOfflineSttModel.value) return
-  offlineSttDownloading.value = true
-  try {
-    offlineSttModelStatus.value = await downloadModelFromManifest(
-      'stt:sherpa_onnx:zh_cn',
-      '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json',
-      (progress) => {
-        offlineSttModelStatus.value = {
-          ...offlineSttModelStatus.value,
-          status: 'downloading',
-          progress
-        }
-      }
-    )
-    // 离线包下载成功后同步切换识别偏好，否则面试页仍会按 system_local 走浏览器/系统识别。
-    syncPreferenceForms(saveSettingsPreferences({
-      ...interviewPreferenceForm.value,
-      voiceRecognitionEngine: 'offline_sherpa',
-      offlineSttEngine: 'sherpa_onnx'
-    }))
-    ElMessage.success('离线语音识别模型已缓存到当前浏览器，后续语音面试将优先使用离线引擎')
-  } catch (err) {
-    offlineSttModelStatus.value = getOfflineVoiceModelStatus('stt:sherpa_onnx:zh_cn')
-    ElMessage.error(err?.message || '离线语音识别模型下载失败')
-  } finally {
-    offlineSttDownloading.value = false
-  }
-}
-
-const handleOfflineSttClear = async () => {
-  offlineSttDeleting.value = true
-  try {
-    offlineSttModelStatus.value = await clearModelCache('stt:sherpa_onnx:zh_cn')
-    ElMessage.success('离线语音识别资源包已删除')
-  } finally {
-    offlineSttDeleting.value = false
-  }
-}
-
-const handleOfflineSttClearConfirm = async () => {
-  let confirmed = false
-  try {
-    await ElMessageBox.confirm(
-      '将删除当前浏览器已缓存的 sherpa-onnx 离线语音识别资源包。删除后可继续使用浏览器/系统识别，也可以稍后重新下载。',
-      '删除离线语音识别资源包',
-      {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    confirmed = true
-    await handleOfflineSttClear()
-  } catch (err) {
-    if (!confirmed) return
-    ElMessage.error(err?.message || '离线语音识别资源包删除失败')
-  }
 }
 
 const handleDataManagementSettingsSave = async () => {
@@ -2886,180 +2707,6 @@ onBeforeUnmount(() => {
   line-height: 1.5;
 }
 
-.offline-overview {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--border-card) 82%, var(--orange-main) 18%);
-  border-radius: 14px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--bg-page) 84%, var(--orange-main) 16%), var(--bg-card));
-}
-
-.offline-overview strong,
-.offline-overview span {
-  display: block;
-}
-
-.offline-overview strong {
-  color: var(--text-title);
-  font-size: 15px;
-}
-
-.offline-overview span {
-  margin-top: 6px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.offline-voice-layout {
-  display: grid;
-  grid-template-columns: minmax(320px, 1.05fr) minmax(260px, 0.95fr);
-  gap: 16px;
-  align-items: stretch;
-}
-
-.offline-voice-card {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--border-card);
-  border-radius: 12px;
-  background: var(--bg-page);
-}
-
-.offline-card-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.offline-card-heading > div {
-  min-width: 0;
-}
-
-.offline-voice-card strong,
-.offline-voice-card span {
-  display: block;
-}
-
-.offline-voice-card strong {
-  color: var(--text-title);
-  font-size: 14px;
-}
-
-.offline-voice-card span,
-.offline-voice-card p {
-  margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.offline-model-status {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.offline-model-status span {
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-card);
-  overflow-wrap: anywhere;
-}
-
-.offline-model-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding-top: 2px;
-}
-
-.offline-model-actions .preference-action {
-  margin: 0;
-}
-
-.offline-support-panel {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid color-mix(in srgb, var(--border-card) 78%, var(--orange-main) 22%);
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--bg-page) 90%, var(--orange-main) 10%), var(--bg-card));
-}
-
-.offline-support-heading strong,
-.offline-support-heading span,
-.offline-support-note strong,
-.offline-support-note span {
-  display: block;
-}
-
-.offline-support-heading strong,
-.offline-support-note strong {
-  color: var(--text-title);
-  font-size: 14px;
-}
-
-.offline-support-heading span,
-.offline-support-note span {
-  margin-top: 6px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.offline-support-steps {
-  display: grid;
-  gap: 10px;
-}
-
-.offline-support-steps > div {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--border-card);
-  border-radius: 10px;
-  background: var(--bg-page);
-}
-
-.offline-support-steps strong {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--orange-main);
-  color: #fff;
-  font-size: 13px;
-}
-
-.offline-support-steps span {
-  color: var(--text-body);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.offline-support-note {
-  margin-top: auto;
-  padding-top: 14px;
-  border-top: 1px solid var(--border-divider);
-}
-
 .danger-zone {
   margin-top: 24px;
   border: 1px solid color-mix(in srgb, var(--border-card) 72%, #f56c6c 28%);
@@ -3227,8 +2874,7 @@ onBeforeUnmount(() => {
   .profile-summary,
   .profile-name-row,
   .preference-row,
-  .preference-row.stacked,
-  .offline-overview {
+  .preference-row.stacked {
     flex-direction: column;
     align-items: stretch;
   }
@@ -3259,27 +2905,8 @@ onBeforeUnmount(() => {
   }
 
   .profile-support-grid,
-  .offline-voice-layout,
   .onboarding-intro-grid {
     grid-template-columns: 1fr;
-  }
-
-  .offline-voice-layout {
-    align-items: stretch;
-  }
-
-  .offline-model-status {
-    grid-template-columns: 1fr;
-  }
-
-  .offline-card-heading,
-  .offline-model-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .offline-model-actions .preference-action {
-    width: 100%;
   }
 
   .voice-preview-button {

@@ -392,14 +392,6 @@ import { optimizedImages } from "@/utils/optimizedImages";
 const router = useRouter();
 const route = useRoute();
 const settingsPreferences = getSettingsPreferences();
-const speechRecognitionOptions = {
-  preferOffline: settingsPreferences.voiceRecognitionEngine === 'offline_sherpa',
-  prewarmOffline: false,
-};
-const voiceSpeechRecognitionOptions = {
-  preferOffline: settingsPreferences.voiceRecognitionEngine === 'offline_sherpa',
-  prewarmOffline: settingsPreferences.voiceRecognitionEngine === 'offline_sherpa',
-};
 const RATE_LIMIT_STATUS = 429;
 const INTERVIEW_STREAM_RATE_LIMIT_MESSAGE = "发送太频繁，请稍后继续。10 分钟内最多 60 轮对话。";
 const OPENING_SPEECH_MAX_ATTEMPTS = 2;
@@ -425,15 +417,12 @@ const isVoiceSession = computed(() => interactionType.value === INTERACTION_TYPE
 const interactionModeText = computed(() => getInteractionTypeLabel(interactionType.value));
 const voiceFeatureSupported = computed(() => voiceSttSupported.value && textToSpeech.isSupported.value);
 const voiceRecognitionEngineText = computed(() => {
-  if (voiceSttEngineStatus?.value === 'offline-ready') return '识别引擎：离线 sherpa-onnx 已就绪';
-  if (voiceSttEngineStatus?.value === 'offline-loading') return '识别引擎：离线模型启动中';
-  if (voiceSttEngineStatus?.value === 'offline-error') return '识别引擎：离线 sherpa-onnx 异常';
-  if (voiceSttEngineStatus?.value === 'offline-missing') return '识别引擎：无可用识别引擎，建议下载离线模型';
-  if (!voiceSttSupported.value) return '识别引擎：当前浏览器不可用';
-  if (voiceSttEngineStatus?.value === 'system-local') return '识别引擎：系统本地优先';
-  if (voiceSttEngineStatus?.value === 'browser-service') return '识别引擎：浏览器/系统识别服务';
-  if (voiceSttOfflineSuggested?.value) return '识别引擎：不可用，建议下载离线语音包';
-  return '识别引擎：等待启动';
+  if (!voiceSttSupported.value) return '识别引擎：当前浏览器不支持语音识别';
+  if (voiceSttEngineStatus?.value === 'system-local') return '识别引擎：系统本地识别';
+  if (voiceSttEngineStatus?.value === 'browser-service') return '识别引擎：浏览器语音识别';
+  if (voiceSttEngineStatus?.value === 'unavailable') return '识别引擎：浏览器语音识别不可用';
+  if (voiceSttEngineStatus?.value === 'unsupported') return '识别引擎：当前浏览器不支持语音识别';
+  return '识别引擎：浏览器语音识别';
 });
 const voiceCallTitle = computed(() => {
   if (!voiceFeatureSupported.value) return "当前浏览器不支持语音通话";
@@ -445,7 +434,7 @@ const voiceCallTitle = computed(() => {
   return "通话准备中";
 });
 const voiceCallDescription = computed(() => {
-  if (!voiceFeatureSupported.value) return "请切换到支持 Web Speech API 的浏览器，或先在设置中心下载离线语音识别模型。";
+  if (!voiceFeatureSupported.value) return "请切换到支持 Web Speech API 的 Chrome 或 Edge 浏览器。";
   if (!voiceCall.isVoiceMode.value) return "点击开始通话后再授权麦克风，页面刷新不会自动开麦。";
   if (voiceCall.isMuted.value) return "麦克风已关闭，取消静音后会继续收音。";
   if (voiceCall.isManualResumePending.value) return "已取消静音，再次点击麦克风后继续收音。";
@@ -466,7 +455,7 @@ const {
   language: sttLanguage,
   cancel: sttCancel,
   toggle: sttToggle,
-} = useSpeechToText(speechRecognitionOptions);
+} = useSpeechToText();
 
 const {
   isSupported: voiceSttSupported,
@@ -478,14 +467,11 @@ const {
   error: voiceSttError,
   errorCode: voiceSttErrorCode,
   engineStatus: voiceSttEngineStatus,
-  isModelReady: voiceSttModelReady,
-  offlineEngineSuggested: voiceSttOfflineSuggested,
   language: voiceSttLanguage,
   start: voiceSttStart,
   stop: voiceSttStop,
   cancel: voiceSttCancel,
-  prepareOfflineRecognition: voiceSttPrepareOfflineRecognition,
-} = useSpeechToText(voiceSpeechRecognitionOptions);
+} = useSpeechToText();
 
 const textToSpeech = useTextToSpeech({
   rate: settingsPreferences.voiceSpeakingRate,
@@ -522,7 +508,6 @@ const voiceCall = useVoiceCall({
     error: voiceSttError,
     errorCode: voiceSttErrorCode,
     engineStatus: voiceSttEngineStatus,
-    isModelReady: voiceSttModelReady,
     start: voiceSttStart,
     stop: voiceSttStop,
     cancel: voiceSttCancel,
@@ -598,14 +583,6 @@ watch(sttError, (err) => {
 watch(voiceCall.error, (err) => {
   if (err) ElMessage.warning(err);
 });
-
-watch(isVoiceSession, (enabled) => {
-  if (!enabled || !voiceSpeechRecognitionOptions.prewarmOffline) return;
-  // 语音面试加载后后台预热离线 Worker/模型，不申请麦克风，减少用户点击开始通话后的准备等待。
-  void voiceSttPrepareOfflineRecognition?.().catch(() => {
-    // 预热失败不打断页面；真正开始通话时仍会走现有错误提示和降级链路。
-  });
-}, { immediate: true });
 
 const assistantAvatar = optimizedImages.assistantAvatar;
 const userAvatar = optimizedImages.userAvatar;

@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import ElementPlus, { ElMessage, ElMessageBox } from 'element-plus'
+import ElementPlus from 'element-plus'
 import SettingsView from '@/views/settings/SettingsView.vue'
 import { getGrowthOverview } from '@/api/growth'
 import { clearInterviewHistory, getInterviewJobRoles } from '@/api/interview'
@@ -14,7 +14,6 @@ import { createUserFeedback } from '@/api/feedback'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { getSettingsPreferences, saveSettingsPreferences } from '@/utils/settingsPreferences'
-import { downloadModelFromManifest, clearModelCache } from '@/utils/offlineVoiceModelCache'
 
 const push = vi.fn()
 const fetchUserInfo = vi.fn(() => Promise.resolve())
@@ -92,26 +91,6 @@ vi.mock('@/stores/user', () => ({
 vi.mock('@/stores/theme', () => ({
   useThemeStore: vi.fn()
 }))
-
-vi.mock('@/utils/offlineVoiceModelCache', async () => {
-  const actual = await vi.importActual('@/utils/offlineVoiceModelCache')
-  return {
-    ...actual,
-    getOfflineVoiceStorageSupport: vi.fn(() => ({ indexedDB: true, cacheApi: true, supported: true })),
-    getOfflineVoiceModelStatus: vi.fn((modelKey) => ({ modelKey, status: 'pending', progress: 0 })),
-    downloadModelFromManifest: vi.fn(() => Promise.resolve({
-      modelKey: 'stt:sherpa_onnx:zh_cn',
-      status: 'ready',
-      progress: 100,
-      version: '2026.05'
-    })),
-    clearModelCache: vi.fn((modelKey) => Promise.resolve({
-      modelKey,
-      status: 'pending',
-      progress: 0
-    }))
-  }
-})
 
 vi.mock('@/components/OnboardingGuide.vue', () => ({
   default: {
@@ -211,7 +190,7 @@ describe('SettingsView', () => {
     await switchSection(wrapper, 'interview')
     expect(wrapper.text()).toContain('默认交互方式')
     expect(wrapper.find('.sub-nav-tabs').exists()).toBe(true)
-    expect(wrapper.findAll('.sub-nav-tab').map((tab) => tab.text())).toEqual(['面试偏好', '语音通话', '离线增强'])
+    expect(wrapper.findAll('.sub-nav-tab').map((tab) => tab.text())).toEqual(['面试偏好', '语音通话'])
 
     await switchSection(wrapper, 'security')
     expect(wrapper.text()).toContain('账号安全')
@@ -330,150 +309,21 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('AI 播报声音')
     expect(wrapper.text()).toContain('重置语音偏好')
 
-    await wrapper.findAll('.sub-nav-tab')[2].trigger('click')
-    await flushPromises()
-    await waitForSecurityTransition()
-
-    expect(wrapper.vm.interviewSubTab).toBe('offline')
-    expect(wrapper.find('.offline-overview').exists()).toBe(true)
-    expect(wrapper.find('.offline-support-panel').exists()).toBe(true)
-    expect(wrapper.text()).toContain('sherpa-onnx')
+    expect(wrapper.text()).not.toContain('离线增强')
+    expect(wrapper.text()).not.toContain('sherpa-onnx')
   }, 15000)
 
-  it('downloads and deletes the offline STT resource package from settings center', async () => {
+  it('removes offline speech package actions from settings center', async () => {
     const wrapper = mountView()
     await flushPromises()
     await switchSection(wrapper, 'interview')
-    wrapper.vm.interviewSubTab = 'offline'
     await flushPromises()
     await waitForSecurityTransition()
 
-    await wrapper.vm.handleOfflineSttDownload()
-    await flushPromises()
-
-    expect(downloadModelFromManifest).toHaveBeenCalledWith(
-      'stt:sherpa_onnx:zh_cn',
-      '/voice-models/sherpa-onnx/zh-cn-streaming/manifest.json',
-      expect.any(Function)
-    )
-    expect(wrapper.vm.offlineSttModelStatus.status).toBe('ready')
-    expect(wrapper.text()).toContain('删除资源包')
-
-    const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
-
-    await wrapper.vm.handleOfflineSttClearConfirm()
-    await flushPromises()
-
-    expect(confirmSpy).toHaveBeenCalledWith(
-      '将删除当前浏览器已缓存的 sherpa-onnx 离线语音识别资源包。删除后可继续使用浏览器/系统识别，也可以稍后重新下载。',
-      '删除离线语音识别资源包',
-      expect.objectContaining({
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
-        type: 'warning'
-      })
-    )
-    expect(clearModelCache).toHaveBeenCalledWith('stt:sherpa_onnx:zh_cn')
-    expect(wrapper.vm.offlineSttModelStatus.status).toBe('pending')
-
-    confirmSpy.mockRestore()
-  })
-
-  it('disables offline STT download after the resource package is cached', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    await switchSection(wrapper, 'interview')
-    wrapper.vm.interviewSubTab = 'offline'
-    wrapper.vm.offlineSttModelStatus = {
-      modelKey: 'stt:sherpa_onnx:zh_cn',
-      status: 'ready',
-      progress: 100
-    }
-    await flushPromises()
-    await waitForSecurityTransition()
-
-    expect(wrapper.vm.canDownloadOfflineSttModel).toBe(false)
-    const downloadButton = wrapper.find('.offline-model-actions .n-button')
-    expect(downloadButton.exists()).toBe(true)
-    expect(downloadButton.text()).toContain('已缓存')
-    expect(downloadButton.attributes('disabled')).toBeDefined()
-
-    await wrapper.vm.handleOfflineSttDownload()
-
-    expect(downloadModelFromManifest).not.toHaveBeenCalled()
-  })
-
-  it('switches recognition preference to offline after offline STT download succeeds', async () => {
-    saveSettingsPreferences({ voiceRecognitionEngine: 'system_local' })
-    const wrapper = mountView()
-    await flushPromises()
-    await switchSection(wrapper, 'interview')
-    wrapper.vm.interviewSubTab = 'offline'
-    await flushPromises()
-    await waitForSecurityTransition()
-
-    expect(wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine).toBe('system_local')
-
-    await wrapper.vm.handleOfflineSttDownload()
-    await flushPromises()
-
-    expect(wrapper.vm.offlineSttModelStatus.status).toBe('ready')
-    expect(wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine).toBe('offline_sherpa')
-    expect(getSettingsPreferences()).toMatchObject({
-      voiceRecognitionEngine: 'offline_sherpa',
-      offlineSttEngine: 'sherpa_onnx'
-    })
-  })
-
-  it('keeps offline resource actions outside the status grid after package download', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    await switchSection(wrapper, 'interview')
-    wrapper.vm.interviewSubTab = 'offline'
-    wrapper.vm.offlineSttModelStatus = {
-      modelKey: 'stt:sherpa_onnx:zh_cn',
-      status: 'ready',
-      progress: 100
-    }
-    await flushPromises()
-    await waitForSecurityTransition()
-
-    const source = settingsViewSource()
-    const offlinePanel = wrapper.find('.offline-voice-layout')
-
-    expect(offlinePanel.find('.offline-model-actions').exists()).toBe(true)
-    expect(offlinePanel.find('.offline-support-panel').exists()).toBe(true)
-    expect(offlinePanel.find('.offline-model-status .offline-model-actions').exists()).toBe(false)
-    expect(offlinePanel.findAll('.offline-model-status span').map((item) => item.text())).toContain('模型状态：已缓存')
-    expect(source).toMatch(/\.offline-model-actions\s*\{[\s\S]*?display:\s*flex;/)
-    expect(source).toMatch(/\.offline-model-status\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/)
-    expect(source).toMatch(/\.offline-voice-layout\s*\{[\s\S]*?grid-template-columns:\s*minmax\(320px, 1\.05fr\) minmax\(260px, 0\.95fr\);/)
-    expect(source).toMatch(/@media \(max-width: 640px\)[\s\S]*\.offline-model-actions\s*\{[\s\S]*?flex-direction:\s*column;/)
-  })
-
-  it('allows users to delete failed offline STT package remnants and keeps them when cancelled', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    await switchSection(wrapper, 'interview')
-    wrapper.vm.interviewSubTab = 'offline'
-    wrapper.vm.offlineSttModelStatus = {
-      modelKey: 'stt:sherpa_onnx:zh_cn',
-      status: 'failed',
-      progress: 52
-    }
-    await flushPromises()
-    await waitForSecurityTransition()
-
-    expect(wrapper.text()).toContain('删除资源包')
-
-    const confirmSpy = vi.spyOn(ElMessageBox, 'confirm').mockRejectedValue(new Error('cancelled'))
-    await wrapper.vm.handleOfflineSttClearConfirm()
-    await flushPromises()
-
-    expect(clearModelCache).not.toHaveBeenCalled()
-    expect(wrapper.vm.offlineSttModelStatus.status).toBe('failed')
-
-    confirmSpy.mockRestore()
+    expect(wrapper.text()).not.toContain('下载离线语音引擎')
+    expect(wrapper.text()).not.toContain('删除资源包')
+    expect(wrapper.vm).not.toHaveProperty('handleOfflineSttDownload')
+    expect(wrapper.vm).not.toHaveProperty('handleOfflineSttClearConfirm')
   })
 
 
@@ -567,8 +417,7 @@ describe('SettingsView', () => {
     wrapper.vm.interviewPreferenceForm.voiceMuteResumeMode = 'manual'
     wrapper.vm.interviewPreferenceForm.voiceAutoSubmitDelayMs = 5000
     wrapper.vm.interviewPreferenceForm.voiceRecognitionLanguage = 'en-US'
-    wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine = 'offline_sherpa'
-    wrapper.vm.interviewPreferenceForm.offlineSttEngine = 'sherpa_onnx'
+    wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine = 'system_local'
     wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
     wrapper.vm.interviewPreferenceForm.voiceName = 'Microsoft Xiaoxiao Natural'
     wrapper.vm.interviewPreferenceForm.voiceURI = 'xiaoxiao-uri'
@@ -593,8 +442,7 @@ describe('SettingsView', () => {
       voiceMuteResumeMode: 'manual',
       voiceAutoSubmitDelayMs: 5000,
       voiceRecognitionLanguage: 'en-US',
-      voiceRecognitionEngine: 'offline_sherpa',
-      offlineSttEngine: 'sherpa_onnx',
+      voiceRecognitionEngine: 'system_local',
       voicePreferredType: 'custom',
       voiceName: 'Microsoft Xiaoxiao Natural',
       voiceURI: 'xiaoxiao-uri',
@@ -615,8 +463,7 @@ describe('SettingsView', () => {
     wrapper.vm.interviewPreferenceForm.voiceMuteResumeMode = 'manual'
     wrapper.vm.interviewPreferenceForm.voiceAutoSubmitDelayMs = 5000
     wrapper.vm.interviewPreferenceForm.voiceRecognitionLanguage = 'en-US'
-    wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine = 'offline_sherpa'
-    wrapper.vm.interviewPreferenceForm.offlineSttEngine = 'sherpa_onnx'
+    wrapper.vm.interviewPreferenceForm.voiceRecognitionEngine = 'system_local'
     wrapper.vm.interviewPreferenceForm.voicePreferredType = 'custom'
     wrapper.vm.interviewPreferenceForm.voiceName = 'Microsoft Xiaoxiao Natural'
     wrapper.vm.interviewPreferenceForm.voiceURI = 'xiaoxiao-uri'
@@ -636,7 +483,6 @@ describe('SettingsView', () => {
       voiceAutoSubmitDelayMs: 3000,
       voiceRecognitionLanguage: 'auto',
       voiceRecognitionEngine: 'system_local',
-      offlineSttEngine: 'sherpa_onnx',
       voicePreferredType: 'natural_zh',
       voiceName: '',
       voiceURI: '',

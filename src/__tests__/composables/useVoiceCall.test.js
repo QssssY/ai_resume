@@ -19,8 +19,7 @@ describe('useVoiceCall', () => {
       interimTranscript: ref(''),
       error: ref(''),
       errorCode: ref(''),
-      engineStatus: ref('offline-ready'),
-      isModelReady: ref(true),
+      engineStatus: ref('browser-service'),
       start: vi.fn(() => {
         speech.isRecording.value = true
       }),
@@ -99,7 +98,7 @@ describe('useVoiceCall', () => {
     expect(call.pendingMessage.value).toBe('')
   })
 
-  it('auto sends after silence when offline recognition only has interim text before stop', async () => {
+  it('auto sends after silence when browser recognition only has interim text before stop', async () => {
     speech.stop = vi.fn(() => {
       speech.isRecording.value = false
       speech.finalTranscript.value = '我负责订单模块'
@@ -121,7 +120,7 @@ describe('useVoiceCall', () => {
     expect(call.pendingMessage.value).toBe('')
   })
 
-  it('flushes offline recognition after silence when microphone activity was heard but no partial text arrived', async () => {
+  it('does not auto send when microphone activity has no transcript text', async () => {
     speech.stop = vi.fn(() => {
       speech.isRecording.value = false
       speech.finalTranscript.value = '我负责订单模块'
@@ -135,23 +134,9 @@ describe('useVoiceCall', () => {
 
     await vi.advanceTimersByTimeAsync(3000)
 
-    expect(speech.stop).toHaveBeenCalled()
-    expect(onSend).toHaveBeenCalledWith('我负责订单模块')
+    expect(speech.stop).not.toHaveBeenCalled()
+    expect(onSend).not.toHaveBeenCalled()
     expect(call.pendingMessage.value).toBe('')
-  })
-
-  it('ends voice mode for installed offline engine failures instead of waiting for manual resume', async () => {
-    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
-    call.startVoiceCall()
-
-    speech.errorCode.value = 'offline-worker-error'
-    speech.error.value = '离线语音识别 Worker 启动失败，请检查模型文件和运行时是否已部署。'
-    await nextTick()
-
-    expect(call.error.value).toContain('离线语音识别 Worker 启动失败')
-    expect(call.isVoiceMode.value).toBe(false)
-    expect(call.isManualResumePending.value).toBe(false)
-    expect(speech.cancel).toHaveBeenCalled()
   })
 
   it('does not auto send when silence timeout is disabled', async () => {
@@ -207,31 +192,6 @@ describe('useVoiceCall', () => {
 
   it('falls back to manual input when speech recognition is unsupported', () => {
     speech.isSupported.value = false
-    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
-
-    expect(call.startVoiceCall()).toBe(false)
-
-    expect(call.error.value).toBe('当前浏览器不支持语音识别，已降级为手动输入')
-    expect(call.isVoiceMode.value).toBe(false)
-    expect(speech.start).not.toHaveBeenCalled()
-  })
-
-  it('starts browser recognition when offline speech model is missing but speech is supported', () => {
-    speech.engineStatus.value = 'offline-missing'
-    speech.isModelReady.value = false
-    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
-
-    expect(call.startVoiceCall()).toBe(true)
-
-    expect(call.error.value).toBe('')
-    expect(call.isVoiceMode.value).toBe(true)
-    expect(speech.start).toHaveBeenCalled()
-  })
-
-  it('does not enter voice mode when both offline and browser recognition are unavailable', () => {
-    speech.isSupported.value = false
-    speech.engineStatus.value = 'offline-missing'
-    speech.isModelReady.value = false
     const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
 
     expect(call.startVoiceCall()).toBe(false)

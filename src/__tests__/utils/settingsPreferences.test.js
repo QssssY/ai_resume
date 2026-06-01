@@ -35,7 +35,6 @@ describe('settingsPreferences', () => {
       voiceAutoSubmitDelayMs: 5000,
       voiceRecognitionLanguage: 'en-US',
       voiceRecognitionEngine: 'offline_sherpa',
-      offlineSttEngine: 'sherpa_onnx',
       voicePreferredType: 'custom',
       voiceName: 'Microsoft Xiaoxiao Natural',
       voiceURI: 'xiaoxiao-uri',
@@ -60,8 +59,7 @@ describe('settingsPreferences', () => {
       voiceMuteResumeMode: 'manual',
       voiceAutoSubmitDelayMs: 5000,
       voiceRecognitionLanguage: 'en-US',
-      voiceRecognitionEngine: 'offline_sherpa',
-      offlineSttEngine: 'sherpa_onnx',
+      voiceRecognitionEngine: 'system_local',
       voicePreferredType: 'custom',
       voiceName: 'Microsoft Xiaoxiao Natural',
       voiceURI: 'xiaoxiao-uri',
@@ -71,13 +69,17 @@ describe('settingsPreferences', () => {
     })
   })
 
-  it('drops legacy offline TTS preferences from normalized settings', () => {
+  it('drops legacy offline speech preferences from normalized settings', () => {
     const normalized = normalizeSettingsPreferences({
+      voiceRecognitionEngine: 'offline_sherpa',
+      offlineSttEngine: 'sherpa_onnx',
       offlineTtsEngine: 'legacy_offline_tts',
       offlineTtsVoiceType: 'male',
       voicePreferredType: 'female'
     })
 
+    expect(normalized.voiceRecognitionEngine).toBe('system_local')
+    expect(normalized).not.toHaveProperty('offlineSttEngine')
     expect(normalized).not.toHaveProperty('offlineTtsEngine')
     expect(normalized).not.toHaveProperty('offlineTtsVoiceType')
     expect(normalized.voicePreferredType).toBe('female')
@@ -97,7 +99,7 @@ describe('settingsPreferences', () => {
       voiceMuteResumeMode: 'invalid',
       voiceAutoSubmitDelayMs: 7000,
       voiceRecognitionLanguage: 'fr-FR',
-      voiceRecognitionEngine: 'remote',
+      voiceRecognitionEngine: 'offline_sherpa',
       offlineSttEngine: 'vosk',
       offlineTtsEngine: 'remote',
       offlineTtsVoiceType: 'robot',

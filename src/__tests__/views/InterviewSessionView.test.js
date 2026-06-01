@@ -7,7 +7,6 @@ import ElementPlus, { ElMessage } from 'element-plus'
 import InterviewSessionView from '@/views/interview/InterviewSessionView.vue'
 import { getInterviewSession, streamInterviewMessage } from '@/api/interview'
 import { saveSettingsPreferences } from '@/utils/settingsPreferences'
-import { saveOfflineVoiceModelStatus } from '@/utils/offlineVoiceModelCache'
 import { useSpeechToText } from '@/composables/useSpeechToText'
 
 const push = vi.fn()
@@ -47,12 +46,10 @@ const voiceSttError = ref('')
 const voiceSttErrorCode = ref('')
 const voiceSttEngineStatus = ref('browser-service')
 const voiceSttModelReady = ref(false)
-const voiceSttOfflineSuggested = ref(false)
 const voiceSttLanguage = ref('zh-CN')
 const voiceSttStart = vi.fn(() => {
   voiceSttRecording.value = true
 })
-const voiceSttPrepareOfflineRecognition = vi.fn(() => Promise.resolve())
 const voiceSttStop = vi.fn(() => {
   voiceSttRecording.value = false
 })
@@ -129,12 +126,10 @@ vi.mock('@/composables/useSpeechToText', () => ({
       errorCode: voiceSttErrorCode,
       engineStatus: voiceSttEngineStatus,
       isModelReady: voiceSttModelReady,
-      offlineEngineSuggested: voiceSttOfflineSuggested,
       language: voiceSttLanguage,
       start: voiceSttStart,
       stop: voiceSttStop,
       cancel: voiceSttCancel,
-      prepareOfflineRecognition: voiceSttPrepareOfflineRecognition,
     }
   }),
 }))
@@ -242,9 +237,7 @@ describe('InterviewSessionView', () => {
     voiceSttErrorCode.value = ''
     voiceSttEngineStatus.value = 'browser-service'
     voiceSttModelReady.value = false
-    voiceSttOfflineSuggested.value = false
     voiceSttLanguage.value = 'zh-CN'
-    voiceSttPrepareOfflineRecognition.mockClear()
     window.speechSynthesis = {
       getVoices: vi.fn(() => [{ lang: 'zh-CN' }]),
       speak: vi.fn(),
@@ -597,11 +590,11 @@ describe('InterviewSessionView', () => {
     await flushPromises()
 
     expect(useSpeechToText).toHaveBeenCalledTimes(2)
-    expect(useSpeechToTextOptions[0]).toMatchObject({ preferOffline: false })
-    expect(useSpeechToTextOptions[1]).toMatchObject({ preferOffline: false })
+    expect(useSpeechToTextOptions[0]).toEqual({})
+    expect(useSpeechToTextOptions[1]).toEqual({})
   })
 
-  it('prewarms the offline voice recognizer after a voice session loads', async () => {
+  it('ignores legacy offline recognition preference after offline engine removal', async () => {
     saveSettingsPreferences({
       voiceRecognitionEngine: 'offline_sherpa'
     })
@@ -613,15 +606,12 @@ describe('InterviewSessionView', () => {
         chatLogs: [],
       },
     })
-    voiceSttModelReady.value = true
-    voiceSttEngineStatus.value = 'offline-ready'
 
     mountView()
     await flushPromises()
 
-    expect(useSpeechToTextOptions[0]).toMatchObject({ preferOffline: true, prewarmOffline: false })
-    expect(useSpeechToTextOptions[1]).toMatchObject({ preferOffline: true, prewarmOffline: true })
-    expect(voiceSttPrepareOfflineRecognition).toHaveBeenCalledTimes(1)
+    expect(useSpeechToTextOptions[0]).toEqual({})
+    expect(useSpeechToTextOptions[1]).toEqual({})
     expect(voiceSttStart).not.toHaveBeenCalled()
   })
   it('speaks the opening message once when the first voice call starts', async () => {
@@ -865,7 +855,7 @@ describe('InterviewSessionView', () => {
     expect(voiceSttCancel).not.toHaveBeenCalled()
   })
 
-  it('does not label an offline-ready voice call as listening before recording starts', async () => {
+  it('shows browser recognition status during voice calls', async () => {
     getInterviewSession.mockResolvedValue({
       data: {
         ...baseSession,
@@ -873,8 +863,6 @@ describe('InterviewSessionView', () => {
         chatLogs: [],
       },
     })
-    voiceSttEngineStatus.value = 'offline-ready'
-    voiceSttModelReady.value = true
     voiceSttStart.mockImplementationOnce(() => {})
 
     const wrapper = mountView()
@@ -883,12 +871,13 @@ describe('InterviewSessionView', () => {
     await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.text()).toContain('识别引擎：离线 sherpa-onnx 已就绪')
+    expect(wrapper.text()).toContain('识别引擎：浏览器语音识别')
     expect(wrapper.text()).not.toContain('正在聆听')
     expect(wrapper.text()).toContain('通话准备中')
+    expect(wrapper.text()).not.toContain('sherpa-onnx')
   })
 
-  it('labels an offline-ready voice call as listening after recording starts', async () => {
+  it('labels browser recognition as listening after recording starts', async () => {
     getInterviewSession.mockResolvedValue({
       data: {
         ...baseSession,
@@ -896,21 +885,18 @@ describe('InterviewSessionView', () => {
         chatLogs: [],
       },
     })
-    voiceSttEngineStatus.value = 'offline-ready'
-    voiceSttModelReady.value = true
-
     const wrapper = mountView()
     await flushPromises()
 
     await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.text()).toContain('识别引擎：离线 sherpa-onnx 已就绪')
+    expect(wrapper.text()).toContain('识别引擎：浏览器语音识别')
     expect(wrapper.text()).toContain('正在聆听')
     expect(wrapper.text()).not.toContain('通话准备中')
   })
 
-  it('shows installed offline engine failures without suggesting another offline package download', async () => {
+  it('shows browser recognition failures without suggesting an offline package download', async () => {
     getInterviewSession.mockResolvedValue({
       data: {
         ...baseSession,
@@ -918,15 +904,13 @@ describe('InterviewSessionView', () => {
         chatLogs: [],
       },
     })
-    voiceSttEngineStatus.value = 'offline-error'
-    voiceSttModelReady.value = true
-    voiceSttOfflineSuggested.value = false
+    voiceSttEngineStatus.value = 'unavailable'
 
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('识别引擎：离线 sherpa-onnx 异常')
-    expect(wrapper.text()).not.toContain('不可用，建议下载离线语音包')
+    expect(wrapper.text()).toContain('识别引擎：浏览器语音识别不可用')
+    expect(wrapper.text()).not.toContain('离线语音包')
   })
 
   it('collapses voice call overlay back to the bottom call bar', async () => {

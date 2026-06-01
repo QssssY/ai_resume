@@ -44,10 +44,6 @@ export function useVoiceCall(options) {
   const silenceTimeoutMs = Number(options.silenceTimeoutMs ?? DEFAULT_SILENCE_TIMEOUT_MS)
   const muteResumeMode = options.muteResumeMode || MUTE_RESUME_MODE_AUTO
 
-  const shouldFlushOfflineSilence = () => (
-    lastSpeechAt && options.speech.engineStatus?.value === 'offline-ready'
-  )
-
   const clearTimers = () => {
     if (durationTimer) {
       clearInterval(durationTimer)
@@ -164,7 +160,7 @@ export function useVoiceCall(options) {
       return
     }
     if (!silenceTimeoutMs || !lastSpeechAt) return
-    if (!pendingMessage.value.trim() && !shouldFlushOfflineSilence()) return
+    if (!pendingMessage.value.trim()) return
     if (Date.now() - lastSpeechAt >= silenceTimeoutMs) {
       autoSendTranscript()
     }
@@ -246,8 +242,7 @@ export function useVoiceCall(options) {
           pendingFinalText = `${pendingFinalText}${appendedText}`
         }
       }
-      // 离线 sherpa-onnx 常先持续返回 partial，endpoint 或 stop 后才给 final。
-      // 自动静音提交必须临时展示/发送 interim，final 到达后再由最终文本接管，避免一直等待。
+      // 浏览器识别会持续返回 interim；自动静音提交临时展示/发送 interim，final 到达后再由最终文本接管。
       pendingInterimText = normalizedInterim
       pendingMessage.value = `${pendingFinalText}${pendingInterimText}`
       lastFinal = normalizedFinal

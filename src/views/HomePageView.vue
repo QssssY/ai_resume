@@ -44,11 +44,11 @@
         </motion.div>
 
         <motion.h1 id="home-hero-title" class="hero-title" :variants="heroItemVariants">
-          让每一次求职准备，都有一条清晰路径
+          你的下一份<br>Offer<br>从这里开始准备
         </motion.h1>
 
         <motion.p class="hero-subtitle" :variants="heroItemVariants">
-          从简历诊断、岗位匹配到模拟面试和 Offer 决策，offerCat 陪你把准备变成可执行的下一步。
+          简历诊断、岗位匹配、模拟面试到 Offer 决策 —— offerCat 覆盖求职全流程，让每一步准备都有方向。
         </motion.p>
 
         <motion.div class="hero-actions" :variants="heroItemVariants">
@@ -59,7 +59,7 @@
             @click="handleResume"
           >
             <template #icon>
-            <FeatureIcon name="resume-analysis" size="md" class="btn-icon" critical />
+            <FeatureIcon name="resume-analysis" size="sm" class="btn-icon" critical />
             </template>
             开始简历诊断
           </n-button>
@@ -69,7 +69,7 @@
             @click="handleInterview"
           >
             <template #icon>
-            <FeatureIcon name="ai-interviewer" size="md" class="btn-icon" critical />
+            <FeatureIcon name="ai-interviewer" size="sm" class="btn-icon" critical />
             </template>
             开始模拟面试
           </n-button>
@@ -220,7 +220,7 @@
     >
       <div class="section-heading compact-heading">
         <span class="section-tag">辅助能力</span>
-        <h2 id="highlights-title" class="section-title">不抢主视觉，但随时能进入</h2>
+        <h2 id="highlights-title" class="section-title">更多能力，持续助力</h2>
       </div>
       <div class="support-capability-list">
         <motion.button
@@ -508,25 +508,25 @@ const workflowSteps = [
 const supportCapabilities = [
   {
     title: '成长中心',
-    desc: '查看练习轨迹、能力雷达和下一轮建议。',
+    desc: '追踪练习轨迹与能力变化，获取针对性提升建议。',
     icon: 'growth-center',
     path: '/growth'
   },
   {
     title: '社区交流',
-    desc: '分享复盘、查看经验和收到互动反馈。',
+    desc: '分享面试经验、浏览他人复盘、获得社区反馈。',
     icon: 'community-hub',
     path: '/community'
   },
   {
     title: '会员与额度',
-    desc: '查看当前套餐、额度消耗和会员状态。',
+    desc: '管理会员套餐、查看额度用量与到期状态。',
     icon: 'membership-center',
     path: '/membership'
   },
   {
     title: '通知与版本动态',
-    desc: '跟进系统消息、产品更新和任务提醒。',
+    desc: '接收系统通知、产品更新日志与任务提醒。',
     icon: 'notification-center',
     path: '/notifications'
   }
@@ -1068,17 +1068,17 @@ const handleInterview = () => {
 }
 
 .hero-title {
-  max-width: 560px;
+  max-width: 620px;
   margin: 0;
   color: var(--home-text-strong);
   font-size: clamp(38px, 5.2vw, 64px);
   font-weight: 850;
-  line-height: 1.06;
+  line-height: 1.08;
 }
 
 .hero-subtitle {
-  max-width: 520px;
-  margin: 16px 0 0;
+  max-width: 560px;
+  margin: 18px 0 0;
   color: var(--home-text-body);
   font-size: 17px;
   line-height: 1.72;
@@ -1143,7 +1143,7 @@ const handleInterview = () => {
 }
 
 .cta-btn :deep(.n-button__content) {
-  gap: 10px;
+  gap: 14px;
 }
 
 .cta-btn :deep(.n-button__border),
@@ -1956,6 +1956,10 @@ const handleInterview = () => {
 
   .hero-title {
     font-size: 34px;
+  }
+
+  .hero-title br {
+    display: none;
   }
 
   .hero-subtitle {

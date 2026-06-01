@@ -1,35 +1,10 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
-import path from 'node:path'
-import fs from 'node:fs'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import viteCompression from 'vite-plugin-compression'
-import { resolveVoiceModelContentType, resolveVoiceModelLocalPath } from './src/utils/voiceModelDevServer.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// 语音模型中间件：开发模式下从 voice-models-local/ 提供文件，避免 280MB+ 进入构建产物
-function voiceModelsPlugin() {
-  return {
-    name: 'serve-voice-models',
-    configureServer(server) {
-      const modelsDir = path.join(__dirname, 'voice-models-local')
-      if (!fs.existsSync(modelsDir)) return
-
-      server.middlewares.use((req, res, next) => {
-        if (!req.url?.startsWith('/voice-models/')) return next()
-        const filePath = resolveVoiceModelLocalPath(modelsDir, req.url)
-        if (!filePath) return next()
-        if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return next()
-        res.setHeader('Content-Type', resolveVoiceModelContentType(filePath))
-        fs.createReadStream(filePath).pipe(res)
-      })
-    }
-  }
-}
 
 /// <reference types="vitest" />
 export default defineConfig({
@@ -42,8 +17,6 @@ export default defineConfig({
     Components({
       resolvers: [ElementPlusResolver()]
     }),
-    // 语音模型开发服务
-    voiceModelsPlugin(),
     // 生产构建 gzip 压缩（>10KB 的文件生成 .gz）
     viteCompression({
       algorithm: 'gzip',
@@ -104,8 +77,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
-        changeOrigin: true,
-        timeout: 120000
+        changeOrigin: true
       },
       '/auth': {
         target: 'http://localhost:8080',
