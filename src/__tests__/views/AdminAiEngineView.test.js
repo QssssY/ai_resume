@@ -4,8 +4,10 @@ import { nextTick } from 'vue'
 import ElementPlus from 'element-plus'
 import AdminAiEngineView from '@/views/admin/AdminAiEngineView.vue'
 import {
+  getCustomAiDailyLimit,
   getAdminAiEngines,
-  testAdminAiEngineConnectivity
+  testAdminAiEngineConnectivity,
+  updateCustomAiDailyLimit
 } from '@/api/admin/aiEngines'
 import { showAdminSuccess } from '@/utils/adminFeedback'
 
@@ -16,10 +18,12 @@ vi.mock('@/api/admin/aiEngines', () => ({
   deleteAiEngine: vi.fn(() => Promise.resolve()),
   deleteAiEngines: vi.fn(() => Promise.resolve()),
   getAdminAiEngines: vi.fn(() => Promise.resolve({ data: [] })),
+  getCustomAiDailyLimit: vi.fn(() => Promise.resolve({ data: { limit: 50 } })),
   testAdminAiEngineConnectivity: vi.fn(),
   toggleAdminAiEngineActive: vi.fn(() => Promise.resolve()),
   toggleAiEnginesBatchActive: vi.fn(() => Promise.resolve()),
-  updateAdminAiEngine: vi.fn(() => Promise.resolve())
+  updateAdminAiEngine: vi.fn(() => Promise.resolve()),
+  updateCustomAiDailyLimit: vi.fn(() => Promise.resolve({ data: { limit: 80 } }))
 }))
 
 vi.mock('@/utils/adminFeedback', () => ({
@@ -104,5 +108,20 @@ describe('AdminAiEngineView', () => {
       responsePreview: 'ok'
     })
     expect(showAdminSuccess).toHaveBeenCalledWith('连通测试成功')
+  })
+
+  it('should display and update custom AI daily limit', async () => {
+    const wrapper = await mountView()
+
+    expect(getCustomAiDailyLimit).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('用户自定义 AI 每日上限')
+    expect(wrapper.text()).toContain('50')
+
+    wrapper.vm.customAiDailyLimitForm.limit = 80
+    await wrapper.vm.handleCustomAiDailyLimitSave()
+    await flushPromises()
+
+    expect(updateCustomAiDailyLimit).toHaveBeenCalledWith(80)
+    expect(wrapper.vm.customAiDailyLimit).toBe(80)
   })
 })

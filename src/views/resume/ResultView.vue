@@ -442,6 +442,21 @@
               </n-button>
             </div>
 
+            <div v-if="customAiFallback.visible" class="custom-ai-fallback-card">
+              <div>
+                <strong>{{ customAiFallback.title }}</strong>
+                <span>{{ customAiFallback.message }}</span>
+              </div>
+              <n-button
+                type="warning"
+                secondary
+                :loading="customAiFallback.type === 'polish' ? polishLoading : jobMatchLoading"
+                @click="retryWithPlatformAi"
+              >
+                使用平台 AI
+              </n-button>
+            </div>
+
             <div v-if="jobMatchResult" class="job-match-result">
               <div class="job-match-score-card">
                 <div class="job-match-score-label">匹配度评分</div>
@@ -617,6 +632,12 @@ const jobMatchResult = ref(null)
 const polishLoading = ref(false)
 const polishResult = ref(null)
 const polishSectionRef = ref(null)
+const customAiFallback = ref({
+  visible: false,
+  type: '',
+  title: '',
+  message: ''
+})
 const pdfExporting = ref(false)
 const docxExporting = ref(false)
 const imageExporting = ref(false)
@@ -834,6 +855,7 @@ const resetTaskScopedState = () => {
   jobMatchResult.value = null
   polishLoading.value = false
   polishResult.value = null
+  clearCustomAiFallback()
   documentSaving.value = false
 }
 
@@ -1060,6 +1082,26 @@ const applyLatestPolishResult = async (latestPolishResult) => {
   })
 }
 
+const isCustomAiRecoverableError = (err) => [4090, 4091].includes(Number(err?.code))
+
+const showCustomAiFallback = (type, err) => {
+  customAiFallback.value = {
+    visible: true,
+    type,
+    title: Number(err?.code) === 4091 ? '自定义 AI 今日次数已用完' : '自定义 AI 调用失败',
+    message: '可以检查自定义 AI 配置，或手动切换到平台 AI。本次切换会消耗平台对应额度。'
+  }
+}
+
+const clearCustomAiFallback = () => {
+  customAiFallback.value = {
+    visible: false,
+    type: '',
+    title: '',
+    message: ''
+  }
+}
+
 // AI 润色属于长耗时操作，若请求超时但后端已落库，则主动回查最新结果并立即展示
 const recoverLatestPolishResultAfterTimeout = async () => {
   for (let retryIndex = 0; retryIndex < 3; retryIndex += 1) {
@@ -1088,6 +1130,7 @@ const triggerAiPolishPlaceholder = async () => {
   }
   polishLoading.value = true
   try {
+    clearCustomAiFallback()
     const res = await analyzeResumePolish({
       resumeTaskId: task.value.taskId,
       resumeText: task.value.resumeText || '',
@@ -1105,6 +1148,11 @@ const triggerAiPolishPlaceholder = async () => {
         return
       }
       message.warning('AI 润色请求超时，正在等待后端完成，请稍后刷新查看结果')
+      return
+    }
+    if (isCustomAiRecoverableError(err)) {
+      showCustomAiFallback('polish', err)
+      message.warning(err?.message || '自定义 AI 暂时不可用')
       return
     }
     message.error(err?.message || 'AI 简历润色失败，请稍后重试')
@@ -1125,6 +1173,7 @@ const submitJobMatchAnalysis = async () => {
 
   jobMatchLoading.value = true
   try {
+    clearCustomAiFallback()
     const res = await analyzeResumeJobMatch({
       resumeTaskId: task.value.taskId,
       resumeText: task.value.resumeText || '',
@@ -1138,9 +1187,60 @@ const submitJobMatchAnalysis = async () => {
     // 静默上报新手任务完成
     completeOnboardingTask('jd_compared').catch(() => {})
   } catch (err) {
+    if (isCustomAiRecoverableError(err)) {
+      showCustomAiFallback('jobMatch', err)
+      message.warning(err?.message || '自定义 AI 暂时不可用')
+      return
+    }
     message.error(err?.message || '岗位匹配分析失败，请稍后重试')
   } finally {
     jobMatchLoading.value = false
+  }
+}
+
+const retryWithPlatformAi = async () => {
+  const type = customAiFallback.value.type
+  if (type === 'polish') {
+    polishLoading.value = true
+    try {
+      const res = await analyzeResumePolish({
+        resumeTaskId: task.value.taskId,
+        resumeText: task.value.resumeText || '',
+        jdText: jobDescriptionText.value.trim() || undefined,
+        fallbackToPlatform: true
+      })
+      const latestPolishResult = res?.data || res
+      await applyLatestPolishResult(latestPolishResult)
+      fetchTaskDetail()
+      clearCustomAiFallback()
+      message.success('已使用平台 AI 完成简历润色')
+    } catch (err) {
+      message.error(err?.message || '平台 AI 简历润色失败，请稍后重试')
+    } finally {
+      polishLoading.value = false
+    }
+    return
+  }
+  if (type === 'jobMatch') {
+    jobMatchLoading.value = true
+    try {
+      const res = await analyzeResumeJobMatch({
+        resumeTaskId: task.value.taskId,
+        resumeText: task.value.resumeText || '',
+        jdText: jobDescriptionText.value.trim(),
+        fallbackToPlatform: true
+      })
+      jobMatchResult.value = res.data
+      if (task.value) {
+        task.value.latestJobMatchAnalysis = res.data
+      }
+      clearCustomAiFallback()
+      message.success('已使用平台 AI 完成岗位匹配分析')
+    } catch (err) {
+      message.error(err?.message || '平台 AI 岗位匹配分析失败，请稍后重试')
+    } finally {
+      jobMatchLoading.value = false
+    }
   }
 }
 
@@ -2396,6 +2496,35 @@ const exportResumeImage = async () => {
   margin-right: 4px;
 }
 
+.custom-ai-fallback-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: 10px;
+}
+
+.custom-ai-fallback-card strong,
+.custom-ai-fallback-card span {
+  display: block;
+}
+
+.custom-ai-fallback-card strong {
+  color: #92400e;
+  font-size: 14px;
+}
+
+.custom-ai-fallback-card span {
+  margin-top: 4px;
+  color: #9a6b22;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .job-match-result {
   margin-top: 20px;
   display: flex;
@@ -2714,6 +2843,11 @@ const exportResumeImage = async () => {
 
   .job-match-result-grid {
     grid-template-columns: 1fr;
+  }
+
+  .custom-ai-fallback-card {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .action-group {

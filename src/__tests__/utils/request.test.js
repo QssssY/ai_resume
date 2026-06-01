@@ -153,4 +153,21 @@ describe('request', () => {
     expect(authMock.removeToken).toHaveBeenCalledTimes(1)
     expect(routerMock.push).toHaveBeenCalledTimes(1)
   })
+
+  it('preserves custom AI business code when page handles the error itself', async () => {
+    const result = axiosMock.handlers.responseFulfilled({
+      config: {
+        skipDefaultErrorHandler: true
+      },
+      data: {
+        code: 4090,
+        message: '用户自定义 AI 调用失败'
+      }
+    })
+
+    await expect(result).rejects.toMatchObject({
+      code: 4090,
+      message: '用户自定义 AI 调用失败'
+    })
+  })
 })

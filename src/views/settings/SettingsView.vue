@@ -327,6 +327,141 @@
           </div>
         </section>
 
+        <section v-else-if="activeSection === 'customAi'" key="customAi" class="settings-panel" aria-labelledby="custom-ai-title">
+          <div class="panel-heading">
+            <FeatureIcon name="membership-center" size="lg" class="panel-heading-icon" />
+            <div class="panel-heading-copy">
+              <h2 id="custom-ai-title">自定义 AI 接入</h2>
+              <p>接入你自己的 OpenAI 兼容 API，命中时不消耗平台额度。</p>
+            </div>
+            <button
+              type="button"
+              class="cai-refresh-btn"
+              :class="{ spinning: userAiConfigLoading }"
+              :disabled="userAiConfigLoading"
+              @click="fetchUserAiConfigState"
+              title="刷新"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                <path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="settings-panel-body">
+            <div class="cai-usage-bar">
+              <div class="cai-usage-info">
+                <span class="cai-usage-label">今日调用</span>
+                <span class="cai-usage-numbers">
+                  <strong>{{ userAiUsage?.used ?? 0 }}</strong>
+                  <span class="cai-usage-sep">/</span>
+                  <span>{{ userAiUsage?.limit ?? 50 }}</span>
+                </span>
+              </div>
+              <div class="cai-usage-track">
+                <div
+                  class="cai-usage-fill"
+                  :style="{ width: Math.min(100, ((userAiUsage?.used ?? 0) / Math.max(1, userAiUsage?.limit ?? 50)) * 100) + '%' }"
+                  :class="{ warning: (userAiUsage?.used ?? 0) / Math.max(1, userAiUsage?.limit ?? 50) > 0.8 }"
+                />
+              </div>
+              <span class="cai-usage-remaining">剩余 {{ userAiUsage?.remaining ?? Math.max(0, (userAiUsage?.limit ?? 50) - (userAiUsage?.used ?? 0)) }} 次</span>
+            </div>
+
+            <div class="cai-type-slots" aria-label="已保存的自定义 AI 配置">
+              <div
+                v-for="slot in userAiConfigSlots"
+                :key="slot.type"
+                class="cai-slot"
+                :class="{ active: slot.config, editing: userAiConfigForm.configType === slot.type }"
+                @click="handleUserAiConfigTypeChange(slot.type)"
+              >
+                <div class="cai-slot-header">
+                  <FeatureIcon :name="slot.icon" size="sm" class="cai-slot-icon" />
+                  <span class="cai-slot-type">{{ slot.label }}</span>
+                  <n-switch
+                    v-if="slot.config"
+                    size="small"
+                    :value="Boolean(slot.config.enabled)"
+                    :loading="userAiToggleLoadingType === slot.type"
+                    @click.stop
+                    @update:value="(value) => handleUserAiConfigToggle(slot.type, value)"
+                  />
+                </div>
+                <template v-if="slot.config">
+                  <div class="cai-slot-detail">
+                    <span class="cai-slot-name">{{ slot.config.providerName || slot.config.model || '未命名' }}</span>
+                    <span class="cai-slot-endpoint">{{ slot.config.baseUrl }}</span>
+                  </div>
+                  <div class="cai-slot-footer">
+                    <span
+                      class="cai-slot-status"
+                      :class="slot.config.verificationStatus === 'verified' ? 'ok' : slot.config.verificationStatus === 'failed' ? 'fail' : 'pending'"
+                    >
+                      <span class="cai-status-dot" />
+                      {{ userAiVerificationText(slot.config.verificationStatus) }}
+                    </span>
+                    <button class="cai-slot-del" @click.stop="handleUserAiConfigDelete(slot.type)" title="删除配置">×</button>
+                  </div>
+                </template>
+                <div v-else class="cai-slot-empty">
+                  <span>+ 点击配置</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="cai-form-card">
+              <div class="cai-form-title">
+                <FeatureIcon :name="currentSlotIconName" size="sm" />
+                <span>{{ userAiConfigTypeLabelMap[userAiConfigForm.configType] || '通用兜底' }} 配置</span>
+              </div>
+
+              <el-form class="cai-form" label-position="top">
+                <div class="cai-form-row-2col">
+                  <el-form-item label="配置名称">
+                    <el-input v-model.trim="userAiConfigForm.providerName" maxlength="64" show-word-limit placeholder="例如 DeepSeek / OpenRouter" />
+                  </el-form-item>
+                  <el-form-item label="模型">
+                    <el-input v-model.trim="userAiConfigForm.model" maxlength="128" placeholder="例如 gpt-4o-mini / deepseek-chat" />
+                  </el-form-item>
+                </div>
+                <el-form-item label="API 基础地址">
+                  <el-input v-model.trim="userAiConfigForm.baseUrl" maxlength="512" placeholder="https://api.example.com/v1" />
+                </el-form-item>
+                <el-form-item label="API Key">
+                  <el-input v-model="userAiConfigForm.apiKey" type="password" show-password maxlength="1024" placeholder="保存或更新配置时必须填写真实 Key" />
+                </el-form-item>
+
+                <div class="cai-form-toggle-row">
+                  <div class="cai-form-toggle-info">
+                    <strong>支持图片识别（Vision）</strong>
+                    <span>仅简历配置使用此能力，面试与通用配置自动忽略。</span>
+                  </div>
+                  <n-switch v-model:value="userAiConfigForm.supportsMultimodal" />
+                </div>
+
+                <div v-if="userAiConnectivityResult" class="cai-test-result" :class="{ failed: !userAiConnectivityResult.success }">
+                  <span class="cai-test-icon">{{ userAiConnectivityResult.success ? '✓' : '✗' }}</span>
+                  <span>{{ userAiConnectivityResult.message }}</span>
+                  <span v-if="userAiConnectivityResult.latencyMs" class="cai-test-latency">{{ userAiConnectivityResult.latencyMs }}ms</span>
+                </div>
+
+                <div class="cai-form-actions">
+                  <n-button :loading="userAiConnectivityTesting" secondary @click="handleUserAiConnectivityTest">
+                    连通测试
+                  </n-button>
+                  <n-button :loading="userAiConfigSaving" type="primary" @click="handleUserAiConfigSave">
+                    保存配置
+                  </n-button>
+                </div>
+              </el-form>
+            </div>
+
+            <p class="cai-hint">优先级：简历配置 → 面试配置 → 通用兜底 → 平台 AI</p>
+          </div>
+        </section>
+
         <section v-else-if="activeSection === 'security'" key="security" class="settings-panel" aria-labelledby="security-title">
           <div class="panel-heading">
             <div>
@@ -929,6 +1064,14 @@ import { getGrowthOverview } from '@/api/growth'
 import { clearInterviewHistory, getInterviewJobRoles } from '@/api/interview'
 import { getMembershipPlans } from '@/api/membership'
 import { clearResumeHistory } from '@/api/resume'
+import {
+  deleteUserAiConfig,
+  getUserAiConfigs,
+  getUserAiUsage,
+  saveUserAiConfig,
+  testUserAiConnectivity,
+  toggleUserAiConfig
+} from '@/api/userAiConfig'
 import { getUserSettings, saveUserSettings } from '@/api/userSettings'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
 import { useTextToSpeech } from '@/composables/useTextToSpeech'
@@ -971,6 +1114,7 @@ const feedbackSubmitting = ref(false)
 const sections = [
   { key: 'profile', label: '账号资料', icon: 'user-profile' },
   { key: 'interview', label: '面试偏好', icon: 'ai-interviewer' },
+  { key: 'customAi', label: '自定义 AI', icon: 'membership-center' },
   { key: 'security', label: '账号安全', icon: 'account-security' },
   { key: 'privacy', label: '隐私与数据', icon: 'data-cleanup' },
   { key: 'dataManagement', label: '数据管理', icon: 'data-management' },
@@ -1076,6 +1220,21 @@ const accountDeleteConfirmDialogVisible = ref(false)
 const notificationForm = ref(getSettingsPreferences())
 const interviewPreferenceForm = ref(getSettingsPreferences())
 const previewTextToSpeech = useTextToSpeech()
+const userAiConfigs = ref([])
+const userAiConfigLoading = ref(false)
+const userAiConfigSaving = ref(false)
+const userAiConnectivityTesting = ref(false)
+const userAiConnectivityResult = ref(null)
+const userAiUsage = ref({ used: 0, limit: 50, remaining: 50 })
+const userAiToggleLoadingType = ref('')
+const userAiConfigForm = ref({
+  configType: 'default',
+  providerName: '',
+  baseUrl: '',
+  apiKey: '',
+  model: '',
+  supportsMultimodal: false
+})
 
 const themeChoice = ref(themeStore.followSystem ? 'system' : themeStore.manualTheme)
 const resolvedThemeText = computed(() => themeStore.resolvedTheme === 'dark' ? '暗色' : '亮色')
@@ -1141,6 +1300,44 @@ const notificationTypeOptions = [
   { label: '版本公告', value: 'update' },
   { label: '维护公告', value: 'maintenance' }
 ]
+
+const userAiConfigTypeOptions = [
+  { label: '通用兜底', value: 'default' },
+  { label: '简历能力', value: 'resume' },
+  { label: '面试对话', value: 'interview' }
+]
+
+const userAiConfigTypeLabelMap = {
+  default: '通用兜底',
+  resume: '简历能力',
+  interview: '面试对话'
+}
+
+const userAiConfigTypeLabel = (configType) => userAiConfigTypeLabelMap[configType] || configType || '--'
+
+const userAiVerificationText = (status) => {
+  if (status === 'verified') return '已验证'
+  if (status === 'failed') return '验证失败'
+  return '待验证'
+}
+
+const userAiSlotMeta = [
+  { type: 'resume', label: '简历能力', icon: 'resume-analysis' },
+  { type: 'interview', label: '面试对话', icon: 'mock-interview' },
+  { type: 'default', label: '通用兜底', icon: 'settings' }
+]
+
+const userAiConfigSlots = computed(() =>
+  userAiSlotMeta.map((slot) => ({
+    ...slot,
+    config: userAiConfigs.value.find((c) => c.configType === slot.type) || null
+  }))
+)
+
+const currentSlotIconName = computed(() => {
+  const match = userAiSlotMeta.find((s) => s.type === userAiConfigForm.value.configType)
+  return match?.icon || 'settings'
+})
 
 const growthSummary = computed(() => {
   const summary = growthOverview.value?.summary || {}
@@ -1359,6 +1556,146 @@ const fetchGrowthOverview = async () => {
     growthOverviewError.value = err?.message || '账号数据概览暂时无法加载，请稍后重试。'
   } finally {
     growthOverviewLoading.value = false
+  }
+}
+
+const buildUserAiConfigPayload = () => ({
+  configType: String(userAiConfigForm.value.configType || 'default').trim(),
+  providerName: String(userAiConfigForm.value.providerName || '').trim(),
+  baseUrl: String(userAiConfigForm.value.baseUrl || '').trim(),
+  apiKey: String(userAiConfigForm.value.apiKey || '').trim(),
+  model: String(userAiConfigForm.value.model || '').trim(),
+  supportsMultimodal: Boolean(userAiConfigForm.value.supportsMultimodal)
+})
+
+const validateUserAiConfigForm = () => {
+  const payload = buildUserAiConfigPayload()
+  // 自定义 AI 配置直接影响出网调用，保存前在前端先做非空和白名单校验，后端仍负责最终安全校验。
+  if (!['default', 'resume', 'interview'].includes(payload.configType)) {
+    ElMessage.warning('配置类型不正确')
+    return null
+  }
+  if (!payload.baseUrl || !payload.apiKey || !payload.model) {
+    ElMessage.warning('请填写 API 地址、API Key 和模型')
+    return null
+  }
+  return payload
+}
+
+const fetchUserAiConfigState = async () => {
+  userAiConfigLoading.value = true
+  try {
+    const [configRes, usageRes] = await Promise.all([
+      getUserAiConfigs(),
+      getUserAiUsage()
+    ])
+    userAiConfigs.value = Array.isArray(configRes?.data) ? configRes.data : []
+    userAiUsage.value = usageRes?.data || { used: 0, limit: 50, remaining: 50 }
+  } catch (err) {
+    ElMessage.warning(err?.message || '用户自定义 AI 配置暂时无法加载')
+  } finally {
+    userAiConfigLoading.value = false
+  }
+}
+
+const fillUserAiConfigForm = (item) => {
+  userAiConfigForm.value = {
+    configType: item?.configType || 'default',
+    providerName: item?.providerName || '',
+    baseUrl: item?.baseUrl || '',
+    // 后端只返回脱敏 Key，编辑时必须重新输入真实 Key，避免把脱敏值误提交。
+    apiKey: '',
+    model: item?.model || '',
+    supportsMultimodal: Boolean(item?.supportsMultimodal)
+  }
+  userAiConnectivityResult.value = null
+}
+
+const handleUserAiConfigTypeChange = (configType) => {
+  const matched = userAiConfigs.value.find((item) => item.configType === configType)
+  if (matched) {
+    fillUserAiConfigForm(matched)
+    return
+  }
+  userAiConfigForm.value = {
+    configType,
+    providerName: '',
+    baseUrl: '',
+    apiKey: '',
+    model: '',
+    supportsMultimodal: false
+  }
+  userAiConnectivityResult.value = null
+}
+
+const handleUserAiConnectivityTest = async () => {
+  const payload = validateUserAiConfigForm()
+  if (!payload) return
+  userAiConnectivityTesting.value = true
+  userAiConnectivityResult.value = null
+  try {
+    const res = await testUserAiConnectivity({
+      baseUrl: payload.baseUrl,
+      apiKey: payload.apiKey,
+      model: payload.model,
+      supportsMultimodal: payload.supportsMultimodal
+    })
+    userAiConnectivityResult.value = res?.data || { success: true, message: '连通测试成功' }
+    ElMessage.success(userAiConnectivityResult.value.message || '连通测试成功')
+  } catch (err) {
+    userAiConnectivityResult.value = {
+      success: false,
+      message: err?.message || '连通测试失败'
+    }
+    ElMessage.error(userAiConnectivityResult.value.message)
+  } finally {
+    userAiConnectivityTesting.value = false
+  }
+}
+
+const handleUserAiConfigSave = async () => {
+  const payload = validateUserAiConfigForm()
+  if (!payload) return
+  userAiConfigSaving.value = true
+  try {
+    await saveUserAiConfig(payload)
+    ElMessage.success('自定义 AI 配置已保存')
+    userAiConfigForm.value.apiKey = ''
+    await fetchUserAiConfigState()
+  } catch (err) {
+    ElMessage.error(err?.message || '自定义 AI 配置保存失败')
+  } finally {
+    userAiConfigSaving.value = false
+  }
+}
+
+const handleUserAiConfigToggle = async (configType, enabled) => {
+  userAiToggleLoadingType.value = configType
+  try {
+    await toggleUserAiConfig(configType, Boolean(enabled))
+    ElMessage.success(enabled ? '自定义 AI 配置已启用' : '自定义 AI 配置已禁用')
+    await fetchUserAiConfigState()
+  } finally {
+    userAiToggleLoadingType.value = ''
+  }
+}
+
+const handleUserAiConfigDelete = async (configType) => {
+  try {
+    await ElMessageBox.confirm(
+      `将删除「${userAiConfigTypeLabel(configType)}」自定义 AI 配置，删除后该场景会回到通用配置或平台 AI。`,
+      '删除自定义 AI 配置',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    await deleteUserAiConfig(configType)
+    ElMessage.success('自定义 AI 配置已删除')
+    await fetchUserAiConfigState()
+  } catch {
+    // 用户取消或接口失败时由全局提示处理，当前表单状态保留。
   }
 }
 
@@ -1702,7 +2039,7 @@ const handleDefaultJobChange = (value) => {
 }
 
 const handleClearLocalCache = () => {
-  // 清理范围只覆盖本机设置缓存，不能触碰登录 token，避免“清缓存”变成隐式退出登录。
+  // 清理范围只覆盖本机设置缓存，不能触碰登录 token，避免"清缓存"变成隐式退出登录。
   const defaults = clearLocalSettingsCache()
   syncPreferenceForms(defaults)
   themeChoice.value = 'light'
@@ -1770,6 +2107,7 @@ onMounted(async () => {
   tasks.push(fetchUserSettings())
   tasks.push(fetchInterviewJobOptions())
   tasks.push(fetchGrowthOverview())
+  tasks.push(fetchUserAiConfigState())
   tasks.push(
     getMembershipPlans().then((res) => {
       membershipPlans.value = Array.isArray(res?.data) ? res.data : []
@@ -2577,6 +2915,381 @@ onBeforeUnmount(() => {
   flex-shrink: 1;
 }
 
+/* ── Custom AI: usage bar ── */
+.cai-usage-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+}
+
+.cai-usage-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cai-usage-label {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.cai-usage-numbers {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.cai-usage-numbers strong {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-title);
+  line-height: 1;
+}
+
+.cai-usage-sep {
+  margin: 0 1px;
+  opacity: 0.4;
+}
+
+.cai-usage-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border-card);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cai-usage-fill {
+  height: 100%;
+  background: var(--orange-main);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.cai-usage-fill.warning {
+  background: #ef4444;
+}
+
+.cai-usage-remaining {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* ── Custom AI: type slots ── */
+.cai-type-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.cai-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--bg-page);
+  border: 1.5px solid var(--border-card);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.cai-slot:hover {
+  border-color: color-mix(in srgb, var(--orange-main) 50%, transparent);
+  transform: translateY(-1px);
+}
+
+.cai-slot.editing {
+  border-color: var(--orange-main);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--orange-main) 12%, transparent);
+}
+
+.cai-slot-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cai-slot-icon {
+  flex-shrink: 0;
+}
+
+.cai-slot-type {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.cai-slot-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cai-slot-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-title);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cai-slot-endpoint {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+.cai-slot-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.cai-slot-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.cai-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cai-slot-status.ok {
+  color: #059669;
+}
+
+.cai-slot-status.ok .cai-status-dot {
+  background: #10b981;
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+}
+
+.cai-slot-status.fail {
+  color: #dc2626;
+}
+
+.cai-slot-status.fail .cai-status-dot {
+  background: #ef4444;
+}
+
+.cai-slot-status.pending {
+  color: var(--text-muted);
+}
+
+.cai-slot-status.pending .cai-status-dot {
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+.cai-slot-del {
+  all: unset;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.cai-slot:hover .cai-slot-del {
+  opacity: 1;
+}
+
+.cai-slot-del:hover {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.cai-slot-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  color: var(--text-muted);
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+/* ── Custom AI: form card ── */
+.cai-form-card {
+  padding: 20px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+}
+
+.cai-form-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-divider);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.cai-form-title :deep(.feature-icon) {
+  flex-shrink: 0;
+}
+
+.cai-form .el-form-item {
+  margin-bottom: 16px;
+}
+
+.cai-form-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.cai-form-row-2col .el-form-item {
+  margin-bottom: 16px;
+}
+
+.cai-form-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  background: color-mix(in srgb, var(--bg-card) 60%, var(--bg-page));
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+}
+
+.cai-form-toggle-info {
+  min-width: 0;
+}
+
+.cai-form-toggle-info strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.cai-form-toggle-info span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.cai-test-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 10px;
+}
+
+.cai-test-result.failed {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.cai-test-icon {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.cai-test-latency {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.cai-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cai-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* ── Custom AI: refresh button ── */
+.cai-refresh-btn {
+  all: unset;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+
+.cai-refresh-btn:hover {
+  color: var(--orange-main);
+  background: color-mix(in srgb, var(--orange-main) 8%, transparent);
+}
+
+.cai-refresh-btn:active {
+  transform: scale(0.92);
+}
+
+.cai-refresh-btn svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.3s ease;
+}
+
+.cai-refresh-btn.spinning svg {
+  animation: cai-spin 0.8s linear infinite;
+}
+
+@keyframes cai-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+
 .preference-action {
   flex: 0 0 auto;
 }
@@ -2860,6 +3573,14 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
+  .cai-type-slots {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .cai-form-row-2col {
+    grid-template-columns: 1fr;
+  }
+
   .account-delete-zone {
     max-width: none;
   }
@@ -2916,6 +3637,26 @@ onBeforeUnmount(() => {
   }
 
   .browser-voice-select {
+    width: 100%;
+  }
+
+  .cai-type-slots {
+    grid-template-columns: 1fr;
+  }
+
+  .cai-usage-bar {
+    flex-wrap: wrap;
+  }
+
+  .cai-form-row-2col {
+    grid-template-columns: 1fr;
+  }
+
+  .cai-form-actions {
+    flex-direction: column;
+  }
+
+  .cai-form-actions .n-button {
     width: 100%;
   }
 

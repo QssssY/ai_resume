@@ -132,6 +132,7 @@ describe('featureIcons', () => {
     expect(criticalKeys).toContain('feedback-center')
     expect(criticalKeys).toContain('onboarding-task')
     expect(criticalKeys).toContain('membership-credits')
+    expect(criticalKeys).toContain('membership-center')
     expect(criticalKeys).toContain('growth-radar')
     expect(criticalKeys).toContain('announcement')
     expect(criticalKeys).toContain('loading')

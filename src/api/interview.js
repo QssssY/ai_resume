@@ -72,7 +72,10 @@ export function streamInterviewMessage(sessionId, data, token, options = {}) {
       'Content-Type': 'application/json',
       Authorization: token ? `Bearer ${token}` : ''
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      fallbackToPlatform: Boolean(options.fallbackToPlatform || data?.fallbackToPlatform)
+    }),
     signal: options.signal
   })
 }

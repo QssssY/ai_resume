@@ -124,4 +124,25 @@ describe('useSpeechToText', () => {
     expect(speech.isVoiceActive.value).toBe(true)
     expect(speech.voiceActivityAt.value).toBe(Date.now())
   })
+
+  it('clears a no-transcript failure before the next browser recognition start', async () => {
+    const speech = useSpeechToText()
+
+    await speech.start()
+    sampleValue = 145
+    vi.advanceTimersByTime(6120)
+
+    expect(speech.errorCode.value).toBe('no-transcript')
+    expect(speech.engineStatus.value).toBe('unavailable')
+    expect(speech.isRecording.value).toBe(false)
+
+    await speech.start()
+
+    expect(window.SpeechRecognition).toHaveBeenCalledTimes(2)
+    expect(recognitionInstance.start).toHaveBeenCalledTimes(1)
+    expect(speech.error.value).toBe('')
+    expect(speech.errorCode.value).toBe('')
+    expect(speech.engineStatus.value).toBe('system-local')
+    expect(speech.isRecording.value).toBe(true)
+  })
 })

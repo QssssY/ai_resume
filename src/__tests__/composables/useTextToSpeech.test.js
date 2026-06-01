@@ -261,7 +261,44 @@ describe('useTextToSpeech', () => {
     expect(tts.activeUtteranceCount.value).toBe(0)
   })
 
-  it('reports a start timeout when Chrome accepts an utterance but never starts it', () => {
+  it('retries once with the browser default voice when Chrome accepts an utterance but never starts it', () => {
+    vi.useFakeTimers()
+    const onEnd = vi.fn()
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Broken Remote Voice', voiceURI: 'broken-remote', localService: false },
+    ])
+    window.speechSynthesis.speak = vi.fn((utterance) => {
+      window.speechSynthesis.speaking = true
+      spokenUtterances.push(utterance)
+    })
+    const tts = useTextToSpeech({
+      onEnd,
+      voicePreference: {
+        type: 'custom',
+        name: 'Broken Remote Voice',
+        voiceURI: 'broken-remote',
+        lang: 'zh-CN',
+      },
+    })
+
+    tts.speak('你好。')
+    vi.advanceTimersByTime(6000)
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(2)
+    expect(spokenUtterances[0].voice.name).toBe('Broken Remote Voice')
+    expect(spokenUtterances[1].voice).toBeUndefined()
+    expect(tts.isSpeaking.value).toBe(true)
+    expect(onEnd).not.toHaveBeenCalled()
+
+    spokenUtterances[1].onstart()
+    spokenUtterances[1].onend()
+
+    expect(onEnd).toHaveBeenCalledTimes(1)
+    expect(tts.isSpeaking.value).toBe(false)
+    vi.useRealTimers()
+  })
+
+  it('reports a start timeout after the browser default voice retry also fails', () => {
     vi.useFakeTimers()
     const onEnd = vi.fn()
     window.speechSynthesis.speak = vi.fn((utterance) => {
@@ -271,6 +308,11 @@ describe('useTextToSpeech', () => {
     const tts = useTextToSpeech()
 
     tts.speak('你好。', { onEnd })
+    vi.advanceTimersByTime(6000)
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(2)
+    expect(onEnd).not.toHaveBeenCalled()
+
     vi.advanceTimersByTime(6000)
 
     expect(onEnd).toHaveBeenCalledWith(expect.objectContaining({
@@ -527,7 +569,7 @@ describe('useTextToSpeech', () => {
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1)
   })
 
-  it('releases speaking state when Chrome accepts an utterance but never starts it', () => {
+  it('releases speaking state when Chrome still never starts after the default voice retry', () => {
     vi.useFakeTimers()
     const onEnd = vi.fn()
     window.speechSynthesis.speak = vi.fn((utterance) => {
@@ -539,6 +581,11 @@ describe('useTextToSpeech', () => {
     tts.speak('你好，我是本次 AI 面试官。')
 
     expect(tts.isSpeaking.value).toBe(true)
+    vi.advanceTimersByTime(6000)
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(2)
+    expect(tts.isSpeaking.value).toBe(true)
+
     vi.advanceTimersByTime(6000)
 
     expect(window.speechSynthesis.cancel).toHaveBeenCalled()

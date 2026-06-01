@@ -5,7 +5,11 @@ vi.mock('@/utils/adminRequest', () => ({
 }))
 
 import adminRequest from '@/utils/adminRequest'
-import { testAdminAiEngineConnectivity } from '@/api/admin/aiEngines'
+import {
+  getCustomAiDailyLimit,
+  testAdminAiEngineConnectivity,
+  updateCustomAiDailyLimit
+} from '@/api/admin/aiEngines'
 
 describe('admin aiEngines API', () => {
   beforeEach(() => {
@@ -31,6 +35,21 @@ describe('admin aiEngines API', () => {
       url: '/api/admin/ai-engines/connectivity-test',
       method: 'post',
       data
+    })
+  })
+
+  it('custom AI daily limit endpoints use admin custom-ai route', async () => {
+    await getCustomAiDailyLimit()
+    await updateCustomAiDailyLimit(80)
+
+    expect(adminRequest).toHaveBeenNthCalledWith(1, {
+      url: '/api/admin/custom-ai/daily-limit',
+      method: 'get'
+    })
+    expect(adminRequest).toHaveBeenNthCalledWith(2, {
+      url: '/api/admin/custom-ai/daily-limit',
+      method: 'put',
+      data: { limit: 80 }
     })
   })
 })

@@ -69,7 +69,11 @@ request.interceptors.response.use(
 
     // 某些长耗时接口会在页面内自行处理异常，此处允许跳过默认弹窗。
     if (response.config?.skipDefaultErrorHandler) {
-      return Promise.reject(new Error(res.message || '请求失败'))
+      const error = new Error(res.message || '请求失败')
+      // 自定义 AI 失败需要页面识别 4090/4091 后展示平台回退入口，不能只保留 message。
+      error.code = res.code
+      error.data = res.data
+      return Promise.reject(error)
     }
 
     // 会员专属/额度不足类错误：弹出升级弹窗替代普通错误提示。

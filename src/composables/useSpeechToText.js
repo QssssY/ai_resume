@@ -64,6 +64,17 @@ export function useSpeechToText() {
     recognition = null
   }
 
+  const cleanupBeforeStart = () => {
+    const staleRecognition = recognition
+    cleanupRecognition()
+    try {
+      staleRecognition?.abort?.()
+    } catch (abortError) {
+      console.warn('重启浏览器语音识别前清理旧实例失败', abortError)
+    }
+    cleanupVoiceActivity()
+  }
+
   const cleanupVoiceActivity = () => {
     if (voiceActivityTimer) {
       clearInterval(voiceActivityTimer)
@@ -190,6 +201,8 @@ export function useSpeechToText() {
     }
     if (isRecording.value || isStarting) return
 
+    // Web Speech 在 Chrome/Edge 中可能残留旧 recognition 或麦克风监测资源；每次重启前先清干净，避免内部状态卡住。
+    cleanupBeforeStart()
     clearState()
     ignoreResults = false
     isStarting = true

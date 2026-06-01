@@ -827,32 +827,43 @@ describe('InterviewSessionView', () => {
     expect(voiceSttStop).toHaveBeenCalled()
   })
 
-  it('keeps the voice call active when recognition has a recoverable interruption', async () => {
-    getInterviewSession.mockResolvedValue({
-      data: {
-        ...baseSession,
-        interactionType: 1,
-        chatLogs: [],
-      },
-    })
+  it('keeps the voice call active and auto-recovers when recognition has a recoverable interruption', async () => {
+    vi.useFakeTimers()
+    try {
+      getInterviewSession.mockResolvedValue({
+        data: {
+          ...baseSession,
+          interactionType: 1,
+          chatLogs: [],
+        },
+      })
 
-    const wrapper = mountView()
-    await flushPromises()
+      const wrapper = mountView()
+      await flushPromises()
 
-    await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
-    voiceSttFinal.value = '我负责订单模块'
-    await wrapper.vm.$nextTick()
+      await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
+      voiceSttFinal.value = '我负责订单模块'
+      await wrapper.vm.$nextTick()
 
-    voiceSttErrorCode.value = 'no-transcript'
-    voiceSttError.value = '检测到麦克风输入，但浏览器未返回识别文字，已降级为手动输入。错误码：no-transcript'
-    await wrapper.vm.$nextTick()
+      voiceSttRecording.value = false
+      voiceSttErrorCode.value = 'no-transcript'
+      voiceSttError.value = '检测到麦克风输入，但浏览器未返回识别文字，已降级为手动输入。错误码：no-transcript'
+      await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.voice-call-overlay').exists()).toBe(true)
-    expect(wrapper.text()).toContain('等待继续收音')
-    expect(wrapper.find('.voice-call-overlay [title="继续收音"]').exists()).toBe(true)
-    expect(wrapper.find('.voice-call-overlay [title="停止收听并发送"]').exists()).toBe(true)
-    expect(wrapper.find('.voice-call-overlay [title="开始通话"]').exists()).toBe(false)
-    expect(voiceSttCancel).not.toHaveBeenCalled()
+      expect(wrapper.find('.voice-call-overlay').exists()).toBe(true)
+      expect(wrapper.text()).not.toContain('等待继续收音')
+      expect(wrapper.find('.voice-call-overlay [title="停止收听并发送"]').exists()).toBe(true)
+      expect(wrapper.find('.voice-call-overlay [title="开始通话"]').exists()).toBe(false)
+      expect(voiceSttCancel).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(1000)
+      await wrapper.vm.$nextTick()
+
+      expect(voiceSttStart).toHaveBeenCalledTimes(2)
+      expect(wrapper.vm.voiceCall.pendingMessage.value).toBe('我负责订单模块')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows browser recognition status during voice calls', async () => {

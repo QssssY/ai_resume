@@ -307,6 +307,15 @@
           </template>
         </div>
       </div>
+      <div v-else-if="customAiFallback.visible" class="custom-ai-fallback-card">
+        <div>
+          <strong>{{ customAiFallback.title }}</strong>
+          <span>{{ customAiFallback.message }}</span>
+        </div>
+        <el-button type="warning" plain :loading="replyLocked" @click="retryInterviewWithPlatformAi">
+          使用平台 AI
+        </el-button>
+      </div>
       <div v-else class="input-container">
         <el-input
           v-model="inputMessage"
@@ -406,6 +415,12 @@ const inputMessage = ref("");
 const sending = ref(false);
 const ending = ref(false);
 const showEndDialog = ref(false);
+const customAiFallback = ref({
+  visible: false,
+  content: "",
+  title: "",
+  message: ""
+});
 const openingPending = ref(false);
 const replyLocked = ref(false);
 const voiceCallCollapsed = ref(false);
@@ -933,13 +948,41 @@ const startTypingMachine = (tempMsgId) => {
   }, TYPE_INTERVAL_MS);
 };
 
-const sendMessage = async (overrideContent = "") => {
+const clearCustomAiFallback = () => {
+  customAiFallback.value = {
+    visible: false,
+    content: "",
+    title: "",
+    message: ""
+  };
+};
+
+const isCustomAiRecoverableError = (err) => [4090, 4091].includes(Number(err?.code));
+
+const showCustomAiFallback = (content, err) => {
+  customAiFallback.value = {
+    visible: true,
+    content,
+    title: Number(err?.code) === 4091 ? "自定义 AI 今日次数已用完" : "自定义 AI 调用失败",
+    message: "可以检查自定义 AI 配置，或手动切换到平台 AI。本次切换会消耗平台面试额度。"
+  };
+};
+
+const retryInterviewWithPlatformAi = () => {
+  const content = customAiFallback.value.content;
+  if (!content) return;
+  clearCustomAiFallback();
+  sendMessage(content, { fallbackToPlatform: true });
+};
+
+const sendMessage = async (overrideContent = "", options = {}) => {
   // Element Plus 点击事件会传入 PointerEvent，只有语音通话自动发送时才允许用字符串覆盖输入框内容。
   const messageSource = typeof overrideContent === "string" && overrideContent ? overrideContent : inputMessage.value;
   const content = messageSource.trim();
   if (!content || !sessionId.value || !sessionData.value || replyLocked.value) {
     return;
   }
+  clearCustomAiFallback();
 
   textToSpeech.stop();
   sttCancel();
@@ -1005,7 +1048,9 @@ const sendMessage = async (overrideContent = "") => {
       return;
     }
     if (payload.type === "error") {
-      throw new Error(payload.message || "AI 回复失败");
+      const streamError = new Error(payload.message || "AI 回复失败");
+      streamError.code = payload.code;
+      throw streamError;
     }
   };
 
@@ -1057,7 +1102,10 @@ const sendMessage = async (overrideContent = "") => {
       sessionId.value,
       { sessionId: sessionId.value, content, feedbackMode: feedbackMode.value },
       token,
-      { signal: streamController.signal }
+      {
+        signal: streamController.signal,
+        fallbackToPlatform: Boolean(options.fallbackToPlatform)
+      }
     );
 
     if (!response.ok) {
@@ -1070,12 +1118,15 @@ const sendMessage = async (overrideContent = "") => {
         throw authError;
       }
       let errMsg = `请求失败 (${response.status})`;
+      let errCode = null;
       try {
         const errBody = await response.json();
+        errCode = errBody.code ?? null;
         errMsg = errBody.message || errBody.msg || errMsg;
       } catch { /* 保持最小兜底 */ }
       const httpError = new Error(response.status === RATE_LIMIT_STATUS ? INTERVIEW_STREAM_RATE_LIMIT_MESSAGE : errMsg);
       httpError.status = response.status;
+      httpError.code = errCode;
       if (response.status === RATE_LIMIT_STATUS) {
         httpError.rateLimited = true;
       }
@@ -1116,7 +1167,10 @@ const sendMessage = async (overrideContent = "") => {
     }
     textToSpeech.stop();
     if (!err?.suppressToast) {
-      if (err?.rateLimited) {
+      if (isCustomAiRecoverableError(err)) {
+        showCustomAiFallback(content, err);
+        ElMessage.warning(err.message || "自定义 AI 暂时不可用");
+      } else if (err?.rateLimited) {
         ElMessage.warning(err.message || INTERVIEW_STREAM_RATE_LIMIT_MESSAGE);
       } else {
         ElMessage.error(err.message || "发送消息失败，请稍后重试");
@@ -1906,6 +1960,37 @@ onBeforeUnmount(() => {
   animation: sessionSurfaceIn 420ms var(--interview-ease) both;
 }
 
+.custom-ai-fallback-card {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: 16px;
+  box-shadow: var(--interview-shadow-soft);
+}
+
+.custom-ai-fallback-card strong,
+.custom-ai-fallback-card span {
+  display: block;
+}
+
+.custom-ai-fallback-card strong {
+  color: #92400e;
+  font-size: 14px;
+}
+
+.custom-ai-fallback-card span {
+  margin-top: 4px;
+  color: #9a6b22;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .voice-call-panel {
   max-width: 820px;
   margin: 0 auto;
@@ -2544,6 +2629,11 @@ onBeforeUnmount(() => {
   .input-container {
     padding: 12px;
     border-radius: 12px;
+  }
+
+  .custom-ai-fallback-card {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .voice-call-panel {

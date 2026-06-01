@@ -9,6 +9,7 @@ import { clearInterviewHistory, getInterviewJobRoles } from '@/api/interview'
 import { getMembershipPlans } from '@/api/membership'
 import { clearResumeHistory } from '@/api/resume'
 import { getUserSettings, saveUserSettings } from '@/api/userSettings'
+import { getUserAiConfigs, getUserAiUsage, saveUserAiConfig, testUserAiConnectivity, toggleUserAiConfig } from '@/api/userAiConfig'
 import { deleteAccount, getCurrentAccountSecurityQuestion } from '@/api/auth'
 import { createUserFeedback } from '@/api/feedback'
 import { useUserStore } from '@/stores/user'
@@ -65,6 +66,40 @@ vi.mock('@/api/userSettings', () => ({
     }
   })),
   saveUserSettings: vi.fn((data) => Promise.resolve({ data }))
+}))
+
+vi.mock('@/api/userAiConfig', () => ({
+  deleteUserAiConfig: vi.fn(() => Promise.resolve()),
+  getUserAiConfigs: vi.fn(() => Promise.resolve({
+    data: [
+      {
+        configType: 'default',
+        providerName: '默认 DeepSeek',
+        baseUrl: 'https://api.deepseek.com/v1',
+        apiKey: 'sk-****-abcd',
+        model: 'deepseek-chat',
+        enabled: true,
+        supportsMultimodal: false,
+        verificationStatus: 'verified'
+      }
+    ]
+  })),
+  getUserAiUsage: vi.fn(() => Promise.resolve({
+    data: {
+      used: 12,
+      limit: 50,
+      remaining: 38
+    }
+  })),
+  saveUserAiConfig: vi.fn(() => Promise.resolve({ data: { configType: 'resume' } })),
+  testUserAiConnectivity: vi.fn(() => Promise.resolve({
+    data: {
+      success: true,
+      message: '连通测试成功',
+      latencyMs: 23
+    }
+  })),
+  toggleUserAiConfig: vi.fn(() => Promise.resolve())
 }))
 
 vi.mock('@/api/growth', () => ({
@@ -178,6 +213,7 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('设置中心')
     expect(wrapper.text()).toContain('账号资料')
     expect(wrapper.text()).toContain('面试偏好')
+    expect(wrapper.text()).toContain('自定义 AI')
     expect(wrapper.text()).toContain('账号安全')
     expect(wrapper.text()).toContain('隐私与数据')
     expect(wrapper.text()).toContain('数据管理')
@@ -217,12 +253,56 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('会员与额度')
   }, 15000)
 
+  it('shows and saves user custom AI provider settings', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'customAi')
+
+    expect(getUserAiConfigs).toHaveBeenCalled()
+    expect(getUserAiUsage).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('用户自定义 AI')
+    expect(wrapper.text()).toContain('12 / 50')
+    expect(wrapper.text()).toContain('默认 DeepSeek')
+
+    Object.assign(wrapper.vm.userAiConfigForm, {
+      configType: 'resume',
+      providerName: '简历模型',
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-user-real',
+      model: 'gpt-4o-mini',
+      supportsMultimodal: true
+    })
+
+    await wrapper.vm.handleUserAiConnectivityTest()
+    await wrapper.vm.handleUserAiConfigSave()
+    await wrapper.vm.handleUserAiConfigToggle('default', false)
+
+    expect(testUserAiConnectivity).toHaveBeenCalledWith({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-user-real',
+      model: 'gpt-4o-mini',
+      supportsMultimodal: true
+    })
+    expect(saveUserAiConfig).toHaveBeenCalledWith({
+      configType: 'resume',
+      providerName: '简历模型',
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-user-real',
+      model: 'gpt-4o-mini',
+      supportsMultimodal: true
+    })
+    expect(toggleUserAiConfig).toHaveBeenCalledWith('default', false)
+  })
+
   it('uses readable local feature icon sizes inside the personal settings center', () => {
     const source = settingsViewSource()
 
     expect(source).toContain('loading="eager"')
     expect(source).toContain('fetch-priority="auto"')
     expect(source).toContain('class="settings-nav-icon"')
+    expect(source).toContain("{ key: 'customAi', label: '自定义 AI', icon: 'membership-center' }")
+    expect(source).toContain('<FeatureIcon name="membership-center" size="lg" class="panel-heading-icon" />')
     expect(source).toContain('<FeatureIcon name="announcement" size="md" class="voice-preview-icon" />')
     expect(source).toContain('<FeatureIcon name="account-security" size="md" class="settings-alert-icon" />')
     expect(source).toContain('<FeatureIcon name="growth-radar" size="md" class="settings-refresh-icon" />')

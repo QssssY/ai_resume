@@ -9,6 +9,7 @@ const MIN_UTTERANCE_TIMEOUT_MS = 12000
 const STARTED_UTTERANCE_MIN_TIMEOUT_MS = 60000
 const MAX_UTTERANCE_TIMEOUT_MS = 180000
 const UTTERANCE_TIMEOUT_PER_CHAR_MS = 450
+const MAX_UTTERANCE_START_RETRIES = 1
 
 /**
  * 浏览器 TTS 语音合成封装。
@@ -273,6 +274,18 @@ export function useTextToSpeech(options = {}) {
     }
   }
 
+  const clearUtteranceRuntimeState = (utterance) => {
+    activeUtterances.delete(utterance)
+    activeUtteranceCount.value = activeUtterances.size
+    clearUtteranceStartWatchdog(utterance)
+    const watchdog = utteranceWatchdogs.get(utterance)
+    if (watchdog) {
+      clearTimeout(watchdog)
+      utteranceWatchdogs.delete(utterance)
+      utteranceWatchdogTimers.delete(watchdog)
+    }
+  }
+
   const markUtteranceStart = (utterance) => {
     const metadata = utteranceMetadata.get(utterance)
     if (!metadata || metadata.runId !== speechRunId) return
@@ -342,15 +355,7 @@ export function useTextToSpeech(options = {}) {
     const endEvent = getUtteranceEvent(utterance, reason)
     endedUtterances.add(utterance)
     // Chrome 对 SpeechSynthesisUtterance 的队列引用不稳定，播放期间必须由业务层持有强引用，结束后再释放。
-    activeUtterances.delete(utterance)
-    activeUtteranceCount.value = activeUtterances.size
-    clearUtteranceStartWatchdog(utterance)
-    const watchdog = utteranceWatchdogs.get(utterance)
-    if (watchdog) {
-      clearTimeout(watchdog)
-      utteranceWatchdogs.delete(utterance)
-      utteranceWatchdogTimers.delete(watchdog)
-    }
+    clearUtteranceRuntimeState(utterance)
     pendingCount = Math.max(0, pendingCount - 1)
     lastPendingChangeAt = Date.now()
     metadata.onEnd?.(endEvent)
@@ -375,11 +380,33 @@ export function useTextToSpeech(options = {}) {
     Math.max(STARTED_UTTERANCE_MIN_TIMEOUT_MS, getUtteranceTimeout(text) * 3)
   )
 
+  const retryUtteranceStart = (utterance) => {
+    const metadata = utteranceMetadata.get(utterance)
+    if (!metadata || metadata.runId !== speechRunId) return false
+    if ((metadata.startRetryCount || 0) >= MAX_UTTERANCE_START_RETRIES) return false
+
+    endedUtterances.add(utterance)
+    clearUtteranceRuntimeState(utterance)
+    utteranceMetadata.delete(utterance)
+    // Chrome/Edge 偶发接受 speak() 但不触发 onstart；先清空浏览器队列，再用系统默认 voice 重试同一句。
+    speechSynthesisRef.value?.cancel()
+    enqueueNow(metadata.text, {
+      ...metadata.speechOptions,
+      allowDefaultVoice: true,
+      requireStartEvent: true,
+      startRetryCount: (metadata.startRetryCount || 0) + 1,
+      useBrowserDefaultVoice: true,
+      voiceOverride: null,
+    })
+    return true
+  }
+
   const startUtteranceStartWatchdog = (utterance) => {
     const timer = setTimeout(() => {
       utteranceWatchdogTimers.delete(timer)
       utteranceStartWatchdogs.delete(utterance)
       if (endedUtterances.has(utterance) || startedUtterances.has(utterance)) return
+      if (retryUtteranceStart(utterance)) return
       // Chrome 可能接受 speak 调用但既不真正开始播报也不触发回调，此时主动释放 AI 回复状态。
       speechSynthesisRef.value?.cancel()
       markUtteranceEnd(utterance, 'start-timeout')
@@ -427,8 +454,12 @@ export function useTextToSpeech(options = {}) {
       createdAt: Date.now(),
       onStart: speechOptions.onStart,
       onEnd: speechOptions.onEnd,
+      speechOptions,
+      startRetryCount: Number(speechOptions.startRetryCount || 0),
     })
-    const utteranceVoice = speechOptions.voiceOverride || selectedVoice.value
+    const utteranceVoice = speechOptions.useBrowserDefaultVoice
+      ? null
+      : (speechOptions.voiceOverride || selectedVoice.value)
     utterance.lang = utteranceVoice?.lang || 'zh-CN'
     utterance.rate = rate.value
     utterance.pitch = pitch.value

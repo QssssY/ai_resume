@@ -261,4 +261,15 @@ describe('HomePageView', () => {
     expect(source).toMatch(/prefers-reduced-motion:[\s\S]*\.hero-cloud/)
     expect(source).toMatch(/prefers-reduced-motion:[\s\S]*\.hero-moon/)
   })
+
+  it('should keep CTA icon and text spacing comfortable', () => {
+    const source = homePageSource()
+
+    expect(source).toContain('<span class="cta-content">')
+    expect(source).toContain('.cta-btn :deep(.n-button__content)')
+    expect(source).toContain('justify-content: center;')
+    expect(source).toContain('.cta-content')
+    expect(source).toContain('gap: 12px;')
+    expect(source).toContain('white-space: nowrap;')
+  })
 })

@@ -58,20 +58,20 @@
             class="cta-btn primary-btn"
             @click="handleResume"
           >
-            <template #icon>
-            <FeatureIcon name="resume-analysis" size="sm" class="btn-icon" critical />
-            </template>
-            开始简历诊断
+            <span class="cta-content">
+              <FeatureIcon name="resume-analysis" size="md" class="btn-icon" critical />
+              <span>开始简历诊断</span>
+            </span>
           </n-button>
           <n-button
             size="large"
             class="cta-btn secondary-btn"
             @click="handleInterview"
           >
-            <template #icon>
-            <FeatureIcon name="ai-interviewer" size="sm" class="btn-icon" critical />
-            </template>
-            开始模拟面试
+            <span class="cta-content">
+              <FeatureIcon name="ai-interviewer" size="md" class="btn-icon" critical />
+              <span>开始模拟面试</span>
+            </span>
           </n-button>
         </motion.div>
 
@@ -123,10 +123,10 @@
       :transition="sectionTransition"
     >
       <div class="section-heading">
-        <span class="section-tag">求职路径</span>
-        <h2 id="feature-map-title" class="section-title">沿着真实节奏，把准备一步步推进</h2>
+        <span class="section-tag">核心能力</span>
+        <h2 id="feature-map-title" class="section-title">从诊断到决策，覆盖求职每一步</h2>
         <p class="section-desc">
-          参考背景图的“简历到 Offer”叙事，把工具入口做成一条可行动的路径，而不是一屏卡片堆叠。
+          按照真实的求职节奏排列，每个环节都有对应的工具支持。
         </p>
       </div>
 
@@ -180,10 +180,10 @@
       :transition="sectionTransition"
     >
       <div class="workflow-copy">
-        <span class="section-tag">使用路径</span>
-        <h2 id="workflow-title" class="section-title">按照真实求职节奏推进</h2>
+        <span class="section-tag">使用指南</span>
+        <h2 id="workflow-title" class="section-title">四步完成求职准备</h2>
         <p class="section-desc">
-          不把功能分散成孤立入口，而是让用户知道每一步应该做什么、产出什么、下一步去哪里。
+          从材料校准到 Offer 决策，每一步都有明确的产出目标。
         </p>
       </div>
       <motion.div
@@ -1143,7 +1143,17 @@ const handleInterview = () => {
 }
 
 .cta-btn :deep(.n-button__content) {
-  gap: 14px;
+  width: 100%;
+  justify-content: center;
+}
+
+.cta-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .cta-btn :deep(.n-button__border),

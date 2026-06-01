@@ -83,6 +83,30 @@
       </button>
     </div>
 
+    <el-card shadow="never" class="custom-ai-limit-card">
+      <div class="custom-ai-limit-copy">
+        <span>用户自定义 AI 每日上限</span>
+        <strong>{{ customAiDailyLimit || '--' }}</strong>
+        <small>命中用户自带 API Key 时只扣此独立调用次数，不扣平台 AI 额度。</small>
+      </div>
+      <div class="custom-ai-limit-controls">
+        <el-input-number
+          v-model="customAiDailyLimitForm.limit"
+          :min="1"
+          :max="10000"
+          :step="5"
+          controls-position="right"
+        />
+        <el-button
+          type="primary"
+          :loading="customAiDailyLimitSaving"
+          @click="handleCustomAiDailyLimitSave"
+        >
+          保存上限
+        </el-button>
+      </div>
+    </el-card>
+
     <div class="filter-bar">
       <!-- 引擎配置本地筛选：方便按业务类型和状态快速定位当前生效配置 -->
       <el-input
@@ -509,10 +533,12 @@ import {
   deleteAiEngine,
   deleteAiEngines,
   getAdminAiEngines,
+  getCustomAiDailyLimit,
   testAdminAiEngineConnectivity,
   toggleAdminAiEngineActive,
   toggleAiEnginesBatchActive,
-  updateAdminAiEngine
+  updateAdminAiEngine,
+  updateCustomAiDailyLimit
 } from '@/api/admin/aiEngines'
 import {
   confirmAdminRiskAction,
@@ -539,6 +565,11 @@ const activeScopeFilter = ref('all')
 const pagination = reactive({
   page: 1,
   pageSize: 10
+})
+const customAiDailyLimit = ref(0)
+const customAiDailyLimitSaving = ref(false)
+const customAiDailyLimitForm = reactive({
+  limit: 50
 })
 
 // 弹窗编辑状态：复用一个表单完成新增和编辑。
@@ -1019,6 +1050,43 @@ const fetchEngineList = async () => {
   }
 }
 
+/**
+ * 加载用户自定义 AI 每日调用上限。
+ */
+const fetchCustomAiDailyLimit = async () => {
+  try {
+    const res = await getCustomAiDailyLimit()
+    const limit = Number(res?.data?.limit ?? 50)
+    customAiDailyLimit.value = limit
+    customAiDailyLimitForm.limit = limit
+  } catch (error) {
+    showAdminError(error?.message || '加载自定义 AI 每日上限失败')
+  }
+}
+
+/**
+ * 保存用户自定义 AI 每日调用上限。
+ * 说明：该配置只影响用户自带 Key 的服务器调用次数，不改变平台额度规则。
+ */
+const handleCustomAiDailyLimitSave = async () => {
+  const limit = Number(customAiDailyLimitForm.limit)
+  if (!Number.isFinite(limit) || limit < 1 || limit > 10000) {
+    showAdminWarning('每日上限必须在 1-10000 之间')
+    return
+  }
+  customAiDailyLimitSaving.value = true
+  try {
+    const res = await updateCustomAiDailyLimit(limit)
+    customAiDailyLimit.value = Number(res?.data?.limit ?? limit)
+    customAiDailyLimitForm.limit = customAiDailyLimit.value
+    showAdminSuccess('用户自定义 AI 每日上限已更新')
+  } catch (error) {
+    showAdminError(error?.message || '保存自定义 AI 每日上限失败')
+  } finally {
+    customAiDailyLimitSaving.value = false
+  }
+}
+
 const openCreateDialog = () => {
   isEditMode.value = false
   editOriginalPayload.value = null
@@ -1393,6 +1461,7 @@ const handleBatchEnable = async () => {
 
 onMounted(() => {
   fetchEngineList()
+  fetchCustomAiDailyLimit()
 })
 
 /**
@@ -1570,6 +1639,46 @@ watch(
   color: #5a4030;
   line-height: 1;
   font-weight: 700;
+}
+
+.custom-ai-limit-card :deep(.el-card__body) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+}
+
+.custom-ai-limit-copy span,
+.custom-ai-limit-copy strong,
+.custom-ai-limit-copy small {
+  display: block;
+}
+
+.custom-ai-limit-copy span {
+  color: #a08060;
+  font-size: 13px;
+}
+
+.custom-ai-limit-copy strong {
+  margin-top: 4px;
+  color: #5a4030;
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.custom-ai-limit-copy small {
+  margin-top: 6px;
+  color: #8f6f55;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.custom-ai-limit-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .filter-bar {
@@ -1778,6 +1887,16 @@ watch(
 
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .custom-ai-limit-card :deep(.el-card__body) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .custom-ai-limit-controls {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .pagination-wrap {

@@ -102,3 +102,27 @@ export function toggleAiEnginesBatchActive(ids, isActive) {
     data: { ids, isActive }
   })
 }
+
+/**
+ * 查询用户自定义 AI 每日调用上限。
+ * @returns {Promise}
+ */
+export function getCustomAiDailyLimit() {
+  return adminRequest({
+    url: '/api/admin/custom-ai/daily-limit',
+    method: 'get'
+  })
+}
+
+/**
+ * 更新用户自定义 AI 每日调用上限。
+ * @param {number} limit
+ * @returns {Promise}
+ */
+export function updateCustomAiDailyLimit(limit) {
+  return adminRequest({
+    url: '/api/admin/custom-ai/daily-limit',
+    method: 'put',
+    data: { limit }
+  })
+}

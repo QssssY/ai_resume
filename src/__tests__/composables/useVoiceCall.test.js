@@ -201,22 +201,57 @@ describe('useVoiceCall', () => {
     expect(speech.start).not.toHaveBeenCalled()
   })
 
-  it('keeps voice mode active when speech recognition reports a recoverable interruption', async () => {
+  it('automatically restarts listening after a recoverable speech interruption', async () => {
     const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
     call.startVoiceCall()
     speech.finalTranscript.value = '我负责订单模块'
     await nextTick()
 
+    speech.isRecording.value = false
     speech.errorCode.value = 'no-transcript'
     speech.error.value = '检测到麦克风输入，但浏览器未返回识别文字，已降级为手动输入。错误码：no-transcript'
     await nextTick()
 
     expect(call.error.value).toContain('no-transcript')
     expect(call.isVoiceMode.value).toBe(true)
-    expect(call.isManualResumePending.value).toBe(true)
+    expect(call.isManualResumePending.value).toBe(false)
     expect(call.pendingMessage.value).toBe('我负责订单模块')
     expect(textToSpeech.stop).not.toHaveBeenCalled()
     expect(speech.cancel).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(speech.start).toHaveBeenCalledTimes(2)
+    expect(call.pendingMessage.value).toBe('我负责订单模块')
+  })
+
+  it('falls back to manual resume after repeated recoverable speech interruptions', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+    speech.finalTranscript.value = '我负责订单模块'
+    await nextTick()
+
+    for (let index = 0; index < 2; index += 1) {
+      speech.isRecording.value = false
+      speech.errorCode.value = 'no-transcript'
+      speech.error.value = `检测到麦克风输入，但浏览器未返回识别文字。第 ${index + 1} 次`
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(1000)
+    }
+
+    expect(speech.start).toHaveBeenCalledTimes(3)
+    expect(call.isManualResumePending.value).toBe(false)
+    expect(call.pendingMessage.value).toBe('我负责订单模块')
+
+    speech.isRecording.value = false
+    speech.errorCode.value = 'no-transcript'
+    speech.error.value = '检测到麦克风输入，但浏览器未返回识别文字。第 3 次'
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(speech.start).toHaveBeenCalledTimes(3)
+    expect(call.isManualResumePending.value).toBe(true)
+    expect(call.pendingMessage.value).toBe('我负责订单模块')
   })
 
   it('ends voice mode when speech recognition reports a fatal error', async () => {

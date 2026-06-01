@@ -5,13 +5,16 @@ import request from '@/utils/request'
  * @param {File} file - PDF文件对象
  * @returns {Promise}
  */
-export function uploadResume(file) {
+export function uploadResume(file, options = {}) {
   const formData = new FormData()
   formData.append('file', file)
 
   return request({
     url: '/api/resume/upload',
     method: 'post',
+    params: {
+      fallbackToPlatform: Boolean(options.fallbackToPlatform)
+    },
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data'
@@ -87,11 +90,15 @@ export function retryResumeTask(taskId) {
  * @param {{resumeTaskId: string|number, resumeText: string, jdText: string}} data - 分析请求参数
  * @returns {Promise}
  */
-export function analyzeResumeJobMatch(data) {
+export function analyzeResumeJobMatch(data, options = {}) {
   return request({
     url: '/api/resume/job-match/analyze',
     method: 'post',
-    data
+    data: {
+      ...data,
+      fallbackToPlatform: Boolean(options.fallbackToPlatform || data?.fallbackToPlatform)
+    },
+    skipDefaultErrorHandler: true
   })
 }
 
@@ -100,11 +107,14 @@ export function analyzeResumeJobMatch(data) {
  * @param {{resumeTaskId: string|number, resumeText: string, jdText?: string}} data - 润色请求参数
  * @returns {Promise}
  */
-export function analyzeResumePolish(data) {
+export function analyzeResumePolish(data, options = {}) {
   return request({
     url: '/api/resume/polish/analyze',
     method: 'post',
-    data,
+    data: {
+      ...data,
+      fallbackToPlatform: Boolean(options.fallbackToPlatform || data?.fallbackToPlatform)
+    },
     timeout: 180000,
     skipDefaultErrorHandler: true
   })
