@@ -79,6 +79,13 @@
                 </el-input>
               </el-form-item>
 
+              <el-form-item v-if="loginCaptchaRequired" prop="captchaCode">
+                <div class="captcha-row">
+                  <el-input v-model="loginForm.captchaCode" placeholder="验证码" maxlength="4" clearable />
+                  <img :src="captchaImage" class="captcha-img" @click="refreshCaptcha" alt="验证码" title="点击刷新验证码" />
+                </div>
+              </el-form-item>
+
               <div class="forgot-row">
                 <el-button class="btn-link btn-forgot" @click="switchMode('forgot')">忘记密码？</el-button>
               </div>
@@ -156,6 +163,13 @@
                 </el-input>
               </el-form-item>
 
+              <el-form-item prop="captchaCode">
+                <div class="captcha-row">
+                  <el-input v-model="registerForm.captchaCode" placeholder="验证码" maxlength="4" clearable />
+                  <img :src="captchaImage" class="captcha-img" @click="refreshCaptcha" alt="验证码" title="点击刷新验证码" />
+                </div>
+              </el-form-item>
+
               <el-form-item>
                 <el-button class="btn-primary" :loading="loading" :disabled="loading" @click="handleRegister">{{ loading ? '注册中...' : '注 册' }}</el-button>
               </el-form-item>
@@ -229,6 +243,13 @@
                 </el-input>
               </el-form-item>
 
+              <el-form-item prop="captchaCode">
+                <div class="captcha-row">
+                  <el-input v-model="forgotForm.captchaCode" placeholder="验证码" maxlength="4" clearable />
+                  <img :src="captchaImage" class="captcha-img" @click="refreshCaptcha" alt="验证码" title="点击刷新验证码" />
+                </div>
+              </el-form-item>
+
               <el-form-item>
                 <el-button class="btn-primary" :loading="forgotLoading" :disabled="forgotLoading" @click="handleResetPassword">{{ forgotLoading ? '重置中...' : '重置密码' }}</el-button>
               </el-form-item>
@@ -260,7 +281,7 @@ import { ref, reactive, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
-import { register, getSecurityQuestion, resetPasswordBySecurity } from "@/api/auth";
+import { register, getSecurityQuestion, resetPasswordBySecurity, getCaptcha } from "@/api/auth";
 import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import OptimizedImage from "@/components/common/OptimizedImage.vue";
 import { optimizedImages } from "@/utils/optimizedImages";
@@ -277,8 +298,28 @@ const registerSuccess = ref("");
 const loginFormRef = ref(null);
 const registerFormRef = ref(null);
 
-const loginForm = reactive({ username: "", password: "" });
-const registerForm = reactive({ username: "", password: "", confirmPassword: "", securityQuestion: "", securityAnswer: "" });
+const loginForm = reactive({ username: "", password: "", captchaCode: "" });
+const registerForm = reactive({ username: "", password: "", confirmPassword: "", securityQuestion: "", securityAnswer: "", captchaCode: "" });
+// 登录失败后显示验证码
+const loginCaptchaRequired = ref(false);
+
+// 图形验证码状态
+const captchaId = ref("");
+const captchaImage = ref("");
+
+const refreshCaptcha = async () => {
+  try {
+    const res = await getCaptcha();
+    captchaId.value = res.data.captchaId;
+    captchaImage.value = res.data.captchaImage;
+  } catch {
+    // 静默处理，图片显示加载失败占位
+    captchaImage.value = "";
+  }
+};
+
+// 页面加载时获取验证码
+refreshCaptcha();
 
 // 密码强度计算：0-5 分，分 3 档
 const calcPasswordScore = (pwd) => {
@@ -340,6 +381,9 @@ const loginRules = {
   password: [
     { required: true, message: "请输入密码", trigger: "blur" },
     { min: 6, max: 100, message: "密码长度为 6-100 个字符", trigger: "blur" }
+  ],
+  captchaCode: [
+    { required: true, message: "请输入验证码", trigger: "blur" }
   ]
 };
 
@@ -373,6 +417,9 @@ const registerRules = {
   securityAnswer: [
     { required: true, message: "请输入安全问题答案", trigger: "blur" },
     { max: 100, message: "答案长度不能超过100个字符", trigger: "blur" }
+  ],
+  captchaCode: [
+    { required: true, message: "请输入验证码", trigger: "blur" }
   ]
 };
 
@@ -386,7 +433,8 @@ const forgotForm = reactive({
   securityQuestion: "",
   securityAnswer: "",
   newPassword: "",
-  confirmPassword: ""
+  confirmPassword: "",
+  captchaCode: ""
 });
 
 const forgotStep1Rules = {
@@ -416,6 +464,9 @@ const forgotStep2Rules = {
       },
       trigger: "blur"
     }
+  ],
+  captchaCode: [
+    { required: true, message: "请输入验证码", trigger: "blur" }
   ]
 };
 
@@ -423,6 +474,7 @@ const switchMode = (mode) => {
   authMode.value = mode;
   errorMessage.value = "";
   registerSuccess.value = "";
+  loginCaptchaRequired.value = false;
   // 重置忘记密码状态
   forgotStep.value = 1;
   forgotForm.username = "";
@@ -430,6 +482,8 @@ const switchMode = (mode) => {
   forgotForm.securityAnswer = "";
   forgotForm.newPassword = "";
   forgotForm.confirmPassword = "";
+  // 切换模式时刷新验证码
+  refreshCaptcha();
 };
 
 const resolveSafeRedirect = (redirect) => {
@@ -445,12 +499,25 @@ const handleLogin = async () => {
 
   loading.value = true;
   try {
-    await userStore.doLogin(loginForm);
+    const loginPayload = {
+      username: loginForm.username,
+      password: loginForm.password
+    };
+    // 只有失败过并显示了验证码后才携带
+    if (loginCaptchaRequired.value) {
+      loginPayload.captchaId = captchaId.value;
+      loginPayload.captchaCode = loginForm.captchaCode;
+    }
+    await userStore.doLogin(loginPayload);
     ElMessage.success("登录成功");
     const redirect = resolveSafeRedirect(route.query.redirect);
     router.push(redirect);
   } catch (err) {
     errorMessage.value = err.message || "登录失败，请检查用户名和密码";
+    // 登录失败后显示验证码（渐进式防暴力破解）
+    loginCaptchaRequired.value = true;
+    refreshCaptcha();
+    loginForm.captchaCode = "";
   } finally {
     loading.value = false;
   }
@@ -463,7 +530,10 @@ const handleRegister = async () => {
 
   loading.value = true;
   try {
-    await register(registerForm);
+    await register({
+      ...registerForm,
+      captchaId: captchaId.value
+    });
     registerSuccess.value = "注册成功，三秒后自动跳转至登录";
     setTimeout(() => {
       switchMode("login");
@@ -471,6 +541,8 @@ const handleRegister = async () => {
     }, 2000);
   } catch (err) {
     errorMessage.value = err.message || "注册失败，请稍后重试";
+    refreshCaptcha();
+    registerForm.captchaCode = "";
   } finally {
     loading.value = false;
   }
@@ -507,13 +579,17 @@ const handleResetPassword = async () => {
     await resetPasswordBySecurity({
       username: forgotForm.username,
       securityAnswer: forgotForm.securityAnswer,
-      newPassword: forgotForm.newPassword
+      newPassword: forgotForm.newPassword,
+      captchaId: captchaId.value,
+      captchaCode: forgotForm.captchaCode
     });
     ElMessage.success("密码重置成功，请登录");
     switchMode("login");
     loginForm.username = forgotForm.username;
   } catch (err) {
     errorMessage.value = err.message || "密码重置失败";
+    refreshCaptcha();
+    forgotForm.captchaCode = "";
   } finally {
     forgotLoading.value = false;
   }
@@ -1011,5 +1087,31 @@ const handleResetPassword = async () => {
 
 .strength-text.strong {
   color: #67c23a;
+}
+
+/* 验证码行 */
+.captcha-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.captcha-row .el-input {
+  flex: 1;
+}
+
+.captcha-img {
+  height: 40px;
+  width: 100px;
+  border-radius: 6px;
+  border: 1px solid var(--border-input, #dcdfe6);
+  cursor: pointer;
+  flex-shrink: 0;
+  object-fit: contain;
+  background: #f5f5f5;
+}
+
+.captcha-img:hover {
+  border-color: var(--orange-main, #ff6700);
 }
 </style>

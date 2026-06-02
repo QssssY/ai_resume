@@ -6,13 +6,25 @@ const MUTE_RESUME_MODE_AUTO = 'auto'
 const TTS_RESUME_DELAY_MS = 800
 const RECOVERABLE_SPEECH_RESTART_DELAY_MS = 600
 const MAX_RECOVERABLE_SPEECH_RESTARTS = 2
+const TEXT_FALLBACK_RETRY_DELAYS_MS = Object.freeze([15000, 30000, 60000])
 const UNSUPPORTED_SPEECH_ERROR_MESSAGE = '当前浏览器不支持语音识别，已降级为手动输入'
 const UNSUPPORTED_TTS_ERROR_MESSAGE = '当前浏览器不支持语音播报，已降级为手动输入'
-const RECOVERABLE_SPEECH_ERROR_CODES = new Set([
-  'network',
+const TEMPORARY_TEXT_FALLBACK_MESSAGE = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
+const SHORT_RECOVERABLE_SPEECH_ERROR_CODES = new Set([
   'no-speech',
   'no-transcript',
+])
+const TEXT_FALLBACK_SPEECH_ERROR_CODES = new Set([
+  'network',
+  'service-not-allowed',
+  'start-timeout',
   'end-without-result',
+  'not-allowed',
+  'audio-capture',
+])
+const USER_ACTION_REQUIRED_SPEECH_ERROR_CODES = new Set([
+  'not-allowed',
+  'audio-capture',
 ])
 
 /**
@@ -28,6 +40,8 @@ export function useVoiceCall(options) {
   const pendingMessage = ref('')
   const error = ref('')
   const isManualResumePending = ref(false)
+  const isTextFallbackMode = ref(false)
+  const speechFallbackReason = ref('')
 
   let durationTimer = null
   let silenceTimer = null
@@ -43,6 +57,8 @@ export function useVoiceCall(options) {
   let ttsWasActive = false
   let ttsResumeTimer = null
   let recoverableSpeechRestartTimer = null
+  let textFallbackRetryTimer = null
+  let textFallbackRetryIndex = 0
   let recoverableSpeechRestartCount = 0
 
   const silenceTimeoutMs = Number(options.silenceTimeoutMs ?? DEFAULT_SILENCE_TIMEOUT_MS)
@@ -52,6 +68,13 @@ export function useVoiceCall(options) {
     if (recoverableSpeechRestartTimer) {
       clearTimeout(recoverableSpeechRestartTimer)
       recoverableSpeechRestartTimer = null
+    }
+  }
+
+  const clearTextFallbackRetryTimer = () => {
+    if (textFallbackRetryTimer) {
+      clearTimeout(textFallbackRetryTimer)
+      textFallbackRetryTimer = null
     }
   }
 
@@ -69,21 +92,30 @@ export function useVoiceCall(options) {
       ttsResumeTimer = null
     }
     clearRecoverableSpeechRestartTimer()
+    clearTextFallbackRetryTimer()
   }
 
-  const resetSpeechState = () => {
+  const clearPendingTranscript = () => {
     pendingFinalText = ''
     pendingInterimText = ''
     pendingMessage.value = ''
-    isManualResumePending.value = false
-    isInitialListeningDeferred = false
     lastSpeechAt = 0
     lastFinal = options.speech.finalTranscript.value || ''
     lastInterim = options.speech.interimTranscript.value || ''
+  }
+
+  const resetSpeechState = () => {
+    clearPendingTranscript()
+    isManualResumePending.value = false
+    isTextFallbackMode.value = false
+    speechFallbackReason.value = ''
+    isInitialListeningDeferred = false
     ttsWasActive = false
     isAutoSending = false
     recoverableSpeechRestartCount = 0
+    textFallbackRetryIndex = 0
     clearRecoverableSpeechRestartTimer()
+    clearTextFallbackRetryTimer()
   }
 
   const pauseListeningForAi = () => {
@@ -101,7 +133,13 @@ export function useVoiceCall(options) {
   }
 
   const resumeListening = (resumeOptions = {}) => {
-    if (!isVoiceMode.value || isMuted.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) {
+    if (
+      !isVoiceMode.value
+      || isTextFallbackMode.value
+      || isMuted.value
+      || options.isReplying?.value
+      || options.textToSpeech.isSpeaking.value
+    ) {
       return
     }
     // TTS 刚结束时必须延迟恢复收音，避免麦克风拾取扬声器的尾音 / 回声。
@@ -136,13 +174,87 @@ export function useVoiceCall(options) {
     }
   }
 
+  const scheduleTextFallbackRetry = (immediate = false) => {
+    clearTextFallbackRetryTimer()
+    if (!isVoiceMode.value || !isTextFallbackMode.value) return
+
+    const delay = immediate
+      ? 0
+      : TEXT_FALLBACK_RETRY_DELAYS_MS[Math.min(textFallbackRetryIndex, TEXT_FALLBACK_RETRY_DELAYS_MS.length - 1)]
+    if (!immediate) {
+      textFallbackRetryIndex += 1
+    }
+
+    textFallbackRetryTimer = setTimeout(() => {
+      textFallbackRetryTimer = null
+      void retrySpeechNow({ automatic: true })
+    }, delay)
+  }
+
+  const enterTextFallbackMode = (reason, code = '') => {
+    clearRecoverableSpeechRestartTimer()
+    isManualResumePending.value = false
+    isTextFallbackMode.value = true
+    speechFallbackReason.value = reason || TEMPORARY_TEXT_FALLBACK_MESSAGE
+    error.value = speechFallbackReason.value
+    textFallbackRetryIndex = 0
+    options.speech.stop?.()
+    if (!USER_ACTION_REQUIRED_SPEECH_ERROR_CODES.has(code)) {
+      scheduleTextFallbackRetry()
+    }
+  }
+
+  const leaveTextFallbackMode = () => {
+    clearTextFallbackRetryTimer()
+    isTextFallbackMode.value = false
+    speechFallbackReason.value = ''
+    textFallbackRetryIndex = 0
+    error.value = ''
+  }
+
+  async function retrySpeechNow(retryOptions = {}) {
+    clearTextFallbackRetryTimer()
+    if (!isVoiceMode.value || !isTextFallbackMode.value) return false
+    if (isMuted.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) {
+      if (retryOptions.automatic) {
+        scheduleTextFallbackRetry()
+      }
+      return false
+    }
+    if (!options.speech.isSupported.value) {
+      error.value = UNSUPPORTED_SPEECH_ERROR_MESSAGE
+      return false
+    }
+
+    const startResult = options.speech.start?.({ waitForHealthyStart: true })
+    if (startResult && typeof startResult.then === 'function') {
+      const healthResult = await startResult
+      if (healthResult?.ok) {
+        leaveTextFallbackMode()
+        return true
+      }
+      if (healthResult && healthResult.ok === false) {
+        scheduleTextFallbackRetry()
+        return false
+      }
+    }
+    // 兼容旧测试桩或未来轻量实现：没有返回健康探测结果时，才回退到已确认启动状态。
+    if (options.speech.isRecording.value && (!options.speech.startConfirmed || options.speech.startConfirmed.value)) {
+      leaveTextFallbackMode()
+      return true
+    }
+
+    scheduleTextFallbackRetry()
+    return false
+  }
+
   const scheduleRecoverableSpeechRestart = () => {
     clearRecoverableSpeechRestartTimer()
     isInitialListeningDeferred = false
     lastSpeechAt = Date.now()
     if (recoverableSpeechRestartCount >= MAX_RECOVERABLE_SPEECH_RESTARTS) {
-      // 连续恢复失败后才交给用户手动继续，避免 Web Speech 短暂无结果时直接中断语音面试。
-      isManualResumePending.value = true
+      // 连续短恢复失败后切入正式文本兜底，让面试继续进行，并交给后台退避探测恢复语音。
+      enterTextFallbackMode(error.value || TEMPORARY_TEXT_FALLBACK_MESSAGE, options.speech.errorCode?.value || '')
       return
     }
     recoverableSpeechRestartCount += 1
@@ -190,7 +302,7 @@ export function useVoiceCall(options) {
   }
 
   const checkSilence = () => {
-    if (!isVoiceMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
+    if (!isVoiceMode.value || isTextFallbackMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
     if (
       !options.speech.isRecording.value &&
       !isMuted.value &&
@@ -259,6 +371,7 @@ export function useVoiceCall(options) {
     isMuted.value = !isMuted.value
     if (isMuted.value) {
       clearRecoverableSpeechRestartTimer()
+      clearTextFallbackRetryTimer()
       void options.speech.stop?.()
       return true
     }
@@ -316,6 +429,10 @@ export function useVoiceCall(options) {
       pauseListeningForAi()
       return
     }
+    if (isTextFallbackMode.value) {
+      scheduleTextFallbackRetry(true)
+      return
+    }
     resumeListening()
   })
 
@@ -327,6 +444,10 @@ export function useVoiceCall(options) {
         pauseListeningForAi()
         return
       }
+      if (isTextFallbackMode.value) {
+        scheduleTextFallbackRetry(true)
+        return
+      }
       resumeListening()
     }
   )
@@ -335,12 +456,16 @@ export function useVoiceCall(options) {
     if (!nextError || !isVoiceMode.value) return
     error.value = nextError
     const speechErrorCode = options.speech.errorCode?.value || ''
-    if (RECOVERABLE_SPEECH_ERROR_CODES.has(speechErrorCode)) {
+    if (TEXT_FALLBACK_SPEECH_ERROR_CODES.has(speechErrorCode)) {
+      enterTextFallbackMode(nextError, speechErrorCode)
+      return
+    }
+    if (SHORT_RECOVERABLE_SPEECH_ERROR_CODES.has(speechErrorCode)) {
       // 浏览器 Web Speech 偶发无结果/短暂中断时先自动重启识别；连续失败再暴露手动继续收音。
       scheduleRecoverableSpeechRestart()
       return
     }
-    endVoiceCall()
+    enterTextFallbackMode(nextError, speechErrorCode)
   })
 
   onUnmounted(() => {
@@ -356,10 +481,14 @@ export function useVoiceCall(options) {
     pendingMessage,
     error,
     isManualResumePending,
+    isTextFallbackMode,
+    speechFallbackReason,
     startVoiceCall,
     endVoiceCall,
     toggleMute,
     resumeListening,
+    retrySpeechNow,
+    clearPendingTranscript,
     autoSendTranscript,
     stopListeningAndSend,
   }

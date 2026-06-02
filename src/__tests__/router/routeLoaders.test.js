@@ -16,7 +16,8 @@ describe('routeLoaders', () => {
     expect(source).toContain("'/resume/result': resumeResultRouteLoader")
     expect(source).toContain("'/interview/entry': interviewEntryRouteLoader")
     expect(source).toContain("'/offer': offerAssistRouteLoader")
-    expect(source).not.toContain("'/settings':")
+    expect(source).toContain("'/settings': settingsRouteLoader")
+    expect(source).toContain("'/community/my': communityMyRouteLoader")
   })
 
   it('prefetches admin navigation routes without warming every admin chunk on idle', () => {
@@ -64,9 +65,44 @@ describe('routeLoaders', () => {
     expect(source).toContain("'/resume/result'")
     expect(source).toContain("'/interview/entry'")
     expect(source).toContain("'/offer'")
-    expect(source).toContain("const idleWarmupRoutes = ['/templates', '/community', '/growth', '/resume/upload', '/resume/result', '/interview/entry', '/offer']")
+    expect(source).toContain("const idleWarmupRoutes = ['/templates', '/community', '/settings', '/growth', '/resume/upload', '/resume/result', '/interview/entry', '/offer']")
     expect(source).toContain('requestIdleCallback')
+    expect(source).not.toMatch(/idleWarmupRoutes\s*=\s*\[[\s\S]*?\/interview\/session/)
+    expect(source).not.toMatch(/idleWarmupRoutes\s*=\s*\[[\s\S]*?\/templates\/editor/)
     expect(source).not.toMatch(/idleWarmupRoutes\s*=\s*\[[\s\S]*?\/admin/)
+  })
+
+  it('exports high-risk route loaders and targeted prefetch helpers', () => {
+    const source = sourceFile('src/router/routeLoaders.js')
+
+    expect(source).toContain('export const settingsRouteLoader')
+    expect(source).toContain("import('@/views/settings/SettingsView.vue')")
+    expect(source).toContain('export const interviewSessionRouteLoader')
+    expect(source).toContain("import('@/views/interview/InterviewSessionView.vue')")
+    expect(source).toContain('export const communityMyRouteLoader')
+    expect(source).toContain("import('@/views/community/MyActivity.vue')")
+    expect(source).toContain('export const templateEditorRouteLoader')
+    expect(source).toContain("import('@/views/template/TemplateEditorView.vue')")
+    expect(source).toContain('export const adminLayoutRouteLoader')
+    expect(source).toContain("import('@/layouts/AdminLayout.vue')")
+    expect(source).toContain('export function prefetchInterviewSessionRoute()')
+    expect(source).toContain('export function prefetchTemplateEditorRoute(templateId)')
+    expect(source).toContain('export function prefetchAdminShellRoute()')
+  })
+
+  it('uses shared loaders in router for high-risk cold-entry routes', () => {
+    const routerSource = sourceFile('src/router/index.js')
+
+    expect(routerSource).toMatch(/path:\s*'\/admin',[\s\S]*component:\s*adminLayoutRouteLoader/)
+    expect(routerSource).toMatch(/path:\s*'\/settings',[\s\S]*component:\s*settingsRouteLoader/)
+    expect(routerSource).toMatch(/path:\s*'\/interview\/session\/:sessionId',[\s\S]*component:\s*interviewSessionRouteLoader/)
+    expect(routerSource).toMatch(/path:\s*'\/templates\/editor\/:templateId',[\s\S]*component:\s*templateEditorRouteLoader/)
+    expect(routerSource).toMatch(/path:\s*'\/community\/my',[\s\S]*component:\s*communityMyRouteLoader/)
+    expect(routerSource).not.toContain("component: () => import('@/layouts/AdminLayout.vue')")
+    expect(routerSource).not.toContain("component: () => import('@/views/settings/SettingsView.vue')")
+    expect(routerSource).not.toContain("component: () => import('@/views/interview/InterviewSessionView.vue')")
+    expect(routerSource).not.toContain("component: () => import('@/views/template/TemplateEditorView.vue')")
+    expect(routerSource).not.toContain("component: () => import('@/views/community/MyActivity.vue')")
   })
 
   it('uses the shared resume result loader in the router so prefetch warms the same chunk', () => {
@@ -75,6 +111,18 @@ describe('routeLoaders', () => {
     expect(routerSource).toContain('resumeResultRouteLoader')
     expect(routerSource).toMatch(/path:\s*'\/resume\/result\/:taskId',[\s\S]*component:\s*resumeResultRouteLoader/)
     expect(routerSource).not.toContain("component: () => import('@/views/resume/ResultView.vue')")
+  })
+
+  it('uses a shared interview report loader so ending an interview can warm the waiting page', () => {
+    const source = sourceFile('src/router/routeLoaders.js')
+    const routerSource = sourceFile('src/router/index.js')
+
+    expect(source).toContain('export const interviewReportRouteLoader')
+    expect(source).toContain("import('@/views/interview/InterviewReportView.vue')")
+    expect(source).toContain('export function prefetchInterviewReportRoute()')
+    expect(source).toContain('interviewReportRouteLoader()')
+    expect(routerSource).toContain('interviewReportRouteLoader')
+    expect(routerSource).toMatch(/path:\s*'\/interview\/report\/:sessionId',[\s\S]*component:\s*interviewReportRouteLoader/)
   })
 
   it('registers the admin community review route with admin authentication', () => {

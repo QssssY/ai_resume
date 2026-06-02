@@ -31,6 +31,17 @@ export function register(data) {
 }
 
 /**
+ * 获取图形验证码
+ * @returns {Promise}
+ */
+export function getCaptcha() {
+  return request({
+    url: '/api/auth/captcha',
+    method: 'get'
+  })
+}
+
+/**
  * 获取当前登录用户信息
  * @returns {Promise}
  */

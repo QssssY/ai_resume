@@ -15,6 +15,11 @@ import { createUserFeedback } from '@/api/feedback'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { getSettingsPreferences, saveSettingsPreferences } from '@/utils/settingsPreferences'
+import {
+  detectSpeechRecognitionCapability,
+  installLocalSpeechRecognition,
+  SPEECH_RECOGNITION_CAPABILITY_STATUS
+} from '@/utils/speechRecognitionCapability'
 
 const push = vi.fn()
 const fetchUserInfo = vi.fn(() => Promise.resolve())
@@ -127,6 +132,23 @@ vi.mock('@/stores/theme', () => ({
   useThemeStore: vi.fn()
 }))
 
+vi.mock('@/utils/speechRecognitionCapability', () => ({
+  SPEECH_RECOGNITION_CAPABILITY_STATUS: {
+    LOCAL_READY: 'local-ready',
+    LOCAL_DOWNLOADABLE: 'local-downloadable',
+    WEBSPEECH_READY: 'webspeech-ready',
+    TEMPORARILY_UNAVAILABLE: 'temporarily-unavailable',
+    PERMISSION_BLOCKED: 'permission-blocked',
+    UNSUPPORTED: 'unsupported'
+  },
+  detectSpeechRecognitionCapability: vi.fn(() => Promise.resolve({
+    status: 'webspeech-ready',
+    canInstallLocal: false,
+    supportsLocalProcessing: false
+  })),
+  installLocalSpeechRecognition: vi.fn(() => Promise.resolve({ ok: true, status: 'local-ready' }))
+}))
+
 vi.mock('@/components/OnboardingGuide.vue', () => ({
   default: {
     name: 'OnboardingGuide',
@@ -198,6 +220,15 @@ describe('SettingsView', () => {
       setTheme,
       setFollowSystem
     })
+    detectSpeechRecognitionCapability.mockResolvedValue({
+      status: SPEECH_RECOGNITION_CAPABILITY_STATUS.WEBSPEECH_READY,
+      canInstallLocal: false,
+      supportsLocalProcessing: false
+    })
+    installLocalSpeechRecognition.mockResolvedValue({
+      ok: true,
+      status: SPEECH_RECOGNITION_CAPABILITY_STATUS.LOCAL_READY
+    })
   })
 
   afterEach(() => {
@@ -261,8 +292,8 @@ describe('SettingsView', () => {
 
     expect(getUserAiConfigs).toHaveBeenCalled()
     expect(getUserAiUsage).toHaveBeenCalled()
-    expect(wrapper.text()).toContain('用户自定义 AI')
-    expect(wrapper.text()).toContain('12 / 50')
+    expect(wrapper.text()).toContain('自定义 AI 接入')
+    expect(wrapper.text()).toContain('12/50')
     expect(wrapper.text()).toContain('默认 DeepSeek')
 
     Object.assign(wrapper.vm.userAiConfigForm, {
@@ -305,7 +336,7 @@ describe('SettingsView', () => {
     expect(source).toContain('<FeatureIcon name="membership-center" size="lg" class="panel-heading-icon" />')
     expect(source).toContain('<FeatureIcon name="announcement" size="md" class="voice-preview-icon" />')
     expect(source).toContain('<FeatureIcon name="account-security" size="md" class="settings-alert-icon" />')
-    expect(source).toContain('<FeatureIcon name="growth-radar" size="md" class="settings-refresh-icon" />')
+    expect(source).toContain('<FeatureIcon name="retry" size="md" class="settings-refresh-icon" />')
     expect(source).toContain('<FeatureIcon name="account-security" size="md" />')
     expect(source).toContain('.settings-nav-item:hover .settings-nav-icon')
     expect(source).toContain('width: 48px;')
@@ -404,6 +435,53 @@ describe('SettingsView', () => {
     expect(wrapper.text()).not.toContain('删除资源包')
     expect(wrapper.vm).not.toHaveProperty('handleOfflineSttDownload')
     expect(wrapper.vm).not.toHaveProperty('handleOfflineSttClearConfirm')
+  })
+
+  it('shows browser local speech pack install action when capability is downloadable', async () => {
+    detectSpeechRecognitionCapability.mockResolvedValueOnce({
+      status: SPEECH_RECOGNITION_CAPABILITY_STATUS.LOCAL_DOWNLOADABLE,
+      canInstallLocal: true,
+      supportsLocalProcessing: false
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    expect(wrapper.text()).toContain('浏览器本地语音包')
+    expect(wrapper.text()).toContain('安装语音包')
+  }, 15000)
+
+  it('keeps browser local speech pack install action hidden when capability detection fails', async () => {
+    detectSpeechRecognitionCapability.mockRejectedValueOnce(new Error('capability unavailable'))
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
+    await flushPromises()
+
+    expect(wrapper.vm.localSpeechInstallAvailable).toBe(false)
+    expect(wrapper.text()).not.toContain('安装语音包')
+  }, 15000)
+
+  it('keeps local speech pack install action visible when installation fails', async () => {
+    installLocalSpeechRecognition.mockResolvedValueOnce({
+      ok: false,
+      status: SPEECH_RECOGNITION_CAPABILITY_STATUS.TEMPORARILY_UNAVAILABLE
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.localSpeechInstallAvailable = true
+    await wrapper.vm.handleInstallLocalSpeech()
+    await flushPromises()
+
+    expect(installLocalSpeechRecognition).toHaveBeenCalled()
+    expect(wrapper.vm.localSpeechInstallAvailable).toBe(true)
   })
 
 

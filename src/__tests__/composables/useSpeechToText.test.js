@@ -51,16 +51,27 @@ describe('useSpeechToText', () => {
     vi.useRealTimers()
   })
 
+  const waitForRecognitionSetup = async () => {
+    for (let index = 0; index < 8 && !recognitionInstance; index += 1) {
+      await vi.advanceTimersByTimeAsync(0)
+    }
+    expect(recognitionInstance).toBeTruthy()
+  }
+
   it('uses browser recognition even when legacy offline options are passed', async () => {
     const speech = useSpeechToText({ preferOffline: true, prewarmOffline: true })
 
     await speech.start()
+    recognitionInstance.onstart()
 
     expect(window.SpeechRecognition).toHaveBeenCalledTimes(1)
     expect(recognitionInstance.start).toHaveBeenCalledTimes(1)
+    expect(recognitionInstance.processLocally).toBe(true)
     expect(window.Worker).not.toHaveBeenCalled()
     expect(speech.engineStatus.value).toBe('system-local')
+    expect(speech.capabilityStatus.value).toBe('local-ready')
     expect(speech.isRecording.value).toBe(true)
+    expect(speech.startConfirmed.value).toBe(true)
     expect(speech).not.toHaveProperty('prepareOfflineRecognition')
     expect(speech).not.toHaveProperty('downloadOfflineModel')
     expect(speech).not.toHaveProperty('clearOfflineModel')
@@ -86,6 +97,7 @@ describe('useSpeechToText', () => {
     const speech = useSpeechToText()
 
     await speech.start()
+    recognitionInstance.onstart()
     recognitionInstance.onerror({ error: 'network' })
 
     expect(speech.errorCode.value).toBe('network')
@@ -101,6 +113,7 @@ describe('useSpeechToText', () => {
     const speech = useSpeechToText()
 
     await speech.start()
+    recognitionInstance.onstart()
     recognitionInstance.onresult({
       resultIndex: 0,
       results: [
@@ -118,6 +131,7 @@ describe('useSpeechToText', () => {
     const speech = useSpeechToText()
 
     await speech.start()
+    recognitionInstance.onstart()
     sampleValue = 145
     vi.advanceTimersByTime(120)
 
@@ -129,6 +143,7 @@ describe('useSpeechToText', () => {
     const speech = useSpeechToText()
 
     await speech.start()
+    recognitionInstance.onstart()
     sampleValue = 145
     vi.advanceTimersByTime(6120)
 
@@ -137,6 +152,7 @@ describe('useSpeechToText', () => {
     expect(speech.isRecording.value).toBe(false)
 
     await speech.start()
+    recognitionInstance.onstart()
 
     expect(window.SpeechRecognition).toHaveBeenCalledTimes(2)
     expect(recognitionInstance.start).toHaveBeenCalledTimes(1)
@@ -144,5 +160,120 @@ describe('useSpeechToText', () => {
     expect(speech.errorCode.value).toBe('')
     expect(speech.engineStatus.value).toBe('system-local')
     expect(speech.isRecording.value).toBe(true)
+  })
+
+  it('marks startup as temporarily unavailable when onstart does not fire', async () => {
+    const speech = useSpeechToText()
+
+    await speech.start()
+    await vi.advanceTimersByTimeAsync(2500)
+
+    expect(speech.errorCode.value).toBe('start-timeout')
+    expect(speech.engineStatus.value).toBe('unavailable')
+    expect(speech.capabilityStatus.value).toBe('temporarily-unavailable')
+    expect(speech.isRecording.value).toBe(false)
+    expect(speech.startConfirmed.value).toBe(false)
+    expect(recognitionInstance.abort).toHaveBeenCalled()
+  })
+
+  it('resolves healthy start only after onstart survives the observation window', async () => {
+    const speech = useSpeechToText()
+    let resolved = false
+
+    const startPromise = speech.start({ waitForHealthyStart: true }).then((result) => {
+      resolved = true
+      return result
+    })
+    await waitForRecognitionSetup()
+
+    expect(resolved).toBe(false)
+
+    recognitionInstance.onstart()
+    await vi.advanceTimersByTimeAsync(999)
+
+    expect(resolved).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(1)
+
+    await expect(startPromise).resolves.toEqual({
+      ok: true,
+      code: '',
+    })
+    expect(speech.startConfirmed.value).toBe(true)
+    expect(speech.isRecording.value).toBe(true)
+  })
+
+  it('reports unhealthy start when recognition ends during the observation window', async () => {
+    const speech = useSpeechToText()
+
+    const startPromise = speech.start({ waitForHealthyStart: true })
+    await waitForRecognitionSetup()
+
+    recognitionInstance.onstart()
+    recognitionInstance.onend()
+
+    await expect(startPromise).resolves.toEqual({
+      ok: false,
+      code: 'end-without-result',
+    })
+    expect(speech.errorCode.value).toBe('end-without-result')
+    expect(speech.isRecording.value).toBe(false)
+  })
+
+  it('times out when no effective recognition event arrives after onstart', async () => {
+    const speech = useSpeechToText()
+
+    await speech.start()
+    recognitionInstance.onstart()
+    await vi.advanceTimersByTimeAsync(5999)
+
+    expect(speech.errorCode.value).toBe('')
+    expect(speech.isRecording.value).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(speech.errorCode.value).toBe('start-timeout')
+    expect(speech.capabilityStatus.value).toBe('temporarily-unavailable')
+    expect(speech.isRecording.value).toBe(false)
+  })
+
+  it('treats service-not-allowed as a temporary browser service failure', async () => {
+    const speech = useSpeechToText()
+
+    await speech.start()
+    recognitionInstance.onstart()
+    recognitionInstance.onerror({ error: 'service-not-allowed' })
+
+    expect(speech.errorCode.value).toBe('service-not-allowed')
+    expect(speech.capabilityStatus.value).toBe('temporarily-unavailable')
+    expect(speech.error.value).toBe('当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。')
+  })
+
+  it('treats an empty recognition end as a temporary browser service failure', async () => {
+    const speech = useSpeechToText()
+
+    await speech.start()
+    recognitionInstance.onstart()
+    recognitionInstance.onend()
+
+    expect(speech.errorCode.value).toBe('end-without-result')
+    expect(speech.capabilityStatus.value).toBe('temporarily-unavailable')
+    expect(speech.isRecording.value).toBe(false)
+  })
+
+  it('exposes a guarded local language pack install entry when downloadable', async () => {
+    window.SpeechRecognition.available = vi.fn(() => Promise.resolve('downloadable'))
+    window.SpeechRecognition.install = vi.fn(() => Promise.resolve(true))
+    const speech = useSpeechToText()
+
+    await speech.start()
+    recognitionInstance.onstart()
+
+    expect(speech.capabilityStatus.value).toBe('local-downloadable')
+    expect(speech.localSpeechInstallAvailable.value).toBe(true)
+    expect(recognitionInstance.processLocally).not.toBe(true)
+
+    await expect(speech.installLocalSpeech()).resolves.toBe(true)
+    expect(window.SpeechRecognition.install).toHaveBeenCalledWith({ langs: ['zh-CN'] })
   })
 })

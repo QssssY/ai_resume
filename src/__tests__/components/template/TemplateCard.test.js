@@ -57,6 +57,19 @@ describe('TemplateCard', () => {
     expect(editorSource).toContain('TemplateRenderer')
   })
 
+  it('prefetches the template editor chunk and selected template assets before navigation', () => {
+    const librarySource = sourceFile('src/views/template/TemplateLibraryView.vue')
+    const routeLoaderSource = sourceFile('src/router/routeLoaders.js')
+
+    expect(librarySource).toContain("import { prefetchTemplateEditorRoute } from '@/router/routeLoaders'")
+    expect(librarySource).toContain('async function useTemplate(templateId)')
+    expect(librarySource).toContain('await prefetchTemplateEditorRoute(templateId)')
+    expect(librarySource).toContain('router.push(`/templates/editor/${templateId}`)')
+    expect(routeLoaderSource).toContain('export function prefetchTemplateEditorRoute(templateId)')
+    expect(routeLoaderSource).toContain("import(`@/data/contents/${templateId}.js`)")
+    expect(routeLoaderSource).toContain("import(`@/data/styles/${templateId}.css?raw`)")
+  })
+
   it('keeps thumbnail content visible instead of relying on skipped card rendering', () => {
     const cardSource = sourceFile('src/components/template/TemplateCard.vue')
 

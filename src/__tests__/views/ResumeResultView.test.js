@@ -1,10 +1,10 @@
 import { flushPromises, shallowMount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { reactive } from 'vue'
 import ResumeResultView from '@/views/resume/ResultView.vue'
-import { getResumeTask, retryResumeTask } from '@/api/resume'
+import { getResumeTask, getResumeTaskStatus, retryResumeTask } from '@/api/resume'
 
 const push = vi.fn()
 const replace = vi.fn(async (path) => {
@@ -64,6 +64,7 @@ vi.mock('@/api/resume', () => ({
   analyzeResumeJobMatch: vi.fn(),
   analyzeResumePolish: vi.fn(),
   getResumeTask: vi.fn(),
+  getResumeTaskStatus: vi.fn(),
   retryResumeTask: vi.fn(),
   savePolishDocument: vi.fn(),
 }))
@@ -84,20 +85,26 @@ vi.mock('html2canvas', () => ({
   })),
 }))
 
-const mountView = () => shallowMount(ResumeResultView, {
-  global: {
-    stubs: {
-      AiLoadingState: true,
-      OverallEvaluation: true,
-      HighlightsSection: true,
-      SkillsSection: true,
-      WorkExperienceSection: true,
-      RadarChart: true,
-      RadarScorePanel: true,
-      ResumeTemplate: true,
+const mountedWrappers = []
+
+const mountView = () => {
+  const wrapper = shallowMount(ResumeResultView, {
+    global: {
+      stubs: {
+        AiLoadingState: true,
+        OverallEvaluation: true,
+        HighlightsSection: true,
+        SkillsSection: true,
+        WorkExperienceSection: true,
+        RadarChart: true,
+        RadarScorePanel: true,
+        ResumeTemplate: true,
+      },
     },
-  },
-})
+  })
+  mountedWrappers.push(wrapper)
+  return wrapper
+}
 
 const viewSource = () =>
   readFileSync(resolve(process.cwd(), 'src/views/resume/ResultView.vue'), 'utf8')
@@ -108,8 +115,13 @@ describe('ResumeResultView', () => {
     routeState.params.taskId = 'failed-task'
   })
 
+  afterEach(() => {
+    mountedWrappers.splice(0).forEach((wrapper) => wrapper.unmount())
+    vi.useRealTimers()
+  })
+
   it('refetches task detail after retry navigates to the new task id', async () => {
-    getResumeTask
+    getResumeTaskStatus
       .mockResolvedValueOnce({
         data: {
           taskId: 'failed-task',
@@ -128,7 +140,7 @@ describe('ResumeResultView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(getResumeTask).toHaveBeenNthCalledWith(1, 'failed-task')
+    expect(getResumeTaskStatus).toHaveBeenNthCalledWith(1, 'failed-task')
     expect(wrapper.vm.task.taskId).toBe('failed-task')
 
     await wrapper.vm.handleRetry()
@@ -137,11 +149,18 @@ describe('ResumeResultView', () => {
 
     expect(retryResumeTask).toHaveBeenCalledWith('failed-task')
     expect(replace).toHaveBeenCalledWith('/resume/result/new-task')
-    expect(getResumeTask).toHaveBeenNthCalledWith(2, 'new-task')
+    expect(getResumeTaskStatus).toHaveBeenNthCalledWith(2, 'new-task')
     expect(wrapper.vm.task.taskId).toBe('new-task')
+    expect(getResumeTask).not.toHaveBeenCalled()
   })
 
   it('revokes image object URL when download click throws', async () => {
+    getResumeTaskStatus.mockResolvedValue({
+      data: {
+        taskId: 'completed-task',
+        status: 2,
+      },
+    })
     getResumeTask.mockResolvedValue({
       data: {
         taskId: 'completed-task',
@@ -180,6 +199,12 @@ describe('ResumeResultView', () => {
   })
 
   it('renders the polish template when saved document data exists without original polished text', async () => {
+    getResumeTaskStatus.mockResolvedValue({
+      data: {
+        taskId: 'completed-task',
+        status: 2,
+      },
+    })
     getResumeTask.mockResolvedValue({
       data: {
         taskId: 'completed-task',
@@ -203,6 +228,58 @@ describe('ResumeResultView', () => {
     expect(wrapper.find('.polish-preview-shell').exists()).toBe(true)
   })
 
+  it('polls lightweight status while waiting and loads full detail only after completion', async () => {
+    vi.useFakeTimers()
+    routeState.params.taskId = 'pending-task'
+    getResumeTaskStatus
+      .mockResolvedValueOnce({
+        data: {
+          taskId: 'pending-task',
+          status: 0,
+          statusDesc: '排队中',
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          taskId: 'pending-task',
+          status: 1,
+          stage: 'ai_analyzing',
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          taskId: 'pending-task',
+          status: 2,
+        },
+      })
+    getResumeTask.mockResolvedValue({
+      data: {
+        taskId: 'pending-task',
+        status: 2,
+        diagnosisResult: '{"overallEvaluation":{"totalScore":82}}',
+      },
+    })
+
+    mountView()
+    await flushPromises()
+
+    expect(getResumeTaskStatus).toHaveBeenCalledTimes(1)
+    expect(getResumeTask).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(getResumeTaskStatus).toHaveBeenCalledTimes(2)
+    expect(getResumeTask).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(2000)
+    await flushPromises()
+    expect(getResumeTaskStatus).toHaveBeenCalledTimes(3)
+    expect(getResumeTask).toHaveBeenCalledTimes(1)
+    expect(getResumeTask).toHaveBeenCalledWith('pending-task')
+
+    vi.useRealTimers()
+  })
+
   it('does not statically import export helpers into the initial result page chunk', () => {
     const source = viewSource()
 
@@ -210,5 +287,13 @@ describe('ResumeResultView', () => {
     expect(source).not.toContain("import { exportResumeToDocx } from '@/utils/resumeDocxExport'")
     expect(source).toContain("await import('@/utils/resumePdfPagination')")
     expect(source).toContain("await import('@/utils/resumeDocxExport')")
+  })
+
+  it('does not infer education score from total score when education dimension is missing', () => {
+    const source = viewSource()
+
+    expect(source).not.toContain('computeEducationFallback')
+    expect(source).toContain('return parsedDiagnosisResult.value?.educationEvaluation?.score || 0')
+    expect(source).toContain('education: result.educationEvaluation?.score || 0')
   })
 })

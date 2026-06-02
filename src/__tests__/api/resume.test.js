@@ -5,7 +5,12 @@ vi.mock('@/utils/request', () => ({
 }))
 
 import request from '@/utils/request'
-import { analyzeResumeJobMatch, analyzeResumePolish, uploadResume } from '@/api/resume'
+import {
+  analyzeResumeJobMatch,
+  analyzeResumePolish,
+  getResumeTaskStatus,
+  uploadResume
+} from '@/api/resume'
 
 describe('resume API fallbackToPlatform', () => {
   beforeEach(() => {
@@ -34,6 +39,15 @@ describe('resume API fallbackToPlatform', () => {
       method: 'post',
       data: expect.objectContaining({ fallbackToPlatform: true }),
       skipDefaultErrorHandler: true
+    }))
+  })
+
+  it('should request the lightweight resume task status endpoint', async () => {
+    await getResumeTaskStatus('task-1')
+
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({
+      url: '/api/resume/task/task-1/status',
+      method: 'get'
     }))
   })
 })

@@ -545,7 +545,7 @@ import {
   DIFFICULTY_KEY_MAP,
 } from "@/constants/interview";
 import { ElMessage } from "element-plus";
-import { getInterviewSession } from "@/api/interview";
+import { getInterviewSession, getInterviewSessionStatus } from "@/api/interview";
 import RadarChart from "@/components/resume/RadarChart.vue";
 import RadarScorePanel from "@/components/resume/RadarScorePanel.vue";
 import AiLoadingState from "@/components/common/AiLoadingState.vue";
@@ -889,7 +889,7 @@ const fetchSessionDetail = async (options = {}) => {
       error.value = "会话 ID 不存在";
     }
     loading.value = false;
-    return;
+    return false;
   }
 
   if (showLoading) loading.value = true;
@@ -897,10 +897,12 @@ const fetchSessionDetail = async (options = {}) => {
   try {
     const res = await getInterviewSession(sessionId.value);
     sessionData.value = res.data;
+    return true;
   } catch (err) {
     if (!silentError) {
       error.value = err.message || "获取评估报告失败，请稍后重试";
     }
+    return false;
   } finally {
     if (showLoading) loading.value = false;
   }
@@ -914,11 +916,24 @@ const startReportPolling = () => {
     if (refreshingReport.value) return;
     refreshingReport.value = true;
     try {
-      await fetchSessionDetail({ showLoading: false, silentError: true });
+      const res = await getInterviewSessionStatus(sessionId.value);
+      const statusData = res.data || {};
+      sessionData.value = {
+        ...(sessionData.value || {}),
+        status: statusData.status ?? sessionData.value?.status,
+        statusDesc: statusData.statusDesc || sessionData.value?.statusDesc,
+        comprehensiveScore: statusData.comprehensiveScore ?? sessionData.value?.comprehensiveScore,
+        openingPending: Boolean(statusData.openingPending),
+        updateTime: statusData.updateTime || sessionData.value?.updateTime,
+      };
       reportPollRounds.value += 1;
-      if (hasReport.value) {
-        stopReportPolling();
-        ElMessage.success("评估报告已生成");
+      if (statusData.reportReady) {
+        const detailLoaded = await fetchSessionDetail({ showLoading: false, silentError: true });
+        // 只有完整报告详情成功回填后才停止轮询；轻量状态先到但详情请求短暂失败时继续等待下一轮。
+        if (detailLoaded && hasReport.value) {
+          stopReportPolling();
+          ElMessage.success("评估报告已生成");
+        }
         return;
       }
       if (reportPollRounds.value >= REPORT_POLL_MAX_ROUNDS) {
@@ -929,7 +944,6 @@ const startReportPolling = () => {
     }
   }, REPORT_POLL_INTERVAL_MS);
 };
-
 const stopReportPolling = () => {
   if (reportPollingTimer) {
     clearInterval(reportPollingTimer);

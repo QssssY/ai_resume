@@ -7,7 +7,7 @@
 
     <div class="ready-bar">
       <div class="ready-icon">
-        <FeatureIcon name="interview-start" size="sm" />
+        <FeatureIcon name="microphone-on" size="md" />
       </div>
       <span class="ready-text">普通模拟面试可直接开始，开启岗位定向后会额外结合 JD 要求提问</span>
     </div>
@@ -265,6 +265,7 @@ import { useUserStore } from "@/stores/user";
 import { createInterviewSession, getInterviewJobRoles } from "@/api/interview";
 import { getResumeTask } from "@/api/resume";
 import FeatureIcon from "@/components/common/FeatureIcon.vue";
+import { prefetchInterviewSessionRoute } from "@/router/routeLoaders";
 import {
   FEEDBACK_MODE_OPTIONS,
   INTERACTION_MODE_OPTIONS,
@@ -537,12 +538,19 @@ const handleStart = async () => {
   }
 
   creating.value = true;
+  const sessionRoutePrefetchPromise = prefetchInterviewSessionRoute()?.catch((error) => {
+    console.debug("面试会话页预取失败", error);
+  });
   try {
     const res = await createInterviewSession(buildCreatePayload());
     const data = res?.data || res || {};
     const sessionId = data.sessionId || data.id;
     if (!sessionId) {
       throw new Error("创建会话失败，未获取到会话 ID");
+    }
+    // 等接口返回时已经并行拉取页面 chunk，这里只等待剩余部分，避免跳转后白屏。
+    if (sessionRoutePrefetchPromise) {
+      await sessionRoutePrefetchPromise;
     }
     router.push(`/interview/session/${sessionId}`);
   } catch (err) {
@@ -595,25 +603,34 @@ onMounted(async () => {
 }
 
 .ready-bar {
+  --interview-ready-bg: linear-gradient(135deg, #fffaf6 0%, #fff6ee 100%);
+  --interview-ready-border: rgba(255, 194, 153, 0.38);
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, var(--bg-page) 100%);
-  border: 1px solid var(--orange-border);
+  padding: 14px 20px;
+  background: var(--interview-ready-bg);
+  border: 1px solid var(--interview-ready-border);
   border-radius: 10px;
   margin-bottom: 24px;
+  box-shadow: 0 8px 24px rgba(132, 75, 32, 0.045);
 }
 
 .ready-icon {
-  width: 36px;
-  height: 36px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background-color: var(--orange-main);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 52px;
+  background: linear-gradient(135deg, var(--orange-main) 0%, var(--orange-deep) 100%);
   color: var(--bg-card);
+  box-shadow: 0 8px 18px rgba(255, 140, 66, 0.18);
+}
+
+.ready-icon :deep(.feature-icon) {
+  margin: auto;
 }
 
 .ready-text {
@@ -1111,6 +1128,12 @@ onMounted(async () => {
 /* ===== 暗色模式适配 ===== */
 [data-theme="dark"] .job-target-card {
   background: var(--bg-elevated);
+}
+
+[data-theme="dark"] .ready-bar {
+  --interview-ready-bg: linear-gradient(135deg, rgba(255, 176, 122, 0.11) 0%, rgba(255, 140, 66, 0.07) 100%);
+  --interview-ready-border: rgba(255, 176, 122, 0.2);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
 [data-theme="dark"] .job-target-body {

@@ -598,7 +598,14 @@
 <script setup>
 import { ref, computed, nextTick, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
-import { analyzeResumeJobMatch, analyzeResumePolish, getResumeTask, retryResumeTask, savePolishDocument } from '@/api/resume'
+import {
+  analyzeResumeJobMatch,
+  analyzeResumePolish,
+  getResumeTask,
+  getResumeTaskStatus,
+  retryResumeTask,
+  savePolishDocument
+} from '@/api/resume'
 import { completeOnboardingTask } from '@/api/onboarding'
 import { useUserStore } from '@/stores/user'
 import { NButton, NInput, useMessage } from 'naive-ui'
@@ -808,8 +815,7 @@ const projectScore = computed(() => {
 })
 
 const educationScore = computed(() => {
-  const result = parsedDiagnosisResult.value
-  return result?.educationEvaluation?.score || computeEducationFallback(result) || 0
+  return parsedDiagnosisResult.value?.educationEvaluation?.score || 0
 })
 
 const positioningScore = computed(() => {
@@ -868,24 +874,10 @@ const radarScores = computed(() => {
     skill: result.skillEvaluation?.score || 0,
     work: result.workExperienceEvaluation?.score || 0,
     project: result.projectExperienceEvaluation?.score || 0,
-    education: result.educationEvaluation?.score || computeEducationFallback(result),
+    education: result.educationEvaluation?.score || 0,
     positioning: result.positioningEvaluation?.score || 0,
   }
 })
-
-// 教育评分兜底：当AI未返回educationEvaluation时，按权重反推
-const computeEducationFallback = (result) => {
-  if (!result) return 0
-  const totalScore = result.overallEvaluation?.totalScore || 0
-  const basic = result.basicInfoEvaluation?.score || 0
-  const skill = result.skillEvaluation?.score || 0
-  const work = result.workExperienceEvaluation?.score || 0
-  const project = result.projectExperienceEvaluation?.score || 0
-  const positioning = result.positioningEvaluation?.score || 0
-  const weightedSum = basic * 0.05 + skill * 0.23 + work * 0.30 + project * 0.27 + positioning * 0.05
-  const eduScore = Math.round((totalScore - weightedSum) / 0.10)
-  return Math.max(0, Math.min(100, eduScore))
-}
 
 // 雷达图得分明细：直接使用 AI 返回的 strengths（加分项）和 weaknesses（扣分项）
 const radarKeys = ['work', 'project', 'skill', 'education', 'positioning', 'basicInfo']
@@ -967,6 +959,35 @@ const formatRawResult = (result) => {
   }
 }
 
+const handleTaskCompleted = async (previousStatus) => {
+  if (task.value?.status === 2 && previousStatus !== 2 && !hasRefreshedUserInfo.value) {
+    hasRefreshedUserInfo.value = true
+    await userStore.fetchUserInfo()
+    message.success('简历诊断已完成')
+    // 诊断完成后静默上报新手任务，失败不影响结果页展示。
+    completeOnboardingTask('report_viewed').catch(() => {})
+  }
+}
+
+const applyTaskDetail = async (taskDetail) => {
+  const previousStatus = task.value?.status
+  task.value = taskDetail
+
+  if (task.value?.latestJobMatchAnalysis) {
+    jobMatchResult.value = task.value.latestJobMatchAnalysis
+  }
+  if (task.value?.latestPolishResult) {
+    polishResult.value = task.value.latestPolishResult
+  }
+
+  await handleTaskCompleted(previousStatus)
+}
+
+const loadTaskDetail = async () => {
+  const res = await getResumeTask(taskId.value)
+  await applyTaskDetail(res.data)
+}
+
 const fetchTaskDetail = async (options = {}) => {
   const { silent = false } = options
   if (!taskId.value) {
@@ -976,7 +997,7 @@ const fetchTaskDetail = async (options = {}) => {
     return
   }
 
-  // 轮询和手动刷新共用一个请求锁，避免慢接口叠加触发多次详情查询。
+  // 轮询和手动刷新共用一个请求锁，避免慢接口叠加触发多次查询。
   if (pollRequestInFlight.value) {
     return
   }
@@ -988,26 +1009,58 @@ const fetchTaskDetail = async (options = {}) => {
   error.value = ''
 
   try {
-    const res = await getResumeTask(taskId.value)
-    const previousStatus = task.value?.status
-    task.value = res.data
-
-    if (task.value?.latestJobMatchAnalysis) {
-      jobMatchResult.value = task.value.latestJobMatchAnalysis
-    }
-    if (task.value?.latestPolishResult) {
-      polishResult.value = task.value.latestPolishResult
-    }
-
-    if (task.value?.status === 2 && previousStatus !== 2 && !hasRefreshedUserInfo.value) {
-      hasRefreshedUserInfo.value = true
-      await userStore.fetchUserInfo()
-      message.success('简历诊断已完成')
-      // 静默上报新手任务完成
-      completeOnboardingTask('report_viewed').catch(() => {})
-    }
+    await loadTaskDetail()
   } catch (err) {
     error.value = err.message || '获取任务详情失败，请稍后重试'
+  } finally {
+    loading.value = false
+    refreshing.value = false
+    pollRequestInFlight.value = false
+  }
+}
+
+const applyTaskStatus = async (taskStatus) => {
+  const previousStatus = task.value?.status
+  // 轻量状态只覆盖状态字段，保留完成后详情里已有的诊断结果、润色结果等展示数据。
+  task.value = {
+    ...(task.value || {}),
+    ...taskStatus
+  }
+  await handleTaskCompleted(previousStatus)
+}
+
+const loadTaskStatus = async (options = {}) => {
+  const { loadCompletedDetail = true } = options
+  const res = await getResumeTaskStatus(taskId.value)
+  await applyTaskStatus(res.data)
+  if (task.value?.status === 2 && loadCompletedDetail) {
+    await loadTaskDetail()
+  }
+}
+
+const fetchTaskStatus = async (options = {}) => {
+  const { silent = false } = options
+  if (!taskId.value) {
+    error.value = '任务ID不存在'
+    loading.value = false
+    refreshing.value = false
+    return
+  }
+
+  if (pollRequestInFlight.value) {
+    return
+  }
+
+  if (!loading.value && !silent) {
+    refreshing.value = true
+  }
+  pollRequestInFlight.value = true
+  error.value = ''
+
+  try {
+    await loadTaskStatus(options)
+  } catch (err) {
+    error.value = err.message || '获取任务状态失败，请稍后重试'
   } finally {
     loading.value = false
     refreshing.value = false
@@ -1035,7 +1088,7 @@ const startPolling = () => {
 
     const nextInterval = isPending.value ? PENDING_POLL_INTERVAL : PROCESSING_POLL_INTERVAL
     pollTimer.value = setTimeout(async () => {
-      await fetchTaskDetail({ silent: true })
+      await fetchTaskStatus({ silent: true })
       scheduleNextPoll()
     }, nextInterval)
   }
@@ -1289,7 +1342,7 @@ watch(taskId, (newTaskId, oldTaskId) => {
     return
   }
   resetTaskScopedState()
-  fetchTaskDetail({ silent: true })
+  fetchTaskStatus({ silent: true })
 }, { immediate: true })
 
 const handleSaveDocument = async () => {

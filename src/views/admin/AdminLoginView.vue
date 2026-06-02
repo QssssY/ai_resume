@@ -68,6 +68,7 @@ import { Right } from '@element-plus/icons-vue'
 import logoUrl from '@/assets/logo.png'
 import { useAdminUserStore } from '@/stores/adminUser'
 import { showAdminError, showAdminSuccess } from '@/utils/adminFeedback'
+import { prefetchAdminShellRoute } from '@/router/routeLoaders'
 
 const route = useRoute()
 const router = useRouter()
@@ -102,6 +103,9 @@ const handleLogin = async () => {
       && !route.query.redirect.startsWith('//')
       ? route.query.redirect
       : '/admin/dashboard'
+    await prefetchAdminShellRoute().catch((prefetchError) => {
+      console.debug('管理端首屏预取失败', prefetchError)
+    })
     router.push(redirect)
   } catch (error) {
     showAdminError(error?.message || '管理端登录失败')

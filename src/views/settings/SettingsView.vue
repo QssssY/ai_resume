@@ -311,6 +311,20 @@
                   @update:value="handleInterviewPreferenceSave"
                 />
               </div>
+              <div v-if="localSpeechInstallAvailable" class="preference-row stacked">
+                <div>
+                  <strong>浏览器本地语音包</strong>
+                  <span>安装本地语音识别模型可提升语音面试的识别稳定性，减少对网络服务的依赖。</span>
+                </div>
+                <n-button
+                  secondary
+                  class="preference-action"
+                  :loading="localSpeechInstalling"
+                  @click="handleInstallLocalSpeech"
+                >
+                  {{ localSpeechInstalling ? '安装中...' : '安装语音包' }}
+                </n-button>
+              </div>
               <div class="preference-row stacked">
                 <div>
                   <strong>重置语音偏好</strong>
@@ -697,7 +711,7 @@
                 :disabled="growthOverviewLoading"
                 @click="fetchGrowthOverview"
               >
-              <FeatureIcon name="growth-radar" size="md" class="settings-refresh-icon" />
+              <FeatureIcon name="retry" size="md" class="settings-refresh-icon" />
               </n-button>
               </template>
               刷新数据
@@ -1075,6 +1089,11 @@ import {
 import { getUserSettings, saveUserSettings } from '@/api/userSettings'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
 import { useTextToSpeech } from '@/composables/useTextToSpeech'
+import {
+  detectSpeechRecognitionCapability,
+  installLocalSpeechRecognition,
+  SPEECH_RECOGNITION_CAPABILITY_STATUS
+} from '@/utils/speechRecognitionCapability'
 import { FEEDBACK_MODE_OPTIONS, INTERACTION_MODE_OPTIONS, INTERVIEW_MODE_OPTIONS } from '@/constants/interview'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
@@ -1220,6 +1239,8 @@ const accountDeleteConfirmDialogVisible = ref(false)
 const notificationForm = ref(getSettingsPreferences())
 const interviewPreferenceForm = ref(getSettingsPreferences())
 const previewTextToSpeech = useTextToSpeech()
+const localSpeechInstallAvailable = ref(false)
+const localSpeechInstalling = ref(false)
 const userAiConfigs = ref([])
 const userAiConfigLoading = ref(false)
 const userAiConfigSaving = ref(false)
@@ -2013,6 +2034,22 @@ const handleVoicePreferenceReset = () => {
   ElMessage.success('语音偏好已恢复默认')
 }
 
+const handleInstallLocalSpeech = async () => {
+  localSpeechInstalling.value = true
+  try {
+    const installResult = await installLocalSpeechRecognition()
+    const installed = Boolean(installResult?.ok)
+    ElMessage[installed ? 'success' : 'warning'](
+      installed ? '浏览器本地语音包已安装' : '本地语音包暂时无法安装'
+    )
+    if (installed) localSpeechInstallAvailable.value = false
+  } catch {
+    ElMessage.warning('本地语音包安装失败')
+  } finally {
+    localSpeechInstalling.value = false
+  }
+}
+
 const handleDataManagementSettingsSave = async () => {
   const previousPreferences = getSettingsPreferences()
   userSettingsSaving.value = true
@@ -2112,8 +2149,16 @@ onMounted(async () => {
     getMembershipPlans().then((res) => {
       membershipPlans.value = Array.isArray(res?.data) ? res.data : []
     }).catch(() => {
-      // 套餐列表失败时不回退显示内部编码，只保留用户可理解的兜底文案。
       membershipPlans.value = []
+    })
+  )
+  tasks.push(
+    detectSpeechRecognitionCapability().then((capability) => {
+      // 语音能力检测返回结构化对象，入口只在浏览器明确可下载本地语言包时展示。
+      localSpeechInstallAvailable.value = capability?.status === SPEECH_RECOGNITION_CAPABILITY_STATUS.LOCAL_DOWNLOADABLE
+    }).catch(() => {
+      // 检测失败时保持入口关闭，避免把不可确认的本地包能力展示给用户。
+      localSpeechInstallAvailable.value = false
     })
   )
   await Promise.all(tasks)
@@ -3280,8 +3325,9 @@ onBeforeUnmount(() => {
   transition: transform 0.3s ease;
 }
 
+.cai-refresh-btn:hover svg,
 .cai-refresh-btn.spinning svg {
-  animation: cai-spin 0.8s linear infinite;
+  animation: cai-spin 0.75s linear infinite;
 }
 
 @keyframes cai-spin {
@@ -3443,12 +3489,9 @@ onBeforeUnmount(() => {
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.data-overview-refresh-btn:hover .settings-refresh-icon {
-  transform: rotate(60deg);
-}
-
+.data-overview-refresh-btn:hover .settings-refresh-icon,
 .data-overview-refresh-btn.is-refreshing .settings-refresh-icon {
-  animation: data-overview-spin 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  animation: data-overview-spin 0.75s linear infinite;
 }
 
 @keyframes data-overview-spin {
@@ -3567,6 +3610,21 @@ onBeforeUnmount(() => {
     flex: 0 0 auto;
     width: auto;
     white-space: nowrap;
+  }
+
+  .settings-nav-item::after {
+    right: auto;
+    left: 50%;
+    top: auto;
+    bottom: 4px;
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    transform: translateX(-50%) scaleX(0.6);
+  }
+
+  .settings-nav-item.active::after {
+    transform: translateX(-50%) scaleX(1);
   }
 
   .appearance-options {

@@ -80,10 +80,13 @@
         <div class="card-head">
           <div class="file-block">
             <div class="file-icon" :class="`file-icon--${item.status}`">
-              <FeatureIcon name="resume-analysis" size="xs" />
+              <FeatureIcon name="resume-analysis" size="lg" />
             </div>
             <div class="file-meta">
-              <span class="file-name" :title="getFileName(item)">{{ getFileName(item) }}</span>
+              <div class="file-name-row">
+                <span class="status-dot" :class="`status-dot--${item.status}`"></span>
+                <span class="file-name" :title="getFileName(item)">{{ getFileName(item) }}</span>
+              </div>
               <div class="file-badges">
                 <el-tag
                   :type="getStatusType(item.status)"
@@ -548,30 +551,23 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-/* 文件图标 - 按状态变色 */
+/* 文件图标 - 按状态变色，无背景 */
 .file-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   color: var(--orange-main);
-  background: var(--orange-light-bg);
 }
 .file-icon--0,
 .file-icon--1 {
   color: var(--orange-main);
-  background: var(--orange-light-bg);
 }
 .file-icon--2 {
   color: var(--color-success);
-  background: rgba(103, 194, 58, 0.08);
 }
 .file-icon--3 {
   color: var(--color-danger);
-  background: rgba(245, 108, 108, 0.08);
 }
 
 .file-meta {
@@ -579,6 +575,33 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+}
+
+/* 文件名行：圆点 + 文件名 */
+.file-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 状态小圆点 */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--orange-main);
+}
+.status-dot--0,
+.status-dot--1 {
+  background: var(--orange-main);
+}
+.status-dot--2 {
+  background: var(--color-success);
+}
+.status-dot--3 {
+  background: var(--color-danger);
 }
 
 .file-name {

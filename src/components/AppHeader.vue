@@ -233,7 +233,15 @@
 
         <!-- 设置中心齿轮按钮：桌面端保持独立入口，避免回退到头像下拉菜单中。 -->
         <el-tooltip content="设置中心" placement="bottom" :show-after="300">
-          <router-link to="/settings" class="header-icon-btn" :class="{ active: isSettingsActive }" aria-label="设置中心">
+          <router-link
+            to="/settings"
+            class="header-icon-btn"
+            :class="{ active: isSettingsActive }"
+            aria-label="设置中心"
+            @mouseenter="prefetchNavigationRoute('/settings')"
+            @focus="prefetchNavigationRoute('/settings')"
+            @touchstart.passive="prefetchNavigationRoute('/settings')"
+          >
             <FeatureIcon name="settings" size="sm" critical />
           </router-link>
         </el-tooltip>
@@ -263,7 +271,7 @@
           </div>
         </el-dialog>
 
-        <el-dropdown trigger="click" @command="handleCommand">
+        <el-dropdown trigger="click" @command="handleCommand" @visible-change="handleUserDropdownVisibleChange">
           <div class="avatar-wrapper avatar-sm">
             <div class="avatar-ring avatar-sm">
               <OptimizedImage :sources="optimizedImages.userAvatar" img-class="avatar-img avatar-sm" alt="用户头像" />
@@ -303,7 +311,12 @@
                 <FeatureIcon name="membership-center" size="xs" class="dropdown-icon feature-dropdown-icon" />
                 会员中心
               </el-dropdown-item>
-              <el-dropdown-item command="activity">
+              <el-dropdown-item
+                command="activity"
+                @mouseenter="prefetchNavigationRoute('/community/my')"
+                @focus="prefetchNavigationRoute('/community/my')"
+                @touchstart.passive="prefetchNavigationRoute('/community/my')"
+              >
                 <FeatureIcon name="community-activity" size="xs" class="dropdown-icon feature-dropdown-icon" />
                 个人动态中心
               </el-dropdown-item>
@@ -446,6 +459,8 @@
           v-if="isLoggedIn"
           to="/settings"
           class="mobile-nav-link"
+          @touchstart.passive="prefetchNavigationRoute('/settings')"
+          @focus="prefetchNavigationRoute('/settings')"
           @click="drawerVisible = false"
         >
           <FeatureIcon name="settings" size="sm" />
@@ -547,6 +562,12 @@ const prefetchNavigationRoute = (path) => {
   prefetchUserRoute(path)?.catch((error) => {
     console.debug("导航路由预取失败", path, error);
   });
+};
+
+const handleUserDropdownVisibleChange = (visible) => {
+  if (visible) {
+    prefetchNavigationRoute("/community/my");
+  }
 };
 
 // ===== 消息通知相关状态 =====

@@ -2,7 +2,13 @@
   <div class="community-page">
     <!-- 【页面标题横幅】带渐变背景的装饰性banner区域 -->
     <div class="page-banner">
-      <button class="my-activity-btn" @click="router.push('/community/my')">
+      <button
+        class="my-activity-btn"
+        @mouseenter="prefetchMyActivityRoute"
+        @focus="prefetchMyActivityRoute"
+        @touchstart.passive="prefetchMyActivityRoute"
+        @click="openMyActivity"
+      >
         <FeatureIcon name="community-activity" size="sm" />
         <span>个人动态中心</span>
         <span v-if="unreadCount > 0" class="activity-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
@@ -209,6 +215,7 @@ import { useUserStore } from '@/stores/user'
 import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import AdminUserBanDialog from '@/components/admin/AdminUserBanDialog.vue'
 import PostCard from '@/components/community/PostCard.vue'
+import { prefetchUserRoute } from '@/router/routeLoaders'
 import { normalizeAdminHideReason, validateAdminHideReason } from '@/utils/communityAdminHide'
 
 const PostEditor = defineAsyncComponent(() => import('@/components/community/PostEditor.vue'))
@@ -240,6 +247,22 @@ const banTargetName = computed(() => banTarget.value?.authorName || banTarget.va
 // 无限滚动相关
 const sentinelRef = ref(null)
 let observer = null
+
+const prefetchMyActivityRoute = () => {
+  prefetchUserRoute('/community/my')?.catch((error) => {
+    console.debug('[社区] 个人动态中心预取失败:', error)
+  })
+}
+
+const openMyActivity = async () => {
+  const prefetchPromise = prefetchUserRoute('/community/my')?.catch((error) => {
+    console.debug('[社区] 个人动态中心预取失败:', error)
+  })
+  if (prefetchPromise) {
+    await prefetchPromise
+  }
+  router.push('/community/my')
+}
 
 const fetchPosts = async (page = 1, append = false) => {
   if (page === 1) loading.value = true
@@ -472,13 +495,16 @@ onUnmounted(() => {
 
 /* 【标题横幅】渐变背景卡片，带装饰性浮动圆点 */
 .page-banner {
+  --community-banner-bg: linear-gradient(135deg, #fffaf6 0%, #fff6ee 100%);
+  --community-banner-border: rgba(255, 194, 153, 0.34);
   position: relative;
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, rgba(255, 215, 191, 0.3) 100%);
+  background: var(--community-banner-bg);
   border-radius: 16px;
   padding: 24px 28px;
   margin-bottom: 24px;
-  border: 1px solid var(--orange-border);
+  border: 1px solid var(--community-banner-border);
   overflow: hidden;
+  box-shadow: 0 10px 28px rgba(132, 75, 32, 0.045);
 }
 
 /* 【装饰性背景圆点】三个浮动半透明圆，营造空间层次 */
@@ -949,6 +975,12 @@ onUnmounted(() => {
 
 .fab-post:active {
   transform: translateY(-1px) scale(0.96);
+}
+
+:global(html[data-theme="dark"]) .page-banner {
+  --community-banner-bg: linear-gradient(135deg, rgba(255, 176, 122, 0.12) 0%, rgba(255, 140, 66, 0.07) 100%);
+  --community-banner-border: rgba(255, 176, 122, 0.2);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
 }
 
 /* 【刷新按钮】旋转动画 */

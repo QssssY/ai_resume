@@ -4,7 +4,7 @@
     <div class="page-header">
       <div class="header-left">
         <div class="header-icon">
-          <FeatureIcon name="growth-center" size="md" />
+          <FeatureIcon name="growth-center" size="lg" />
         </div>
         <div>
           <h1 class="page-title">个人成长中心</h1>
@@ -13,12 +13,11 @@
       </div>
       <el-button
         circle
-        size="small"
         :loading="loading"
         @click="fetchData"
         class="refresh-btn"
       >
-        <FeatureIcon v-if="!loading" name="retry" size="xs" />
+        <FeatureIcon v-if="!loading" name="retry" size="md" />
       </el-button>
     </div>
 
@@ -57,28 +56,28 @@
       <section class="summary-section">
         <div class="summary-card">
           <div class="summary-icon resume-icon">
-            <FeatureIcon name="resume-score" size="sm" />
+            <FeatureIcon name="resume-score" size="md" />
           </div>
           <div class="summary-value">{{ summary.latestResumeScore ?? '--' }}</div>
           <div class="summary-label">最近简历分</div>
         </div>
         <div class="summary-card">
           <div class="summary-icon interview-icon">
-            <FeatureIcon name="interview-report" size="sm" />
+            <FeatureIcon name="interview-report" size="md" />
           </div>
           <div class="summary-value">{{ summary.latestInterviewScore ?? '--' }}</div>
           <div class="summary-label">最近面试分</div>
         </div>
         <div class="summary-card">
           <div class="summary-icon count-icon">
-            <FeatureIcon name="resume-analysis" size="sm" />
+            <FeatureIcon name="resume-analysis" size="md" />
           </div>
           <div class="summary-value">{{ summary.resumeDiagnosisCount ?? 0 }}</div>
           <div class="summary-label">简历诊断次数</div>
         </div>
         <div class="summary-card">
           <div class="summary-icon count-icon">
-            <FeatureIcon name="mock-interview" size="sm" />
+            <FeatureIcon name="mock-interview" size="md" />
           </div>
           <div class="summary-value">{{ summary.mockInterviewCount ?? 0 }}</div>
           <div class="summary-label">模拟面试次数</div>
@@ -696,21 +695,22 @@ onMounted(() => {
 .summary-section {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 14px;
   margin-bottom: 24px;
 }
 
 .summary-card {
   background: var(--bg-card);
   border-radius: 16px;
-  padding: 20px 22px;
+  padding: 18px 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   box-shadow: 0 2px 12px rgba(255, 140, 66, 0.06);
   border: 1px solid rgba(243, 216, 199, 0.4);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-width: 0;
 }
 
 .summary-card:hover {
@@ -719,31 +719,20 @@ onMounted(() => {
 }
 
 .summary-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.summary-icon svg {
-  width: 22px;
-  height: 22px;
-}
-
 .resume-icon {
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, rgba(255, 140, 66, 0.08) 100%);
   color: var(--orange-deep);
 }
 
 .interview-icon {
-  background: linear-gradient(135deg, var(--orange-light-bg) 0%, rgba(255, 140, 66, 0.06) 100%);
   color: var(--orange-main);
 }
 
 .count-icon {
-  background: var(--icon-bg-success);
   color: var(--color-success);
 }
 
@@ -853,6 +842,11 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   min-height: 340px;
+}
+
+.chart-card :deep(.line-chart-wrapper) {
+  flex: 1;
+  min-height: 260px;
 }
 
 .chart-card :deep(.line-chart-wrapper) {
@@ -1168,11 +1162,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 360px;
+  min-height: 440px;
 }
 
 .radar-chart-col :deep(.radar-chart-wrapper) {
-  min-height: 320px;
+  flex: 1;
+  width: 100%;
+  min-height: 400px;
 }
 
 .radar-session-info {
@@ -1191,11 +1187,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 340px;
 }
 
 .radar-trend-card :deep(.line-chart-wrapper) {
-  min-height: 260px;
+  width: 100%;
+  min-height: 300px;
 }
 
 .sub-title {
@@ -1315,9 +1311,6 @@ onMounted(() => {
 
 /* 响应式 */
 @media (max-width: 1279px) {
-  .summary-section {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .details-section {
     grid-template-columns: 1fr;
   }
@@ -1343,14 +1336,14 @@ onMounted(() => {
 
 @media (max-width: 767px) {
   .summary-section {
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
   }
   .summary-card {
-    padding: 16px;
+    padding: 12px 8px;
   }
   .summary-value {
-    font-size: 24px;
+    font-size: 20px;
   }
   .page-title {
     font-size: 18px;

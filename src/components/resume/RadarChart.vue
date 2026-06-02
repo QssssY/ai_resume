@@ -69,7 +69,7 @@ const chartData = computed(() => ({
 // 图表配置
 const chartOptions = computed(() => ({
   responsive: true,
-  maintainAspectRatio: true,
+  maintainAspectRatio: false,
   plugins: {
     legend: { display: false },
     tooltip: {
@@ -105,7 +105,6 @@ const chartOptions = computed(() => ({
 
 <style scoped>
 .radar-chart-wrapper {
-  max-width: 400px;
-  margin: 0 auto;
+  width: 100%;
 }
 </style>

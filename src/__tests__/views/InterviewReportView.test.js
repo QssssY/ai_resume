@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ElementPlus from 'element-plus'
 import InterviewReportView from '@/views/interview/InterviewReportView.vue'
-import { getInterviewSession } from '@/api/interview'
+import { getInterviewSession, getInterviewSessionStatus } from '@/api/interview'
 
 const push = vi.fn()
 const elMessageSuccess = vi.hoisted(() => vi.fn())
@@ -34,6 +34,7 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/api/interview', () => ({
   getInterviewSession: vi.fn(),
+  getInterviewSessionStatus: vi.fn(),
 }))
 
 vi.mock('@/api/onboarding', () => ({
@@ -169,6 +170,7 @@ const viewSource = () =>
 
 afterEach(() => {
   vi.clearAllMocks()
+  vi.useRealTimers()
 })
 
 describe('InterviewReportView', () => {
@@ -188,6 +190,95 @@ describe('InterviewReportView', () => {
     expect(wrapper.text()).toContain('Frontend Engineer')
     expect(wrapper.text()).toContain(report.summary)
     expect(wrapper.findAll('.action-plan-item')).toHaveLength(3)
+  })
+
+  it('polls lightweight status before reloading full report details', async () => {
+    vi.useFakeTimers()
+    getInterviewSession
+      .mockResolvedValueOnce({ data: { ...session, evaluationReport: null, comprehensiveScore: null } })
+      .mockResolvedValueOnce({ data: session })
+    getInterviewSessionStatus.mockResolvedValueOnce({
+      data: {
+        sessionId: 'session-1',
+        status: 1,
+        openingPending: false,
+        reportReady: true,
+        comprehensiveScore: 86,
+      },
+    })
+
+    mount(InterviewReportView, {
+      global: {
+        plugins: [ElementPlus],
+        stubs: {
+          FeatureIcon: {
+            props: ['name'],
+            template: '<span class="feature-icon-stub">{{ name }}</span>',
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+
+    expect(getInterviewSessionStatus).toHaveBeenCalledWith('session-1')
+    expect(getInterviewSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps polling when report status is ready but full detail reload fails once', async () => {
+    vi.useFakeTimers()
+    getInterviewSession
+      .mockResolvedValueOnce({ data: { ...session, evaluationReport: null, comprehensiveScore: null } })
+      .mockRejectedValueOnce(new Error('temporary detail failure'))
+      .mockResolvedValueOnce({ data: session })
+    getInterviewSessionStatus
+      .mockResolvedValueOnce({
+        data: {
+          sessionId: 'session-1',
+          status: 1,
+          openingPending: false,
+          reportReady: true,
+          comprehensiveScore: 86,
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          sessionId: 'session-1',
+          status: 1,
+          openingPending: false,
+          reportReady: true,
+          comprehensiveScore: 86,
+        },
+      })
+
+    mount(InterviewReportView, {
+      global: {
+        plugins: [ElementPlus],
+        stubs: {
+          FeatureIcon: {
+            props: ['name'],
+            template: '<span class="feature-icon-stub">{{ name }}</span>',
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+
+    expect(getInterviewSessionStatus).toHaveBeenCalledTimes(1)
+    expect(getInterviewSession).toHaveBeenCalledTimes(2)
+    expect(elMessageSuccess).not.toHaveBeenCalledWith('评估报告已生成')
+
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+
+    expect(getInterviewSessionStatus).toHaveBeenCalledTimes(2)
+    expect(getInterviewSession).toHaveBeenCalledTimes(3)
+    expect(elMessageSuccess).toHaveBeenCalledWith('评估报告已生成')
   })
 
   it('keeps existing report actions reachable', async () => {

@@ -20,6 +20,7 @@ describe('useVoiceCall', () => {
       error: ref(''),
       errorCode: ref(''),
       engineStatus: ref('browser-service'),
+      startConfirmed: ref(true),
       start: vi.fn(() => {
         speech.isRecording.value = true
       }),
@@ -225,7 +226,7 @@ describe('useVoiceCall', () => {
     expect(call.pendingMessage.value).toBe('我负责订单模块')
   })
 
-  it('falls back to manual resume after repeated recoverable speech interruptions', async () => {
+  it('enters text fallback after repeated recoverable speech interruptions', async () => {
     const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
     call.startVoiceCall()
     speech.finalTranscript.value = '我负责订单模块'
@@ -250,11 +251,12 @@ describe('useVoiceCall', () => {
     await vi.advanceTimersByTimeAsync(1000)
 
     expect(speech.start).toHaveBeenCalledTimes(3)
-    expect(call.isManualResumePending.value).toBe(true)
+    expect(call.isManualResumePending.value).toBe(false)
+    expect(call.isTextFallbackMode.value).toBe(true)
     expect(call.pendingMessage.value).toBe('我负责订单模块')
   })
 
-  it('ends voice mode when speech recognition reports a fatal error', async () => {
+  it('keeps voice mode and switches to text fallback when microphone permission is blocked', async () => {
     const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
     call.startVoiceCall()
 
@@ -263,9 +265,124 @@ describe('useVoiceCall', () => {
     await nextTick()
 
     expect(call.error.value).toBe('麦克风权限被拒绝，已降级为手动输入')
-    expect(call.isVoiceMode.value).toBe(false)
-    expect(textToSpeech.stop).toHaveBeenCalled()
-    expect(speech.cancel).toHaveBeenCalled()
+    expect(call.isVoiceMode.value).toBe(true)
+    expect(call.isTextFallbackMode.value).toBe(true)
+    expect(textToSpeech.stop).not.toHaveBeenCalled()
+    expect(speech.cancel).not.toHaveBeenCalled()
+  })
+
+  it('enters text fallback immediately for temporary browser service failures and retries in the background', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+    speech.finalTranscript.value = '我负责订单模块'
+    await nextTick()
+
+    speech.isRecording.value = false
+    speech.errorCode.value = 'network'
+    speech.error.value = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
+    await nextTick()
+
+    expect(call.isVoiceMode.value).toBe(true)
+    expect(call.isTextFallbackMode.value).toBe(true)
+    expect(call.pendingMessage.value).toBe('我负责订单模块')
+    expect(speech.cancel).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(14999)
+    expect(speech.start).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(speech.start).toHaveBeenCalledTimes(2)
+    expect(call.isTextFallbackMode.value).toBe(false)
+  })
+
+  it('manual speech retry triggers one immediate recovery probe from text fallback', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+    speech.isRecording.value = false
+    speech.errorCode.value = 'service-not-allowed'
+    speech.error.value = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
+    await nextTick()
+    speech.start.mockClear()
+
+    expect(await call.retrySpeechNow()).toBe(true)
+
+    expect(speech.start).toHaveBeenCalledTimes(1)
+    expect(call.isTextFallbackMode.value).toBe(false)
+  })
+
+  it('keeps text fallback when recovery probe reports unhealthy even if recording starts', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+    speech.isRecording.value = false
+    speech.errorCode.value = 'start-timeout'
+    speech.error.value = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
+    await nextTick()
+    speech.start.mockImplementation(() => {
+      speech.isRecording.value = true
+      return Promise.resolve({ ok: false, code: 'start-timeout' })
+    })
+    speech.start.mockClear()
+
+    await expect(call.retrySpeechNow()).resolves.toBe(false)
+
+    expect(speech.start).toHaveBeenCalledWith({ waitForHealthyStart: true })
+    expect(call.isTextFallbackMode.value).toBe(true)
+  })
+
+  it('leaves text fallback only after a healthy recovery probe succeeds', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+    speech.isRecording.value = false
+    speech.errorCode.value = 'service-not-allowed'
+    speech.error.value = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
+    await nextTick()
+    speech.start.mockImplementation(() => {
+      speech.isRecording.value = true
+      return Promise.resolve({ ok: true, code: '' })
+    })
+    speech.start.mockClear()
+
+    await expect(call.retrySpeechNow()).resolves.toBe(true)
+
+    expect(speech.start).toHaveBeenCalledWith({ waitForHealthyStart: true })
+    expect(call.isTextFallbackMode.value).toBe(false)
+  })
+
+  it('does not leave text fallback merely because startup confirmation flips after a failed probe', async () => {
+    speech.startConfirmed.value = false
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+    speech.isRecording.value = false
+    speech.errorCode.value = 'start-timeout'
+    speech.error.value = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
+    await nextTick()
+    speech.start.mockImplementation(() => {
+      speech.isRecording.value = true
+      speech.startConfirmed.value = true
+      return Promise.resolve({ ok: false, code: 'start-timeout' })
+    })
+    speech.start.mockClear()
+
+    await expect(call.retrySpeechNow()).resolves.toBe(false)
+
+    expect(speech.start).toHaveBeenCalledTimes(1)
+    expect(call.isTextFallbackMode.value).toBe(true)
+  })
+
+  it('does not probe speech recovery while AI audio is speaking', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+    call.startVoiceCall()
+    speech.isRecording.value = false
+    speech.errorCode.value = 'network'
+    speech.error.value = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
+    await nextTick()
+
+    textToSpeech.isSpeaking.value = true
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(15000)
+
+    expect(speech.start).toHaveBeenCalledTimes(1)
+    expect(call.isTextFallbackMode.value).toBe(true)
   })
 
   it('pauses recognition while muted and resumes after unmute', () => {

@@ -1,10 +1,20 @@
 import { onUnmounted, ref } from 'vue'
+import {
+  detectSpeechRecognitionCapability,
+  getSpeechRecognitionConstructor,
+  installLocalSpeechRecognition,
+  SPEECH_RECOGNITION_CAPABILITY_STATUS,
+} from '@/utils/speechRecognitionCapability'
 
 const VOICE_ACTIVITY_THRESHOLD = 0.018
 const VOICE_ACTIVITY_INTERVAL_MS = 120
 const NO_TRANSCRIPT_TIMEOUT_MS = 6000
+const START_HEALTH_TIMEOUT_MS = 2000
+const HEALTHY_START_OBSERVATION_MS = 1000
+const FIRST_EFFECTIVE_EVENT_TIMEOUT_MS = 6000
 const UNSUPPORTED_RECOGNITION_ERROR_MESSAGE = '当前浏览器不支持语音识别，已降级为手动输入'
 const NETWORK_RECOGNITION_ERROR_MESSAGE = '当前浏览器语音识别服务不可用，已降级为手动输入'
+const TEMPORARILY_UNAVAILABLE_ERROR_MESSAGE = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
 const MICROPHONE_PERMISSION_ERROR_MESSAGE = '麦克风权限被拒绝，已降级为手动输入'
 const AUDIO_CAPTURE_ERROR_MESSAGE = '未检测到可用麦克风，已降级为手动输入'
 const START_RECOGNITION_ERROR_MESSAGE = '启动语音识别失败，已降级为手动输入'
@@ -13,7 +23,7 @@ const NO_TRANSCRIPT_ERROR_MESSAGE = '检测到麦克风输入，但浏览器未�
 const RECOGNITION_ENDED_WITHOUT_RESULT_MESSAGE = '语音识别已结束但未返回文字，已降级为手动输入。错误码：end-without-result'
 
 export function useSpeechToText() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  const SpeechRecognition = getSpeechRecognitionConstructor()
   const hasBrowserRecognition = () => Boolean(SpeechRecognition)
 
   const isSupported = ref(hasBrowserRecognition())
@@ -26,6 +36,14 @@ export function useSpeechToText() {
   const errorCode = ref('')
   const engineStatus = ref(isSupported.value ? 'browser-service' : 'unsupported')
   const supportsLocalProcessing = ref(false)
+  const startConfirmed = ref(false)
+  const capabilityStatus = ref(
+    isSupported.value
+      ? SPEECH_RECOGNITION_CAPABILITY_STATUS.WEBSPEECH_READY
+      : SPEECH_RECOGNITION_CAPABILITY_STATUS.UNSUPPORTED
+  )
+  const localSpeechInstallAvailable = ref(false)
+  const isInstallingLocalSpeech = ref(false)
   const language = ref('zh-CN')
 
   let recognition = null
@@ -39,6 +57,9 @@ export function useSpeechToText() {
   let hasTranscriptResult = false
   let startRunId = 0
   let preferLocalProcessing = true
+  let startHealthTimer = null
+  let firstEffectiveEventTimer = null
+  let healthyStartProbe = null
 
   const clearState = () => {
     finalTranscript.value = ''
@@ -48,16 +69,110 @@ export function useSpeechToText() {
     if (isSupported.value && engineStatus.value === 'unavailable') {
       engineStatus.value = supportsLocalProcessing.value ? 'system-local' : 'browser-service'
     }
+    if (capabilityStatus.value === SPEECH_RECOGNITION_CAPABILITY_STATUS.TEMPORARILY_UNAVAILABLE) {
+      capabilityStatus.value = localSpeechInstallAvailable.value
+        ? SPEECH_RECOGNITION_CAPABILITY_STATUS.LOCAL_DOWNLOADABLE
+        : SPEECH_RECOGNITION_CAPABILITY_STATUS.WEBSPEECH_READY
+    }
   }
 
-  const setErrorState = (message, code) => {
+  const setErrorState = (
+    message,
+    code,
+    status = SPEECH_RECOGNITION_CAPABILITY_STATUS.TEMPORARILY_UNAVAILABLE
+  ) => {
     error.value = message
     errorCode.value = code
     engineStatus.value = code === 'unsupported' ? 'unsupported' : 'unavailable'
+    capabilityStatus.value = status
+  }
+
+  const clearStartHealthTimer = () => {
+    if (!startHealthTimer) return
+    clearTimeout(startHealthTimer)
+    startHealthTimer = null
+  }
+
+  const clearFirstEffectiveEventTimer = () => {
+    if (!firstEffectiveEventTimer) return
+    clearTimeout(firstEffectiveEventTimer)
+    firstEffectiveEventTimer = null
+  }
+
+  const resolveHealthyStartProbe = (ok, code = '') => {
+    if (!healthyStartProbe) return
+    const currentProbe = healthyStartProbe
+    healthyStartProbe = null
+    if (currentProbe.observationTimer) {
+      clearTimeout(currentProbe.observationTimer)
+    }
+    currentProbe.resolve({ ok, code })
+  }
+
+  const createHealthyStartProbe = () => {
+    resolveHealthyStartProbe(false, 'cancelled')
+    return new Promise((resolve) => {
+      healthyStartProbe = {
+        resolve,
+        observationTimer: null,
+        observing: false,
+      }
+    })
+  }
+
+  const beginHealthyStartObservation = () => {
+    if (!healthyStartProbe || healthyStartProbe.observing) return
+    healthyStartProbe.observing = true
+    // 恢复探测不能只看 recognition.start() 是否被浏览器接受；必须等 onstart 后再观察短窗口，避免 UI 误报“语音已恢复”。
+    healthyStartProbe.observationTimer = setTimeout(() => {
+      resolveHealthyStartProbe(true, '')
+    }, HEALTHY_START_OBSERVATION_MS)
+  }
+
+  const markFirstEffectiveRecognitionEvent = () => {
+    clearFirstEffectiveEventTimer()
+    resolveHealthyStartProbe(true, '')
+  }
+
+  const scheduleFirstEffectiveEventTimeout = (currentStartRunId) => {
+    clearFirstEffectiveEventTimer()
+    firstEffectiveEventTimer = setTimeout(() => {
+      if (
+        currentStartRunId !== startRunId
+        || ignoreResults
+        || !recognition
+        || !isRecording.value
+      ) {
+        return
+      }
+      stopWithError(TEMPORARILY_UNAVAILABLE_ERROR_MESSAGE, 'start-timeout')
+    }, FIRST_EFFECTIVE_EVENT_TIMEOUT_MS)
+  }
+
+  const scheduleStartHealthTimeout = (currentStartRunId) => {
+    clearStartHealthTimer()
+    startHealthTimer = setTimeout(() => {
+      if (
+        currentStartRunId !== startRunId
+        || ignoreResults
+        || !recognition
+        || !isRecording.value
+      ) {
+        return
+      }
+      stopWithError(TEMPORARILY_UNAVAILABLE_ERROR_MESSAGE, 'start-timeout')
+    }, START_HEALTH_TIMEOUT_MS)
   }
 
   const cleanupRecognition = () => {
     if (!recognition) return
+    clearStartHealthTimer()
+    clearFirstEffectiveEventTimer()
+    startConfirmed.value = false
+    recognition.onstart = null
+    recognition.onaudiostart = null
+    recognition.onsoundstart = null
+    recognition.onspeechstart = null
     recognition.onresult = null
     recognition.onerror = null
     recognition.onend = null
@@ -66,6 +181,7 @@ export function useSpeechToText() {
 
   const cleanupBeforeStart = () => {
     const staleRecognition = recognition
+    resolveHealthyStartProbe(false, 'cancelled')
     cleanupRecognition()
     try {
       staleRecognition?.abort?.()
@@ -100,9 +216,14 @@ export function useSpeechToText() {
   }
 
   const stopWithError = (message, code = 'recognition-error') => {
-    setErrorState(message, code)
+    const status = code === 'not-allowed'
+      ? SPEECH_RECOGNITION_CAPABILITY_STATUS.PERMISSION_BLOCKED
+      : SPEECH_RECOGNITION_CAPABILITY_STATUS.TEMPORARILY_UNAVAILABLE
+    setErrorState(message, code, status)
     isStarting = false
     isRecording.value = false
+    startConfirmed.value = false
+    resolveHealthyStartProbe(false, code)
     try {
       recognition?.abort?.()
     } catch (abortError) {
@@ -112,20 +233,13 @@ export function useSpeechToText() {
     cleanupVoiceActivity()
   }
 
-  const canUseLocalProcessing = async () => {
-    if (!preferLocalProcessing || typeof SpeechRecognition?.available !== 'function') {
-      return false
-    }
-    try {
-      const availability = await SpeechRecognition.available({
-        langs: [language.value],
-        processLocally: true,
-      })
-      return availability === 'available'
-    } catch (availabilityError) {
-      console.warn('检测浏览器本地语音识别能力失败', availabilityError)
-      return false
-    }
+  const updateCapability = async () => {
+    const capability = await detectSpeechRecognitionCapability({ lang: language.value })
+    capabilityStatus.value = capability.status
+    localSpeechInstallAvailable.value = Boolean(capability.canInstallLocal)
+    supportsLocalProcessing.value = Boolean(capability.supportsLocalProcessing)
+    isSupported.value = capability.status !== SPEECH_RECOGNITION_CAPABILITY_STATUS.UNSUPPORTED
+    return capability
   }
 
   const startVoiceActivityMonitor = async (shouldKeepMonitor = () => true) => {
@@ -173,6 +287,8 @@ export function useSpeechToText() {
       isVoiceActive.value = active
       if (!active) return
 
+      // 已确认有麦克风输入时，不再按“启动后完全无有效事件”处理，交给 no-transcript 分支判断浏览器是否返回文字。
+      clearFirstEffectiveEventTimer()
       voiceActivityAt.value = Date.now()
       if (!hasTranscriptResult) {
         voiceActivityStartedAt ||= voiceActivityAt.value
@@ -193,30 +309,60 @@ export function useSpeechToText() {
     })
   }
 
-  const start = async () => {
+  const start = async (startOptions = {}) => {
+    const waitForHealthyStart = Boolean(startOptions.waitForHealthyStart)
     if (!SpeechRecognition) {
       isSupported.value = false
-      setErrorState(UNSUPPORTED_RECOGNITION_ERROR_MESSAGE, 'unsupported')
-      return
+      setErrorState(
+        UNSUPPORTED_RECOGNITION_ERROR_MESSAGE,
+        'unsupported',
+        SPEECH_RECOGNITION_CAPABILITY_STATUS.UNSUPPORTED
+      )
+      return waitForHealthyStart ? { ok: false, code: 'unsupported' } : undefined
     }
-    if (isRecording.value || isStarting) return
+    if (isRecording.value || isStarting) {
+      return waitForHealthyStart
+        ? { ok: Boolean(isRecording.value && startConfirmed.value), code: '' }
+        : undefined
+    }
 
     // Web Speech 在 Chrome/Edge 中可能残留旧 recognition 或麦克风监测资源；每次重启前先清干净，避免内部状态卡住。
     cleanupBeforeStart()
     clearState()
     ignoreResults = false
     isStarting = true
+    startConfirmed.value = false
     startRunId += 1
     const currentStartRunId = startRunId
     hasTranscriptResult = false
     voiceActivityStartedAt = 0
 
-    const shouldUseLocalProcessing = await canUseLocalProcessing()
+    const capability = await updateCapability()
+    if (capability.status === SPEECH_RECOGNITION_CAPABILITY_STATUS.UNSUPPORTED) {
+      setErrorState(
+        UNSUPPORTED_RECOGNITION_ERROR_MESSAGE,
+        'unsupported',
+        SPEECH_RECOGNITION_CAPABILITY_STATUS.UNSUPPORTED
+      )
+      isStarting = false
+      return waitForHealthyStart ? { ok: false, code: 'unsupported' } : undefined
+    }
+    if (capability.status === SPEECH_RECOGNITION_CAPABILITY_STATUS.PERMISSION_BLOCKED) {
+      setErrorState(
+        MICROPHONE_PERMISSION_ERROR_MESSAGE,
+        'not-allowed',
+        SPEECH_RECOGNITION_CAPABILITY_STATUS.PERMISSION_BLOCKED
+      )
+      isStarting = false
+      return waitForHealthyStart ? { ok: false, code: 'not-allowed' } : undefined
+    }
+    const shouldUseLocalProcessing = preferLocalProcessing && capability.supportsLocalProcessing
     if (currentStartRunId !== startRunId || !isStarting || ignoreResults) {
       cleanupVoiceActivity()
       isStarting = false
-      return
+      return waitForHealthyStart ? { ok: false, code: 'cancelled' } : undefined
     }
+    const healthyStartPromise = waitForHealthyStart ? createHealthyStartProbe() : null
 
     recognition = new SpeechRecognition()
     let localProcessingEnabled = false
@@ -236,8 +382,34 @@ export function useSpeechToText() {
     recognition.interimResults = true
     recognition.maxAlternatives = 1
 
+    recognition.onstart = () => {
+      if (ignoreResults) return
+      startConfirmed.value = true
+      clearStartHealthTimer()
+      scheduleFirstEffectiveEventTimeout(currentStartRunId)
+      beginHealthyStartObservation()
+    }
+
+    recognition.onaudiostart = () => {
+      if (ignoreResults) return
+      markFirstEffectiveRecognitionEvent()
+    }
+
+    recognition.onsoundstart = () => {
+      if (ignoreResults) return
+      markFirstEffectiveRecognitionEvent()
+    }
+
+    recognition.onspeechstart = () => {
+      if (ignoreResults) return
+      startConfirmed.value = true
+      markFirstEffectiveRecognitionEvent()
+    }
+
     recognition.onresult = (event) => {
       if (ignoreResults) return
+      startConfirmed.value = true
+      markFirstEffectiveRecognitionEvent()
       hasTranscriptResult = true
       let final = ''
       let interim = ''
@@ -252,8 +424,11 @@ export function useSpeechToText() {
 
     recognition.onerror = (event) => {
       if (ignoreResults) return
+      clearFirstEffectiveEventTimer()
       if (event.error === 'aborted') {
         isRecording.value = false
+        startConfirmed.value = false
+        resolveHealthyStartProbe(false, 'aborted')
         cleanupRecognition()
         cleanupVoiceActivity()
         return
@@ -265,6 +440,8 @@ export function useSpeechToText() {
         error.value = ''
         errorCode.value = ''
         isRecording.value = false
+        startConfirmed.value = false
+        resolveHealthyStartProbe(false, 'language-not-supported')
         const failedRecognition = recognition
         cleanupRecognition()
         try {
@@ -280,24 +457,35 @@ export function useSpeechToText() {
         setErrorState(NETWORK_RECOGNITION_ERROR_MESSAGE, 'network')
       } else if (event.error === 'no-speech') {
         setErrorState(NO_SPEECH_ERROR_MESSAGE, 'no-speech')
-      } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        setErrorState(MICROPHONE_PERMISSION_ERROR_MESSAGE, 'not-allowed')
+      } else if (event.error === 'service-not-allowed') {
+        setErrorState(TEMPORARILY_UNAVAILABLE_ERROR_MESSAGE, 'service-not-allowed')
+      } else if (event.error === 'not-allowed') {
+        setErrorState(
+          MICROPHONE_PERMISSION_ERROR_MESSAGE,
+          'not-allowed',
+          SPEECH_RECOGNITION_CAPABILITY_STATUS.PERMISSION_BLOCKED
+        )
       } else if (event.error === 'audio-capture') {
         setErrorState(AUDIO_CAPTURE_ERROR_MESSAGE, 'audio-capture')
       } else {
         setErrorState(`语音识别不可用，已降级为手动输入: ${event.error}`, event.error || 'recognition-error')
       }
       isRecording.value = false
+      startConfirmed.value = false
+      resolveHealthyStartProbe(false, event.error || 'recognition-error')
       cleanupRecognition()
       cleanupVoiceActivity()
     }
 
     recognition.onend = () => {
+      clearFirstEffectiveEventTimer()
       if (!ignoreResults && !hasTranscriptResult && isRecording.value) {
         stopWithError(RECOGNITION_ENDED_WITHOUT_RESULT_MESSAGE, 'end-without-result')
         return
       }
+      resolveHealthyStartProbe(Boolean(hasTranscriptResult), hasTranscriptResult ? '' : 'end-without-result')
       isRecording.value = false
+      startConfirmed.value = false
       cleanupRecognition()
       cleanupVoiceActivity()
     }
@@ -305,20 +493,46 @@ export function useSpeechToText() {
     try {
       recognition.start()
       isRecording.value = true
+      scheduleStartHealthTimeout(currentStartRunId)
       startOptionalVoiceActivityMonitor(currentStartRunId)
     } catch (startError) {
       console.warn('启动浏览器语音识别失败', startError)
       setErrorState(START_RECOGNITION_ERROR_MESSAGE, 'start-failed')
+      startConfirmed.value = false
+      resolveHealthyStartProbe(false, 'start-failed')
       cleanupRecognition()
       cleanupVoiceActivity()
+      isStarting = false
+      return waitForHealthyStart ? { ok: false, code: 'start-failed' } : undefined
     }
     isStarting = false
+    if (healthyStartPromise) {
+      return healthyStartPromise
+    }
+    return undefined
+  }
+
+  const installLocalSpeech = async () => {
+    if (!localSpeechInstallAvailable.value || isInstallingLocalSpeech.value) {
+      return false
+    }
+
+    isInstallingLocalSpeech.value = true
+    try {
+      const result = await installLocalSpeechRecognition({ lang: language.value })
+      if (!result.ok) return false
+      await updateCapability()
+      return true
+    } finally {
+      isInstallingLocalSpeech.value = false
+    }
   }
 
   const stop = () => {
     if (isStarting) {
       startRunId += 1
       isStarting = false
+      resolveHealthyStartProbe(false, 'stopped')
       cleanupRecognition()
     }
     if (recognition && isRecording.value) {
@@ -326,10 +540,14 @@ export function useSpeechToText() {
         recognition.stop()
       } finally {
         isRecording.value = false
+        startConfirmed.value = false
+        resolveHealthyStartProbe(false, 'stopped')
         cleanupRecognition()
       }
     }
     isRecording.value = false
+    startConfirmed.value = false
+    resolveHealthyStartProbe(false, 'stopped')
     cleanupVoiceActivity()
   }
 
@@ -338,6 +556,8 @@ export function useSpeechToText() {
     ignoreResults = true
     isStarting = false
     isRecording.value = false
+    startConfirmed.value = false
+    resolveHealthyStartProbe(false, 'cancelled')
     clearState()
     cleanupVoiceActivity()
     if (!recognition) return
@@ -368,10 +588,15 @@ export function useSpeechToText() {
     errorCode,
     engineStatus,
     supportsLocalProcessing,
+    startConfirmed,
+    capabilityStatus,
+    localSpeechInstallAvailable,
+    isInstallingLocalSpeech,
     language,
     start,
     stop,
     cancel,
     toggle,
+    installLocalSpeech,
   }
 }

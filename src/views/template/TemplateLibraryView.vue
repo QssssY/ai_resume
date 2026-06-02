@@ -39,6 +39,7 @@ import { industries } from '@/data/industries.js'
 import { templates } from '@/data/templates.js'
 import IndustryFilter from '@/components/template/IndustryFilter.vue'
 import TemplateCard from '@/components/template/TemplateCard.vue'
+import { prefetchTemplateEditorRoute } from '@/router/routeLoaders'
 
 defineOptions({
   name: 'TemplateLibraryView'
@@ -58,8 +59,12 @@ const filteredTemplates = computed(() => {
   return templates.filter(t => t.industry === selectedIndustry.value)
 })
 
-function useTemplate(templateId) {
+async function useTemplate(templateId) {
+  if (!templateId) return
   previewVisible.value = false
+  await prefetchTemplateEditorRoute(templateId).catch((error) => {
+    console.debug('模板编辑页预取失败', error)
+  })
   router.push(`/templates/editor/${templateId}`)
 }
 

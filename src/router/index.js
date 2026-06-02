@@ -9,6 +9,7 @@ import {
   adminFeedbackRouteLoader,
   adminGrowthConfigRouteLoader,
   adminJobRoleRouteLoader,
+  adminLayoutRouteLoader,
   adminMembershipOrderRouteLoader,
   adminMembershipPlanRouteLoader,
   adminMonitorRouteLoader,
@@ -16,12 +17,17 @@ import {
   adminPromptRouteLoader,
   adminUserRightsRouteLoader,
   adminVersionLogRouteLoader,
+  communityMyRouteLoader,
   communityRouteLoader,
   growthCenterRouteLoader,
   interviewEntryRouteLoader,
+  interviewReportRouteLoader,
+  interviewSessionRouteLoader,
   offerAssistRouteLoader,
   resumeResultRouteLoader,
   resumeUploadRouteLoader,
+  settingsRouteLoader,
+  templateEditorRouteLoader,
   templateLibraryRouteLoader
 } from '@/router/routeLoaders'
 
@@ -37,7 +43,7 @@ const routes = [
   },
   {
     path: '/admin',
-    component: () => import('@/layouts/AdminLayout.vue'),
+    component: adminLayoutRouteLoader,
     meta: { useLayout: false, requiresAdminAuth: true },
     children: [
       {
@@ -181,7 +187,7 @@ const routes = [
   {
     path: '/settings',
     name: 'Settings',
-    component: () => import('@/views/settings/SettingsView.vue'),
+    component: settingsRouteLoader,
     meta: { requiresAuth: true, useLayout: true, keepAlive: true }
   },
   {
@@ -211,7 +217,7 @@ const routes = [
   {
     path: '/interview/session/:sessionId',
     name: 'InterviewSession',
-    component: () => import('@/views/interview/InterviewSessionView.vue'),
+    component: interviewSessionRouteLoader,
     meta: { requiresAuth: true, useLayout: false }
   },
   {
@@ -223,7 +229,7 @@ const routes = [
   {
     path: '/interview/report/:sessionId',
     name: 'InterviewReport',
-    component: () => import('@/views/interview/InterviewReportView.vue'),
+    component: interviewReportRouteLoader,
     meta: { requiresAuth: true, useLayout: true }
   },
   {
@@ -235,7 +241,7 @@ const routes = [
   {
     path: '/templates/editor/:templateId',
     name: 'TemplateEditor',
-    component: () => import('@/views/template/TemplateEditorView.vue'),
+    component: templateEditorRouteLoader,
     meta: { requiresAuth: true, useLayout: false }
   },
   {
@@ -253,7 +259,7 @@ const routes = [
   {
     path: '/community/my',
     name: 'MyActivity',
-    component: () => import('@/views/community/MyActivity.vue'),
+    component: communityMyRouteLoader,
     meta: { requiresAuth: true, useLayout: true }
   },
   {

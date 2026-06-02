@@ -1,5 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import ElementPlus from 'element-plus'
 import InterviewEntryView from '@/views/interview/InterviewEntryView.vue'
 import { createInterviewSession, getInterviewJobRoles } from '@/api/interview'
@@ -7,6 +9,9 @@ import { saveSettingsPreferences } from '@/utils/settingsPreferences'
 
 const push = vi.fn()
 let routeQuery = {}
+const routePrefetchMocks = vi.hoisted(() => ({
+  prefetchInterviewSessionRoute: vi.fn(() => Promise.resolve())
+}))
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({
@@ -34,11 +39,18 @@ vi.mock('@/api/resume', () => ({
   getResumeTask: vi.fn(() => Promise.resolve({ data: {} }))
 }))
 
+vi.mock('@/router/routeLoaders', () => routePrefetchMocks)
+
 const mountView = () => mount(InterviewEntryView, {
   global: {
     plugins: [ElementPlus]
   }
 })
+
+const viewSource = () => readFileSync(
+  resolve(process.cwd(), 'src/views/interview/InterviewEntryView.vue'),
+  'utf8'
+)
 
 describe('InterviewEntryView', () => {
   beforeEach(() => {
@@ -49,6 +61,7 @@ describe('InterviewEntryView', () => {
     window.speechSynthesis = {
       getVoices: vi.fn(() => []),
     }
+    routePrefetchMocks.prefetchInterviewSessionRoute.mockResolvedValue()
   })
 
   it('fills interview entry with local default preferences', async () => {
@@ -142,6 +155,22 @@ describe('InterviewEntryView', () => {
     }))
   })
 
+  it('prefetches the interview session route while creating a session', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.selectedJob = '鍓嶇宸ョ▼甯?'
+    wrapper.vm.selectedRoleCode = 'frontend'
+    await wrapper.vm.handleStart()
+    await flushPromises()
+
+    expect(routePrefetchMocks.prefetchInterviewSessionRoute).toHaveBeenCalledTimes(1)
+    expect(routePrefetchMocks.prefetchInterviewSessionRoute.mock.invocationCallOrder[0]).toBeLessThan(
+      createInterviewSession.mock.invocationCallOrder[0]
+    )
+    expect(push).toHaveBeenCalledWith('/interview/session/session-1')
+  })
+
   it('switches voice interviews to after-interview feedback', async () => {
     const wrapper = mountView()
     await flushPromises()
@@ -182,5 +211,19 @@ describe('InterviewEntryView', () => {
     wrapper.vm.selectInteractionType(1)
 
     expect(wrapper.vm.selectedInteractionType).toBe(0)
+  })
+
+  it('keeps the ready hint friendly with a larger centered microphone icon', () => {
+    const source = viewSource()
+    const readyBarBlock = source.match(/\.ready-bar\s*\{[\s\S]*?\n\}/)?.[0] || ''
+    const readyIconBlock = source.match(/\.ready-icon\s*\{[\s\S]*?\n\}/)?.[0] || ''
+
+    expect(source).toContain('<FeatureIcon name="microphone-on" size="md"')
+    expect(source).toContain('.ready-icon :deep(.feature-icon)')
+    expect(readyBarBlock).toContain('--interview-ready-bg')
+    expect(readyBarBlock).toContain('--interview-ready-border')
+    expect(readyBarBlock).not.toContain('border: 1px solid var(--orange-border)')
+    expect(readyIconBlock).toContain('width: 52px;')
+    expect(readyIconBlock).toContain('height: 52px;')
   })
 })

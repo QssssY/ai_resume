@@ -105,6 +105,19 @@ export function getInterviewSession(sessionId) {
 }
 
 /**
+ * 查询面试会话轻量状态。
+ * 用于开场白和报告生成轮询，避免反复拉取聊天记录和评估报告大字段。
+ * @param {string} sessionId - 会话 ID
+ * @returns {Promise}
+ */
+export function getInterviewSessionStatus(sessionId) {
+  return request({
+    url: `/api/interview/session/${sessionId}/status`,
+    method: 'get'
+  })
+}
+
+/**
  * 查询面试历史记录。
  * @param {Object} params - 分页参数
  * @param {number} params.pageNum - 页码

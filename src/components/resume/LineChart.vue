@@ -65,9 +65,20 @@ const chartData = computed(() => ({
 // 图表配置
 const chartOptions = computed(() => ({
   responsive: true,
-  maintainAspectRatio: true,
+  maintainAspectRatio: false,
   plugins: {
-    legend: { display: props.showLegend },
+    legend: {
+      display: props.showLegend,
+      position: 'bottom',
+      labels: {
+        boxWidth: 12,
+        boxHeight: 12,
+        padding: 16,
+        usePointStyle: true,
+        pointStyle: 'circle',
+        font: { size: 12 }
+      }
+    },
     tooltip: {
       callbacks: {
         label: (ctx) => `${ctx.raw}分`
@@ -92,6 +103,5 @@ const chartOptions = computed(() => ({
 <style scoped>
 .line-chart-wrapper {
   width: 100%;
-  max-width: 600px;
 }
 </style>

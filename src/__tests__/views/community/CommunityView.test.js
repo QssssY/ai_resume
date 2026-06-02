@@ -201,6 +201,19 @@ describe('CommunityView', () => {
     })
   })
 
+  describe('社区页头视觉友好度', () => {
+    it('uses a soft banner surface instead of the strong orange border', () => {
+      const source = viewSource()
+      const bannerBlock = source.match(/\.page-banner\s*\{[\s\S]*?\n\}/)?.[0] || ''
+
+      expect(bannerBlock).toContain('--community-banner-bg')
+      expect(bannerBlock).toContain('--community-banner-border')
+      expect(bannerBlock).toContain('background: var(--community-banner-bg)')
+      expect(bannerBlock).toContain('border: 1px solid var(--community-banner-border)')
+      expect(bannerBlock).not.toContain('border: 1px solid var(--orange-border)')
+    })
+  })
+
   describe('route switch performance', () => {
     it('lazy-loads the post editor and isolates rendered feed cards', () => {
       const source = viewSource()
@@ -211,6 +224,18 @@ describe('CommunityView', () => {
       expect(source).toContain('const pageSize = 8')
       expect(source).toContain('content-visibility: auto')
       expect(source).toContain('contain-intrinsic-size')
+    })
+
+    it('prefetches my activity route before opening the activity center', () => {
+      const source = viewSource()
+
+      expect(source).toContain("import { prefetchUserRoute } from '@/router/routeLoaders'")
+      expect(source).toContain('@mouseenter="prefetchMyActivityRoute"')
+      expect(source).toContain('@focus="prefetchMyActivityRoute"')
+      expect(source).toContain('@touchstart.passive="prefetchMyActivityRoute"')
+      expect(source).toContain('@click="openMyActivity"')
+      expect(source).toContain("prefetchUserRoute('/community/my')")
+      expect(source).toContain("router.push('/community/my')")
     })
 
     it('keeps post card memo dependencies aligned with visible post fields', () => {

@@ -6,7 +6,7 @@
         <n-message-provider>
           <div v-if="showRouteLoading" class="route-loading-bar" aria-hidden="true"></div>
           <div
-            v-if="showRouteLoading && isResumeDiagnosisRoute"
+            v-if="showRouteLoading && isRouteLoadingPlaceholderRoute"
             class="route-loading-placeholder"
             role="status"
             aria-live="polite"
@@ -80,12 +80,18 @@ let removeRouteBeforeGuard = null
 let removeRouteAfterGuard = null
 let removeRouteErrorGuard = null
 
-const isResumeDiagnosisRoute = computed(() => (
+const isRouteLoadingPlaceholderRoute = computed(() => (
   loadingRoutePath.value.startsWith('/resume/upload')
   || loadingRoutePath.value.startsWith('/resume/result')
+  || loadingRoutePath.value.startsWith('/interview/report')
+  || loadingRoutePath.value.startsWith('/settings')
+  || loadingRoutePath.value.startsWith('/community/my')
 ))
 
 const routeLoadingTargetText = computed(() => {
+  if (loadingRoutePath.value.startsWith('/settings')) return '正在打开设置中心'
+  if (loadingRoutePath.value.startsWith('/community/my')) return '正在打开个人动态中心'
+  if (loadingRoutePath.value.startsWith('/interview/report')) return '正在打开面试报告'
   if (loadingRoutePath.value.startsWith('/resume/result')) return '正在打开诊断结果'
   if (loadingRoutePath.value.startsWith('/resume/upload')) return '正在打开简历诊断'
   return '正在加载页面'

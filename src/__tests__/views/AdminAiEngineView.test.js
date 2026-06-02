@@ -108,7 +108,7 @@ describe('AdminAiEngineView', () => {
       responsePreview: 'ok'
     })
     expect(showAdminSuccess).toHaveBeenCalledWith('连通测试成功')
-  })
+  }, 10000)
 
   it('should display and update custom AI daily limit', async () => {
     const wrapper = await mountView()

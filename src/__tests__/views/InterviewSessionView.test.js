@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ElementPlus, { ElMessage } from 'element-plus'
 import InterviewSessionView from '@/views/interview/InterviewSessionView.vue'
-import { getInterviewSession, streamInterviewMessage } from '@/api/interview'
+import { endInterview as apiEndInterview, getInterviewSession, getInterviewSessionStatus, streamInterviewMessage } from '@/api/interview'
+import { prefetchInterviewReportRoute } from '@/router/routeLoaders'
 import { saveSettingsPreferences } from '@/utils/settingsPreferences'
 import { useSpeechToText } from '@/composables/useSpeechToText'
 
@@ -46,6 +47,8 @@ const voiceSttError = ref('')
 const voiceSttErrorCode = ref('')
 const voiceSttEngineStatus = ref('browser-service')
 const voiceSttModelReady = ref(false)
+const voiceSttLocalSpeechInstallAvailable = ref(false)
+const voiceSttInstallingLocalSpeech = ref(false)
 const voiceSttLanguage = ref('zh-CN')
 const voiceSttStart = vi.fn(() => {
   voiceSttRecording.value = true
@@ -59,6 +62,7 @@ const voiceSttCancel = vi.fn(() => {
   voiceSttInterim.value = ''
   voiceSttError.value = ''
 })
+const voiceSttInstallLocalSpeech = vi.fn(() => Promise.resolve(true))
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({
@@ -89,7 +93,12 @@ vi.mock('element-plus', async (importOriginal) => {
 vi.mock('@/api/interview', () => ({
   endInterview: vi.fn(() => Promise.resolve()),
   getInterviewSession: vi.fn(),
+  getInterviewSessionStatus: vi.fn(),
   streamInterviewMessage: vi.fn(),
+}))
+
+vi.mock('@/router/routeLoaders', () => ({
+  prefetchInterviewReportRoute: vi.fn(() => Promise.resolve()),
 }))
 
 vi.mock('@/utils/auth', () => ({
@@ -126,10 +135,13 @@ vi.mock('@/composables/useSpeechToText', () => ({
       errorCode: voiceSttErrorCode,
       engineStatus: voiceSttEngineStatus,
       isModelReady: voiceSttModelReady,
+      localSpeechInstallAvailable: voiceSttLocalSpeechInstallAvailable,
+      isInstallingLocalSpeech: voiceSttInstallingLocalSpeech,
       language: voiceSttLanguage,
       start: voiceSttStart,
       stop: voiceSttStop,
       cancel: voiceSttCancel,
+      installLocalSpeech: voiceSttInstallLocalSpeech,
     }
   }),
 }))
@@ -237,6 +249,8 @@ describe('InterviewSessionView', () => {
     voiceSttErrorCode.value = ''
     voiceSttEngineStatus.value = 'browser-service'
     voiceSttModelReady.value = false
+    voiceSttLocalSpeechInstallAvailable.value = false
+    voiceSttInstallingLocalSpeech.value = false
     voiceSttLanguage.value = 'zh-CN'
     window.speechSynthesis = {
       getVoices: vi.fn(() => [{ lang: 'zh-CN' }]),
@@ -383,6 +397,48 @@ describe('InterviewSessionView', () => {
     expect(wrapper.vm.sending).toBe(false)
   })
 
+  it('recovers the persisted assistant reply when SSE closes after the server saved it', async () => {
+    getInterviewSession
+      .mockResolvedValueOnce({
+        data: {
+          ...baseSession,
+          chatLogs: [
+            { id: 1, messageRole: 'assistant', content: 'assistant-history', createTime: '2026-05-19 14:00:00' },
+            { id: 2, messageRole: 'user', content: 'user-history', createTime: '2026-05-19 14:01:00' },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          ...baseSession,
+          chatLogs: [
+            { id: 1, messageRole: 'assistant', content: 'assistant-history', createTime: '2026-05-19 14:00:00' },
+            { id: 2, messageRole: 'user', content: 'user-history', createTime: '2026-05-19 14:01:00' },
+            { id: 3, messageRole: 'user', content: '准备发送的回答', createTime: '2026-05-19 14:02:00' },
+            { id: 4, messageRole: 'assistant', content: '服务端已保存的回复', createTime: '2026-05-19 14:02:08' },
+          ],
+        },
+      })
+    streamInterviewMessage.mockResolvedValueOnce(createStreamResponse([
+      'data: {"type":"content","content":"服务端已保存的回复"}\n\n',
+    ]))
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.inputMessage = '准备发送的回答'
+    await wrapper.vm.sendMessage()
+    await flushPromises()
+
+    expect(getInterviewSession).toHaveBeenCalledTimes(2)
+    expect(ElMessage.error).not.toHaveBeenCalled()
+    const assistantMessage = wrapper.vm.sessionData.chatLogs.at(-1)
+    expect(assistantMessage.messageRole).toBe('assistant')
+    expect(assistantMessage.content).toBe('服务端已保存的回复')
+    expect(assistantMessage.status).toBe('done')
+    expect(wrapper.vm.replyLocked).toBe(false)
+    expect(wrapper.vm.sending).toBe(false)
+  })
+
   it('unlocks the input and redirects when streaming returns 401', async () => {
     streamInterviewMessage.mockResolvedValueOnce(createHttpResponse(401))
     const wrapper = mountView()
@@ -430,25 +486,32 @@ describe('InterviewSessionView', () => {
   it('polls pending opening speech quickly before falling back to the long interval', async () => {
     vi.useFakeTimers()
     try {
-      getInterviewSession
-        .mockResolvedValueOnce({
-          data: {
-            ...baseSession,
-            interactionType: 1,
-            openingPending: true,
-            chatLogs: [],
-          },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            ...baseSession,
-            interactionType: 1,
-            openingPending: false,
-            chatLogs: [
-              { id: 1, messageRole: 'assistant', content: '你好，请先做一个自我介绍。', createTime: '2026-05-19 14:00:00' },
-            ],
-          },
-        })
+      getInterviewSession.mockResolvedValueOnce({
+        data: {
+          ...baseSession,
+          interactionType: 1,
+          openingPending: true,
+          chatLogs: [],
+        },
+      })
+      getInterviewSessionStatus.mockResolvedValueOnce({
+        data: {
+          sessionId: 'session-1',
+          status: 0,
+          openingPending: false,
+          reportReady: false,
+        },
+      })
+      getInterviewSession.mockResolvedValueOnce({
+        data: {
+          ...baseSession,
+          interactionType: 1,
+          openingPending: false,
+          chatLogs: [
+            { id: 1, messageRole: 'assistant', content: '你好，请先做一个自我介绍。', createTime: '2026-05-19 14:00:00' },
+          ],
+        },
+      })
 
       const wrapper = mountView()
       await flushPromises()
@@ -459,11 +522,35 @@ describe('InterviewSessionView', () => {
       await vi.advanceTimersByTimeAsync(500)
       await flushPromises()
 
+      expect(getInterviewSessionStatus).toHaveBeenCalledTimes(1)
       expect(getInterviewSession).toHaveBeenCalledTimes(2)
       expect(wrapper.text()).toContain('你好，请先做一个自我介绍。')
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('prefetches the report waiting page and navigates there after ending without reloading full session detail', async () => {
+    getInterviewSession.mockResolvedValueOnce({
+      data: {
+        ...baseSession,
+        status: 0,
+        chatLogs: [],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.endInterview()
+    expect(prefetchInterviewReportRoute).toHaveBeenCalledTimes(1)
+
+    await wrapper.vm.confirmEndInterview()
+    await flushPromises()
+
+    expect(apiEndInterview).toHaveBeenCalledWith('session-1')
+    expect(push).toHaveBeenCalledWith('/interview/report/session-1')
+    expect(getInterviewSession).toHaveBeenCalledTimes(1)
   })
 
   it('shows voice call overlay above chat for voice interview without auto starting microphone', async () => {
@@ -864,6 +951,150 @@ describe('InterviewSessionView', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('keeps the voice interview running and submits text fallback answers when browser speech service is unavailable', async () => {
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [
+          { id: 1, messageRole: 'assistant', content: '请介绍你的项目经历。', createTime: '2026-05-19 14:00:00' },
+        ],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
+    voiceSttInterim.value = '我负责订单模块'
+    await wrapper.vm.$nextTick()
+
+    voiceSttRecording.value = false
+    voiceSttErrorCode.value = 'network'
+    voiceSttError.value = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.voice-call-overlay').exists()).toBe(true)
+    expect(wrapper.text()).toContain('当前浏览器语音服务暂不可用')
+    expect(wrapper.text()).toContain('Win + H')
+    expect(wrapper.vm.inputMessage).toBe('我负责订单模块')
+
+    await wrapper.find('.voice-text-fallback-card textarea').setValue('我负责订单模块和支付链路')
+    await wrapper.find('.voice-text-fallback-card [title="发送文本回答"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.vm.voiceCall.isVoiceMode.value).toBe(true)
+    expect(streamInterviewMessage).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({
+        content: '我负责订单模块和支付链路',
+      }),
+      'token',
+      expect.objectContaining({ signal: expect.anything() })
+    )
+  })
+
+  it('shows text answer fallback when voice speech recognition is unsupported', async () => {
+    voiceSttSupported.value = false
+    voiceSttEngineStatus.value = 'unsupported'
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [
+          { id: 1, messageRole: 'assistant', content: '请介绍你的项目经历。', createTime: '2026-05-19 14:00:00' },
+        ],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('.voice-call-overlay').exists()).toBe(true)
+    expect(wrapper.text()).toContain('当前浏览器不支持语音通话')
+    expect(wrapper.find('.voice-text-fallback-card textarea').exists()).toBe(true)
+
+    await wrapper.find('.voice-text-fallback-card textarea').setValue('我负责订单模块和支付链路')
+    await wrapper.find('.voice-text-fallback-card [title="发送文本回答"]').trigger('click')
+    await flushPromises()
+
+    expect(voiceSttStart).not.toHaveBeenCalled()
+    expect(streamInterviewMessage).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({
+        content: '我负责订单模块和支付链路',
+      }),
+      'token',
+      expect.objectContaining({ signal: expect.anything() })
+    )
+  })
+
+  it('shows text answer fallback when browser text to speech is unsupported', async () => {
+    delete window.speechSynthesis
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [
+          { id: 1, messageRole: 'assistant', content: '请介绍你的项目经历。', createTime: '2026-05-19 14:00:00' },
+        ],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('当前浏览器不支持语音通话')
+    expect(wrapper.find('.voice-text-fallback-card textarea').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Win + H')
+  })
+
+  it('retries speech recognition from the text fallback recovery button', async () => {
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
+    voiceSttRecording.value = false
+    voiceSttErrorCode.value = 'service-not-allowed'
+    voiceSttError.value = '当前浏览器语音服务暂不可用，可继续输入回答，系统会自动尝试恢复语音。'
+    await wrapper.vm.$nextTick()
+    voiceSttStart.mockClear()
+
+    await wrapper.find('[title="重新启用语音"]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(voiceSttStart).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a guarded local language pack install entry when browser support is downloadable', async () => {
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [],
+      },
+    })
+    voiceSttLocalSpeechInstallAvailable.value = true
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('可安装浏览器本地语音包以提升稳定性')
+
+    await wrapper.find('[title="安装浏览器本地语音包"]').trigger('click')
+    await flushPromises()
+
+    expect(voiceSttInstallLocalSpeech).toHaveBeenCalledTimes(1)
   })
 
   it('shows browser recognition status during voice calls', async () => {

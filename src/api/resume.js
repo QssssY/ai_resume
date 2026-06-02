@@ -35,6 +35,19 @@ export function getResumeTask(taskId) {
 }
 
 /**
+ * 查询任务轻量状态。
+ * 等待页轮询只读取状态和阶段，避免反复拉取简历原文与完整诊断结果。
+ * @param {number|string} taskId - 任务ID
+ * @returns {Promise}
+ */
+export function getResumeTaskStatus(taskId) {
+  return request({
+    url: `/api/resume/task/${taskId}/status`,
+    method: 'get'
+  })
+}
+
+/**
  * 查询历史记录（分页）
  *
  * @param {Object} params - 分页参数
