@@ -12,6 +12,13 @@ import {
   testAdminAiEngineConnectivity,
   updateCustomAiDailyLimit
 } from '@/api/admin/aiEngines'
+import {
+  discoverAdminTtsOptions,
+  getAdminTtsConfig,
+  previewAdminTtsVoice,
+  saveAdminTtsConfig,
+  testAdminTtsConnectivity
+} from '@/api/admin/ttsConfig'
 import { showAdminSuccess } from '@/utils/adminFeedback'
 
 let currentWrapper = null
@@ -55,7 +62,8 @@ vi.mock('@/api/admin/aiEngines', () => ({
   getCustomAiDailyLimit: vi.fn(() => Promise.resolve({ data: { limit: 50 } })),
   getCustomAiUsageStats: vi.fn(() => Promise.resolve({
     data: {
-      date: '2026-06-03',
+      startDate: '2026-05-28',
+      endDate: '2026-06-03',
       configuredUserCount: 3,
       activeUserCount: 2,
       totalCalls: 17,
@@ -111,6 +119,40 @@ vi.mock('@/api/admin/aiEngines', () => ({
   updateCustomAiDailyLimit: vi.fn(() => Promise.resolve({ data: { limit: 80 } }))
 }))
 
+vi.mock('@/api/admin/ttsConfig', () => ({
+  discoverAdminTtsOptions: vi.fn(() => Promise.resolve({
+    data: {
+      success: true,
+      message: 'TTS 模型和音色获取成功',
+      models: [{ id: 'tts-1', name: 'tts-1' }],
+      voices: [{ id: 'alloy', name: 'alloy' }],
+      ttsEndpointPath: '/audio/speech'
+    }
+  })),
+  getAdminTtsConfig: vi.fn(() => Promise.resolve({
+    data: {
+      enabled: true,
+      configured: true,
+      ttsProvider: 'openai',
+      baseUrl: 'https://tts.example.com/v1',
+      apiKey: 'sys****1234',
+      model: 'tts-1',
+      voiceId: 'alloy',
+      endpointPath: '/audio/speech'
+    }
+  })),
+  previewAdminTtsVoice: vi.fn(() => Promise.resolve(new Blob(['mp3'], { type: 'audio/mpeg' }))),
+  saveAdminTtsConfig: vi.fn(() => Promise.resolve({ data: { enabled: true, configured: true } })),
+  testAdminTtsConnectivity: vi.fn(() => Promise.resolve({
+    data: {
+      success: true,
+      message: 'TTS 连通测试成功',
+      endpointPath: '/audio/speech',
+      latencyMs: 18
+    }
+  }))
+}))
+
 vi.mock('@/utils/adminFeedback', () => ({
   confirmAdminRiskAction: vi.fn(() => Promise.resolve()),
   resolveAdminTableEmptyText: vi.fn(() => '暂无 AI 引擎配置'),
@@ -148,6 +190,11 @@ const buildExpectedRecentRange = (days) => {
 
 const switchToCustomAiUsageSection = async (wrapper) => {
   await wrapper.find('[data-admin-section="custom-ai-usage"]').trigger('click')
+  await nextTick()
+}
+
+const switchToSystemTtsSection = async (wrapper) => {
+  await wrapper.find('[data-admin-section="system-tts-config"]').trigger('click')
   await nextTick()
 }
 
@@ -292,16 +339,87 @@ describe('AdminAiEngineView', () => {
     expect(wrapper.find('.custom-ai-usage-card').exists()).toBe(false)
   })
 
+  it('should render system TTS tab and load current config', async () => {
+    const wrapper = await mountView()
+    await switchToSystemTtsSection(wrapper)
+
+    expect(getAdminTtsConfig).toHaveBeenCalled()
+    expect(wrapper.find('.system-tts-card').exists()).toBe(true)
+    expect(wrapper.text()).toContain('系统 TTS 配置')
+    expect(wrapper.vm.systemTtsForm).toMatchObject({
+      enabled: true,
+      ttsProvider: 'openai',
+      baseUrl: 'https://tts.example.com/v1',
+      model: 'tts-1',
+      voiceId: 'alloy',
+      endpointPath: '/audio/speech'
+    })
+  })
+
+  it('should save and test system TTS config with current form values', async () => {
+    const wrapper = await mountView()
+    await switchToSystemTtsSection(wrapper)
+    Object.assign(wrapper.vm.systemTtsForm, {
+      enabled: true,
+      ttsProvider: 'openai',
+      baseUrl: 'https://tts.example.com/v1',
+      apiKey: 'sys-real-key',
+      model: 'tts-1',
+      voiceId: 'alloy',
+      endpointPath: '/audio/speech'
+    })
+
+    await wrapper.vm.handleSystemTtsSave()
+    await wrapper.vm.handleSystemTtsConnectivityTest()
+    await flushPromises()
+
+    expect(saveAdminTtsConfig).toHaveBeenCalledWith({
+      enabled: true,
+      ttsProvider: 'openai',
+      baseUrl: 'https://tts.example.com/v1',
+      apiKey: 'sys-real-key',
+      model: 'tts-1',
+      voiceId: 'alloy',
+      endpointPath: '/audio/speech'
+    })
+    expect(testAdminTtsConnectivity).toHaveBeenCalled()
+    expect(wrapper.vm.systemTtsConnectivityResult).toMatchObject({ success: true })
+  })
+
+  it('should discover and preview system TTS voice', async () => {
+    const wrapper = await mountView()
+    await switchToSystemTtsSection(wrapper)
+    Object.assign(wrapper.vm.systemTtsForm, {
+      enabled: true,
+      ttsProvider: 'openai',
+      baseUrl: 'https://tts.example.com/v1',
+      apiKey: 'sys-real-key',
+      model: 'tts-1',
+      voiceId: 'alloy',
+      endpointPath: '/audio/speech'
+    })
+
+    await wrapper.vm.handleSystemTtsDiscover()
+    await wrapper.vm.handleSystemTtsPreview()
+    await flushPromises()
+
+    expect(discoverAdminTtsOptions).toHaveBeenCalled()
+    expect(previewAdminTtsVoice).toHaveBeenCalled()
+    expect(wrapper.vm.systemTtsDiscoveryResult.voices).toEqual([{ id: 'alloy', name: 'alloy' }])
+  })
+
   it('should display custom AI usage stats and user details', async () => {
     const wrapper = await mountView()
     await switchToCustomAiUsageSection(wrapper)
+    const [startDate, endDate] = buildExpectedRecentRange(7)
 
     expect(getCustomAiUsageStats).toHaveBeenCalledWith({
-      date: expect.any(String),
+      startDate,
+      endDate,
       page: 1,
       pageSize: 5
     })
-    expect(wrapper.text()).toContain('今日自定义 AI 调用')
+    expect(wrapper.text()).toContain('近 7 天自定义 AI 调用')
     expect(wrapper.text()).toContain('17')
     expect(wrapper.text()).toContain('简历诊断')
     expect(wrapper.text()).toContain('面试消息')
@@ -311,14 +429,49 @@ describe('AdminAiEngineView', () => {
 
   it('should request paged custom AI user usage stats when changing detail page', async () => {
     const wrapper = await mountView()
+    const [startDate, endDate] = buildExpectedRecentRange(7)
     getCustomAiUsageStats.mockClear()
 
     await wrapper.vm.handleCustomAiUsagePageChange(2)
     await flushPromises()
 
     expect(getCustomAiUsageStats).toHaveBeenCalledWith({
-      date: expect.any(String),
+      startDate,
+      endDate,
       page: 2,
+      pageSize: 5
+    })
+  })
+
+  it('should reload custom AI usage stats when switching usage range preset', async () => {
+    const wrapper = await mountView()
+    await switchToCustomAiUsageSection(wrapper)
+    const [startDate, endDate] = buildExpectedRecentRange(30)
+    getCustomAiUsageStats.mockClear()
+
+    await wrapper.vm.handleCustomAiUsageRangePresetChange('last30')
+    await flushPromises()
+
+    expect(getCustomAiUsageStats).toHaveBeenCalledWith({
+      startDate,
+      endDate,
+      page: 1,
+      pageSize: 5
+    })
+  })
+
+  it('should reload custom AI usage stats when custom usage date range changes', async () => {
+    const wrapper = await mountView()
+    await switchToCustomAiUsageSection(wrapper)
+    getCustomAiUsageStats.mockClear()
+
+    await wrapper.vm.handleCustomAiUsageRangeChange(['2026-06-01', '2026-06-03'])
+    await flushPromises()
+
+    expect(getCustomAiUsageStats).toHaveBeenCalledWith({
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      page: 1,
       pageSize: 5
     })
   })

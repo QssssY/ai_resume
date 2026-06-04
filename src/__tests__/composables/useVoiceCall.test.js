@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useVoiceCall } from '@/composables/useVoiceCall'
 
 describe('useVoiceCall', () => {
@@ -33,9 +33,11 @@ describe('useVoiceCall', () => {
     }
     textToSpeech = {
       isSupported: ref(true),
+      isPreparing: ref(false),
       isSpeaking: ref(false),
       stop: vi.fn(),
     }
+    textToSpeech.isActive = computed(() => textToSpeech.isPreparing.value || textToSpeech.isSpeaking.value)
     isReplying = ref(false)
     onSend = vi.fn(() => Promise.resolve())
   })
@@ -85,6 +87,17 @@ describe('useVoiceCall', () => {
     await vi.advanceTimersByTimeAsync(1)
 
     expect(speech.start).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not resume listening while AI audio is preparing but not yet speaking', async () => {
+    const call = useVoiceCall({ speech, textToSpeech, isReplying, onSend })
+
+    call.startVoiceCall({ startListening: false })
+    textToSpeech.isPreparing.value = true
+    await nextTick()
+    call.resumeListening()
+
+    expect(speech.start).not.toHaveBeenCalled()
   })
 
   it('auto sends after three seconds of silence', async () => {

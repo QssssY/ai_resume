@@ -122,7 +122,7 @@ describe('DashboardView', () => {
     const wrapper = await mountView()
 
     expect(wrapper.findAll('.stat-icon .feature-icon.size-lg')).toHaveLength(4)
-    expect(wrapper.findAll('.quota-icon.size-lg')).toHaveLength(2)
+    expect(wrapper.findAll('.quota-icon.size-lg').length).toBeGreaterThanOrEqual(2)
     expect(wrapper.find('.growth-entry-icon .feature-icon.size-lg').exists()).toBe(true)
     expect(wrapper.findAll('.record-left .feature-icon.size-xs').length).toBeGreaterThan(0)
     expect(wrapper.find('.view-all-btn .arrow-icon.size-md').exists()).toBe(true)

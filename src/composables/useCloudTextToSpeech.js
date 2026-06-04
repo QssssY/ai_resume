@@ -10,7 +10,9 @@ const FEEDBACK_BLOCK_REGEXP = /<FEEDBACK>[\s\S]*?<\/FEEDBACK>/gi
  */
 export function useCloudTextToSpeech(options = {}) {
   const isSupported = ref(Boolean(options.enabled))
+  const isPreparing = ref(false)
   const isSpeaking = ref(false)
+  const isActive = computed(() => isPreparing.value || isSpeaking.value)
   const engineStatus = computed(() => (isSupported.value ? 'cloud-tts' : 'unavailable'))
 
   let buffer = ''
@@ -18,6 +20,8 @@ export function useCloudTextToSpeech(options = {}) {
   let activeAudio = null
   let activeObjectUrl = ''
   let activeAbortController = null
+  let activeSynthesisItem = null
+  let pendingFallbackEvent = null
   let runId = 0
   let isPlaying = false
   let fallbackNotified = false
@@ -44,6 +48,36 @@ export function useCloudTextToSpeech(options = {}) {
     stop()
   }
 
+  const updatePreparingState = () => {
+    // 云端 TTS 等待期包含“上游合成中”和“Audio.play() 尚未真正开始”两段，
+    // 这段时间需要暂停收音，但不能把 UI 展示为真实播报。
+    isPreparing.value = Boolean(isSupported.value && (
+      activeSynthesisItem
+      || (isPlaying && !isSpeaking.value)
+      || queue.some((item) => item.preparing || !item.objectUrl)
+    ))
+  }
+
+  const releaseQueuedAudio = () => {
+    queue.forEach((item) => {
+      if (item.objectUrl) {
+        URL.revokeObjectURL(item.objectUrl)
+        item.objectUrl = ''
+      }
+    })
+  }
+
+  const abortActiveSynthesis = () => {
+    if (activeAbortController) {
+      activeAbortController.abort()
+      activeAbortController = null
+    }
+    if (activeSynthesisItem) {
+      activeSynthesisItem.preparing = false
+      activeSynthesisItem = null
+    }
+  }
+
   const releaseActiveAudio = () => {
     if (activeAudio) {
       activeAudio.onended = null
@@ -55,9 +89,55 @@ export function useCloudTextToSpeech(options = {}) {
       URL.revokeObjectURL(activeObjectUrl)
       activeObjectUrl = ''
     }
-    if (activeAbortController) {
-      activeAbortController.abort()
-      activeAbortController = null
+  }
+
+  const emitFallback = (event) => {
+    if (fallbackNotified) return
+    fallbackNotified = true
+    options.onFallback?.(event)
+  }
+
+  const buildRemainingText = (failedItem) => [
+    failedItem?.text || '',
+    ...queue.filter((item) => item !== failedItem).map((item) => item.text),
+    buffer.trim(),
+  ].filter(Boolean).join('')
+
+  const disableAndFallback = (failedItem, reason) => {
+    const fallbackEvent = {
+      text: buildRemainingText(failedItem),
+      reason,
+      speechOptions: failedItem?.speechOptions || {},
+    }
+    releaseQueuedAudio()
+    queue = []
+    buffer = ''
+    isPlaying = false
+    isSpeaking.value = false
+    isSupported.value = false
+    pendingFallbackEvent = null
+    abortActiveSynthesis()
+    releaseActiveAudio()
+    updatePreparingState()
+    emitFallback(fallbackEvent)
+  }
+
+  const deferFallbackUntilCurrentAudioEnds = (failedItem, reason) => {
+    pendingFallbackEvent = {
+      text: buildRemainingText(failedItem),
+      reason,
+      speechOptions: failedItem?.speechOptions || {},
+    }
+    releaseQueuedAudio()
+    queue = []
+    buffer = ''
+    isSupported.value = false
+    abortActiveSynthesis()
+    updatePreparingState()
+    if (!isPlaying) {
+      const fallbackEvent = pendingFallbackEvent
+      pendingFallbackEvent = null
+      emitFallback(fallbackEvent)
     }
   }
 
@@ -70,39 +150,78 @@ export function useCloudTextToSpeech(options = {}) {
       text: event.text || '',
     })
     isPlaying = false
-    if (queue.length > 0) {
-      void playNext()
+    isSpeaking.value = false
+    if (pendingFallbackEvent) {
+      const fallbackEvent = pendingFallbackEvent
+      pendingFallbackEvent = null
+      updatePreparingState()
+      emitFallback(fallbackEvent)
       return
     }
-    isSpeaking.value = false
+    if (queue.length > 0) {
+      updatePreparingState()
+      if (queue[0].objectUrl) {
+        void playPreparedItem()
+      } else {
+        void prepareNext()
+      }
+      return
+    }
+    updatePreparingState()
     options.onEnd?.(event)
   }
 
-  const disableAndFallback = (failedItem, reason) => {
-    const remainingText = [
-      failedItem?.text || '',
-      ...queue.map((item) => item.text),
-      buffer.trim(),
-    ].filter(Boolean).join('')
-    queue = []
-    buffer = ''
-    isPlaying = false
-    isSpeaking.value = false
-    isSupported.value = false
-    releaseActiveAudio()
-    if (!fallbackNotified) {
-      fallbackNotified = true
-      options.onFallback?.({
-        text: remainingText,
-        reason,
-        speechOptions: failedItem?.speechOptions || {},
+  async function playPreparedItem() {
+    if (isPlaying || !queue.length || !isSupported.value) return
+    const item = queue[0]
+    if (!item.objectUrl) {
+      updatePreparingState()
+      void prepareNext()
+      return
+    }
+    queue.shift()
+    const currentRunId = runId
+    isPlaying = true
+    isPreparing.value = true
+    activeObjectUrl = item.objectUrl
+    item.objectUrl = ''
+    activeAudio = new Audio(activeObjectUrl)
+    activeAudio.onended = () => finishCurrentItem(currentRunId, item.speechOptions, {
+      reason: 'end',
+      text: item.text,
+    })
+    activeAudio.onerror = () => disableAndFallback(item, new Error('Cloud TTS audio playback failed'))
+
+    try {
+      await activeAudio.play()
+      if (currentRunId !== runId) return
+      isSpeaking.value = true
+      updatePreparingState()
+      item.speechOptions?.onStart?.({
+        reason: 'start',
+        started: true,
+        text: item.text,
       })
+      void prepareNext()
+    } catch (error) {
+      if (currentRunId !== runId) return
+      disableAndFallback(item, error)
     }
   }
 
-  async function playNext() {
-    if (isPlaying || !queue.length || !isSupported.value) return
-    const item = queue.shift()
+  async function prepareNext() {
+    if (activeSynthesisItem || !isSupported.value) {
+      updatePreparingState()
+      return
+    }
+    const item = queue.find((candidate) => !candidate.objectUrl && !candidate.preparing)
+    if (!item) {
+      updatePreparingState()
+      if (!isPlaying && queue[0]?.objectUrl) {
+        void playPreparedItem()
+      }
+      return
+    }
     const sessionId = resolveSessionId()
     if (!sessionId) {
       disableAndFallback(item, new Error('TTS sessionId missing'))
@@ -110,32 +229,36 @@ export function useCloudTextToSpeech(options = {}) {
     }
 
     const currentRunId = runId
-    isPlaying = true
-    isSpeaking.value = true
-    activeAbortController = new AbortController()
+    const abortController = new AbortController()
+    activeAbortController = abortController
+    activeSynthesisItem = item
+    item.preparing = true
+    updatePreparingState()
 
     try {
       const audioBlob = await synthesizeInterviewTts(sessionId, item.text, {
-        signal: activeAbortController.signal,
+        signal: abortController.signal,
       })
       if (currentRunId !== runId) return
+      item.preparing = false
+      activeSynthesisItem = null
       activeAbortController = null
-      activeObjectUrl = URL.createObjectURL(audioBlob)
-      activeAudio = new Audio(activeObjectUrl)
-      activeAudio.onended = () => finishCurrentItem(currentRunId, item.speechOptions, {
-        reason: 'end',
-        text: item.text,
-      })
-      activeAudio.onerror = () => disableAndFallback(item, new Error('Cloud TTS audio playback failed'))
-      item.speechOptions?.onStart?.({
-        reason: 'start',
-        started: true,
-        text: item.text,
-      })
-      await activeAudio.play()
+      item.objectUrl = URL.createObjectURL(audioBlob)
+      updatePreparingState()
+      if (!isPlaying && queue[0] === item) {
+        void playPreparedItem()
+      }
+      void prepareNext()
     } catch (error) {
       if (error?.name === 'AbortError') return
       if (currentRunId !== runId) return
+      item.preparing = false
+      activeSynthesisItem = null
+      activeAbortController = null
+      if (isPlaying) {
+        deferFallbackUntilCurrentAudioEnds(item, error)
+        return
+      }
       disableAndFallback(item, error)
     }
   }
@@ -143,9 +266,14 @@ export function useCloudTextToSpeech(options = {}) {
   const enqueue = (text, speechOptions = {}) => {
     const normalizedText = normalizeTextForSpeech(text)
     if (!normalizedText || !isSupported.value) return
-    queue.push({ text: normalizedText, speechOptions })
-    isSpeaking.value = true
-    void playNext()
+    queue.push({
+      text: normalizedText,
+      speechOptions,
+      objectUrl: '',
+      preparing: false,
+    })
+    updatePreparingState()
+    void prepareNext()
   }
 
   const speak = (text, speechOptions = {}) => {
@@ -175,16 +303,20 @@ export function useCloudTextToSpeech(options = {}) {
       enqueue(remaining, speechOptions)
       return
     }
-    if (!isSpeaking.value) {
+    if (!isActive.value) {
       options.onEnd?.()
     }
   }
 
   function stop() {
     runId += 1
+    abortActiveSynthesis()
+    releaseQueuedAudio()
     queue = []
     buffer = ''
+    pendingFallbackEvent = null
     isPlaying = false
+    isPreparing.value = false
     isSpeaking.value = false
     releaseActiveAudio()
   }
@@ -197,7 +329,9 @@ export function useCloudTextToSpeech(options = {}) {
 
   return {
     isSupported,
+    isPreparing,
     isSpeaking,
+    isActive,
     engineStatus,
     setEnabled,
     speak,

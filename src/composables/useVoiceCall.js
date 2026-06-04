@@ -29,7 +29,8 @@ export function useVoiceCall(options) {
   const isVoiceMode = ref(false)
   const isMuted = ref(false)
   const isListening = computed(() => Boolean(options.speech.isRecording.value))
-  const isAiSpeaking = computed(() => Boolean(options.textToSpeech.isSpeaking.value || options.isReplying?.value))
+  const isAiAudioActive = computed(() => Boolean(options.textToSpeech.isActive?.value ?? options.textToSpeech.isSpeaking.value))
+  const isAiSpeaking = computed(() => Boolean(isAiAudioActive.value || options.isReplying?.value))
   const callDuration = ref(0)
   const pendingMessage = ref('')
   const error = ref('')
@@ -120,7 +121,7 @@ export function useVoiceCall(options) {
       || isTextFallbackMode.value
       || isMuted.value
       || options.isReplying?.value
-      || options.textToSpeech.isSpeaking.value
+      || isAiAudioActive.value
     ) {
       return
     }
@@ -173,7 +174,7 @@ export function useVoiceCall(options) {
 
   async function retrySpeechNow() {
     if (!isVoiceMode.value || !isTextFallbackMode.value) return false
-    if (isMuted.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) {
+    if (isMuted.value || options.isReplying?.value || isAiAudioActive.value) {
       return false
     }
     if (!options.speech.isSupported.value) {
@@ -214,7 +215,7 @@ export function useVoiceCall(options) {
     isManualResumePending.value = false
     recoverableSpeechRestartTimer = setTimeout(() => {
       recoverableSpeechRestartTimer = null
-      if (!isVoiceMode.value || isMuted.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) {
+      if (!isVoiceMode.value || isMuted.value || options.isReplying?.value || isAiAudioActive.value) {
         return
       }
       error.value = ''
@@ -248,14 +249,14 @@ export function useVoiceCall(options) {
   }
 
   const stopListeningAndSend = async () => {
-    if (!isVoiceMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) {
+    if (!isVoiceMode.value || options.isReplying?.value || isAiAudioActive.value) {
       return false
     }
     return autoSendTranscript()
   }
 
   const checkSilence = () => {
-    if (!isVoiceMode.value || isTextFallbackMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
+    if (!isVoiceMode.value || isTextFallbackMode.value || options.isReplying?.value || isAiAudioActive.value) return
     if (
       !options.speech.isRecording.value &&
       !isMuted.value &&
@@ -338,7 +339,7 @@ export function useVoiceCall(options) {
   watch(
     [options.speech.finalTranscript, options.speech.interimTranscript],
     ([nextFinal, nextInterim]) => {
-      if (!isVoiceMode.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
+      if (!isVoiceMode.value || options.isReplying?.value || isAiAudioActive.value) return
       const normalizedFinal = nextFinal || ''
       const normalizedInterim = nextInterim || ''
       const finalChanged = normalizedFinal !== lastFinal
@@ -367,16 +368,16 @@ export function useVoiceCall(options) {
   )
 
   watch(options.speech.voiceActivityAt || ref(0), (nextActivityAt) => {
-    if (!isVoiceMode.value || isMuted.value || options.isReplying?.value || options.textToSpeech.isSpeaking.value) return
+    if (!isVoiceMode.value || isMuted.value || options.isReplying?.value || isAiAudioActive.value) return
     if (nextActivityAt) {
       lastSpeechAt = nextActivityAt
     }
   })
 
-  watch(options.textToSpeech.isSpeaking, (speaking) => {
+  watch(isAiAudioActive, (active) => {
     if (!isVoiceMode.value) return
-    if (speaking) {
-      // TTS 开始播报时同步设置 flag，确保后续所有 resumeListening 路径都走延迟
+    if (active) {
+      // TTS 合成准备或真实播报期间都要同步设置 flag，确保后续所有 resumeListening 路径都走延迟。
       ttsWasActive = true
       pauseListeningForAi()
       return

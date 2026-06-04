@@ -10,7 +10,7 @@ import { clearInterviewHistory, getInterviewJobRoles } from '@/api/interview'
 import { getMembershipPlans } from '@/api/membership'
 import { clearResumeHistory } from '@/api/resume'
 import { getUserSettings, saveUserSettings } from '@/api/userSettings'
-import { fetchUserAiModels, getUserAiConfigs, getUserAiUsage, saveUserAiConfig, testUserAiConnectivity, testUserTtsConnectivity, toggleUserAiConfig } from '@/api/userAiConfig'
+import { fetchUserAiModels, getSystemTtsStatus, getUserAiConfigs, getUserAiUsage, saveUserAiConfig, testUserAiConnectivity, testUserTtsConnectivity, toggleUserAiConfig } from '@/api/userAiConfig'
 import { deleteAccount, getCurrentAccountSecurityQuestion } from '@/api/auth'
 import { createUserFeedback } from '@/api/feedback'
 import { useUserStore } from '@/stores/user'
@@ -115,6 +115,11 @@ vi.mock('@/api/userAiConfig', () => ({
       used: 12,
       limit: 50,
       remaining: 38
+    }
+  })),
+  getSystemTtsStatus: vi.fn(() => Promise.resolve({
+    data: {
+      systemTtsAvailable: true
     }
   })),
   saveUserAiConfig: vi.fn(() => Promise.resolve({ data: { configType: 'resume' } })),
@@ -452,6 +457,38 @@ describe('SettingsView', () => {
       ttsVoiceId: 'alloy',
       ttsProvider: ''
     })
+  })
+
+  it('shows system TTS fallback status when user has no custom TTS config', async () => {
+    getUserAiConfigs.mockResolvedValueOnce({
+      data: [
+        {
+          configType: 'default',
+          providerName: '默认 DeepSeek',
+          baseUrl: 'https://api.deepseek.com/v1',
+          apiKey: 'sk-****-abcd',
+          model: 'deepseek-chat',
+          enabled: true,
+          supportsMultimodal: false,
+          verificationStatus: 'verified',
+          ttsConfigured: false
+        }
+      ]
+    })
+    const wrapper = mountView()
+    await flushPromises()
+    await switchSection(wrapper, 'customAi')
+
+    expect(getSystemTtsStatus).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('当前使用系统提供的云端语音服务')
+  })
+
+  it('shows custom TTS priority status over system TTS when user TTS is configured', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    await switchSection(wrapper, 'customAi')
+
+    expect(wrapper.text()).toContain('当前使用自定义语音服务（优先于系统配置）')
   })
 
   it('centers the TTS status capsule inside the collapsed heading', () => {

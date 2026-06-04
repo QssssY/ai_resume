@@ -46,33 +46,21 @@
         </div>
       </div>
 
-      <!-- 右侧：权益配额卡 -->
+      <!-- 右侧：权益配额卡（6宫格） -->
       <div class="quota-card quota-overview">
-        <div class="quota-item resume">
-          <div class="quota-icon-wrap">
-            <FeatureIcon name="resume-analysis" size="lg" class="quota-icon" />
-          </div>
-          <div class="quota-info">
-            <div class="quota-number">{{ resumeQuotaLeft }}</div>
-            <div class="quota-label">{{ resumeQuotaLabel }}</div>
-            <!-- 额度耗尽时显示升级引导 -->
-            <router-link v-if="resumeQuotaLeft <= 0 && !isAdmin" to="/membership" class="quota-upgrade-link">
-              升级会员
-            </router-link>
-          </div>
-        </div>
-        <div class="quota-divider"></div>
-        <div class="quota-item interview">
-          <div class="quota-icon-wrap">
-            <FeatureIcon name="mock-interview" size="lg" class="quota-icon" />
-          </div>
-          <div class="quota-info">
-            <div class="quota-number">{{ interviewQuotaLeft }}</div>
-            <div class="quota-label">{{ interviewQuotaLabel }}</div>
-            <!-- 额度耗尽时显示升级引导 -->
-            <router-link v-if="interviewQuotaLeft <= 0 && !isAdmin" to="/membership" class="quota-upgrade-link">
-              升级会员
-            </router-link>
+        <div class="quota-grid">
+          <div v-for="item in quotaItems" :key="item.type" class="quota-cell" :class="{ 'exhausted': item.exhausted }">
+            <div class="quota-icon-wrap" :class="item.iconClass">
+              <FeatureIcon :name="item.icon" size="lg" class="quota-icon" />
+            </div>
+            <div class="quota-info">
+              <div class="quota-number" :class="{ 'text-danger': item.exhausted }">{{ item.remaining }}</div>
+              <div class="quota-label">{{ item.label }}</div>
+              <!-- 额度耗尽时显示升级引导 -->
+              <router-link v-if="item.exhausted && !isAdmin" to="/membership" class="quota-upgrade-link">
+                升级会员
+              </router-link>
+            </div>
           </div>
         </div>
       </div>
@@ -288,6 +276,110 @@ const isVipUser = computed(() => {
   return new Date(vipExpireTime) > new Date();
 });
 const isNormalUser = computed(() => !isAdmin.value && !isVipUser.value);
+
+// ==================== 6 宫格额度数据 ====================
+
+/** 6 种额度的免费次数上限 */
+const FREE_LIMITS = {
+  INTERVIEW: 3,
+  RESUME: 1,
+  POLISH: 1,
+  JD_MATCH: 1,
+  TEMPLATE: 2,
+  OFFER: 1,
+};
+
+/**
+ * 6 宫格额度卡片数据
+ * VIP 用户显示 VIP 每日剩余；非 VIP 用户显示免费剩余
+ */
+const quotaItems = computed(() => {
+  const info = userStore.userInfo;
+  if (!info) return [];
+
+  const items = [
+    {
+      type: 'INTERVIEW',
+      icon: 'mock-interview',
+      iconClass: 'interview',
+      get remaining() {
+        return isVipUser.value
+          ? Number(info.vipDailyInterviewQuota ?? 0)
+          : Number(info.interviewQuota ?? 0);
+      },
+      get limit() { return isVipUser.value ? null : FREE_LIMITS.INTERVIEW; },
+      get label() { return isVipUser.value ? '今日面试剩余' : '免费面试剩余'; },
+      get exhausted() { return this.remaining <= 0; },
+    },
+    {
+      type: 'RESUME',
+      icon: 'resume-analysis',
+      iconClass: 'resume',
+      get remaining() {
+        return isVipUser.value
+          ? Number(info.vipDailyResumeQuota ?? 0)
+          : Number(info.resumeQuota ?? 0);
+      },
+      get limit() { return isVipUser.value ? null : FREE_LIMITS.RESUME; },
+      get label() { return isVipUser.value ? '今日简历剩余' : '免费简历剩余'; },
+      get exhausted() { return this.remaining <= 0; },
+    },
+    {
+      type: 'POLISH',
+      icon: 'resume-optimization',
+      iconClass: 'polish',
+      get remaining() {
+        return isVipUser.value
+          ? Number(info.vipDailyPolishQuota ?? 0)
+          : Number(info.freePolishLeft ?? 0);
+      },
+      get limit() { return isVipUser.value ? null : FREE_LIMITS.POLISH; },
+      get label() { return isVipUser.value ? '今日润色剩余' : '免费润色剩余'; },
+      get exhausted() { return this.remaining <= 0; },
+    },
+    {
+      type: 'JD_MATCH',
+      icon: 'job-match-analysis',
+      iconClass: 'jd-match',
+      get remaining() {
+        return isVipUser.value
+          ? Number(info.vipDailyJdMatchQuota ?? 0)
+          : Number(info.freeJdMatchLeft ?? 0);
+      },
+      get limit() { return isVipUser.value ? null : FREE_LIMITS.JD_MATCH; },
+      get label() { return isVipUser.value ? '今日匹配剩余' : '免费匹配剩余'; },
+      get exhausted() { return this.remaining <= 0; },
+    },
+    {
+      type: 'TEMPLATE',
+      icon: 'template-library',
+      iconClass: 'template',
+      get remaining() {
+        return isVipUser.value
+          ? Number(info.vipDailyTemplateQuota ?? 0)
+          : Number(info.freeTemplateLeft ?? 0);
+      },
+      get limit() { return isVipUser.value ? null : FREE_LIMITS.TEMPLATE; },
+      get label() { return isVipUser.value ? '今日模板剩余' : '免费模板剩余'; },
+      get exhausted() { return this.remaining <= 0; },
+    },
+    {
+      type: 'OFFER',
+      icon: 'offer-assistant',
+      iconClass: 'offer',
+      get remaining() {
+        return isVipUser.value
+          ? Number(info.vipDailyOfferQuota ?? 0)
+          : Number(info.freeOfferLeft ?? 0);
+      },
+      get limit() { return isVipUser.value ? null : FREE_LIMITS.OFFER; },
+      get label() { return isVipUser.value ? '今日Offer剩余' : '免费Offer剩余'; },
+      get exhausted() { return this.remaining <= 0; },
+    },
+  ];
+
+  return items;
+});
 
 /**
  * 作用：统一首页额度卡和统计卡的标签口径。
@@ -592,6 +684,8 @@ const viewAllInterview = () => {
 
 .identity-card {
   position: relative;
+  display: flex;
+  align-items: center;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 86%, var(--orange-main) 14%), var(--bg-card));
   border-radius: 20px;
@@ -629,12 +723,25 @@ const viewAllInterview = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex: 1;
 }
 
 .identity-left {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 24px;
+}
+
+/* 身份卡内的头像放大 */
+.identity-card .avatar-wrapper.avatar-lg,
+.identity-card .avatar-ring.avatar-lg {
+  width: 84px;
+  height: 84px;
+}
+
+.identity-card .avatar-img.avatar-lg {
+  width: 74px;
+  height: 74px;
 }
 
 .user-info {
@@ -644,13 +751,13 @@ const viewAllInterview = () => {
 }
 
 .welcome-text {
-  font-size: 13px;
+  font-size: 15px;
   opacity: 0.85;
   font-weight: 400;
 }
 
 .user-name {
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
@@ -659,12 +766,12 @@ const viewAllInterview = () => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  padding: 4px 12px;
+  font-size: 13px;
+  padding: 5px 14px;
   background: color-mix(in srgb, var(--bg-card) 74%, var(--orange-main) 26%);
   color: var(--orange-deep);
   border-radius: 20px;
-  margin-top: 6px;
+  margin-top: 8px;
   width: fit-content;
 }
 
@@ -682,21 +789,22 @@ const viewAllInterview = () => {
 .vip-badge {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  font-size: 12px;
-  opacity: 0.9;
+  font-size: 13px;
+  opacity: 0.85;
   margin-bottom: 6px;
 }
 
 .vip-icon {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   filter: drop-shadow(0 4px 8px rgba(255, 140, 66, 0.18));
 }
 
 .vip-expire-time {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
   letter-spacing: 0.5px;
 }
 
@@ -727,11 +835,23 @@ const viewAllInterview = () => {
   align-content: center;
 }
 
-.quota-item {
-  flex: 1;
+/* 6宫格布局 */
+.quota-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px 24px;
+  width: 100%;
+}
+
+.quota-cell {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  padding: 10px 0;
+}
+
+.quota-cell.exhausted .quota-icon-wrap {
+  opacity: 0.55;
 }
 
 .quota-icon-wrap {
@@ -764,6 +884,11 @@ const viewAllInterview = () => {
 .quota-label {
   font-size: 13px;
   color: var(--text-muted);
+}
+
+/* 额度耗尽数字变红 */
+.text-danger {
+  color: var(--color-danger) !important;
 }
 
 .quota-upgrade-link {
@@ -1197,82 +1322,79 @@ const viewAllInterview = () => {
   .stat-value {
     font-size: 22px;
   }
+  .welcome-text {
+    font-size: 13px;
+  }
   .user-name {
-    font-size: 20px;
+    font-size: 22px;
+  }
+  .vip-expire-time {
+    font-size: 17px;
+  }
+  .identity-card .avatar-wrapper.avatar-lg,
+  .identity-card .avatar-ring.avatar-lg {
+    width: 68px;
+    height: 68px;
+  }
+  .identity-card .avatar-img.avatar-lg {
+    width: 60px;
+    height: 60px;
   }
   .quota-icon-wrap {
-    width: 64px;
-    height: 64px;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
   }
 }
 
-/* 小屏：≤1023px - 平板 */
+/* 小屏：≤1023px - 平板竖屏，保持左右排版 */
 @media (max-width: 1023px) {
   .top-section {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: stretch;
   }
   .stats-section {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
   .records-section {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .card-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .identity-right {
-    text-align: left;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
   }
   .card-bg-decoration {
     display: none;
   }
+  .identity-card {
+    padding: 18px 18px;
+    display: flex;
+    align-items: center;
+  }
+  .identity-left {
+    gap: 12px;
+    align-items: center;
+  }
+  .card-content {
+    gap: 8px;
+    align-items: center;
+  }
   .quota-card {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 20px;
-    padding: 20px 20px;
+    padding: 16px 18px;
   }
-  .quota-item {
-    flex: none;
-    width: 100%;
+  .quota-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
   }
-  .quota-divider {
-    display: none;
+  .quota-icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+  }
+  .quota-number {
+    font-size: 20px;
   }
   .stat-card {
     padding: 16px 18px;
-  }
-  .stat-icon {
-    width: 64px;
-    height: 64px;
-  }
-  .stat-value {
-    font-size: 22px;
-  }
-  .identity-card {
-    padding: 20px 20px;
-  }
-  .welcome-text {
-    font-size: 12px;
-  }
-  .user-name {
-    font-size: 18px;
-  }
-  .record-column {
-    padding: 18px;
-  }
-}
-
-/* 超小屏：≤767px - 手机 */
-@media (max-width: 767px) {
-  .stat-card {
-    padding: 14px 16px;
-    gap: 12px;
   }
   .stat-icon {
     width: 56px;
@@ -1281,30 +1403,296 @@ const viewAllInterview = () => {
   .stat-value {
     font-size: 20px;
   }
-  .stat-label {
-    font-size: 12px;
-  }
-  .identity-card {
-    padding: 16px;
-  }
-  .quota-card {
-    padding: 16px;
-  }
-  .quota-number {
-    font-size: 22px;
+  .welcome-text {
+    font-size: 13px;
   }
   .user-name {
-    font-size: 16px;
+    font-size: 19px;
+  }
+  .vip-expire-time {
+    font-size: 15px;
+  }
+  .identity-card .avatar-wrapper.avatar-lg,
+  .identity-card .avatar-ring.avatar-lg {
+    width: 58px;
+    height: 58px;
+  }
+  .identity-card .avatar-img.avatar-lg {
+    width: 50px;
+    height: 50px;
+  }
+  .record-column {
+    padding: 16px;
+  }
+
+  /* lg 图标在平板端 */
+  .quota-icon-wrap :deep(.feature-icon.size-lg) {
+    width: 48px;
+    height: 48px;
+  }
+  .stat-icon :deep(.feature-icon.size-lg) {
+    width: 48px;
+    height: 48px;
+  }
+  .growth-entry-icon :deep(.feature-icon.size-lg) {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* 超小屏：≤767px - 手机，身份卡+配额上下排，其余保持左右 */
+@media (max-width: 767px) {
+  /* lg 图标 */
+  .quota-icon-wrap :deep(.feature-icon.size-lg) {
+    width: 42px;
+    height: 42px;
+  }
+  .stat-icon :deep(.feature-icon.size-lg) {
+    width: 42px;
+    height: 42px;
+  }
+  .growth-entry-icon :deep(.feature-icon.size-lg) {
+    width: 42px;
+    height: 42px;
+  }
+  .dashboard-skeleton {
+    padding: 12px;
+  }
+
+  .top-section {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stats-section {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    padding: 12px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+  .stat-icon {
+    width: 52px;
+    height: 52px;
+  }
+  .stat-value {
+    font-size: 18px;
+  }
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .identity-card {
+    padding: 14px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+  }
+  .identity-left {
+    gap: 12px;
+    align-items: center;
+  }
+  .identity-card .avatar-wrapper.avatar-lg,
+  .identity-card .avatar-ring.avatar-lg {
+    width: 52px;
+    height: 52px;
+  }
+  .identity-card .avatar-img.avatar-lg {
+    width: 44px;
+    height: 44px;
+  }
+  .user-name {
+    font-size: 17px;
+  }
+  .vip-expire-time {
+    font-size: 14px;
+  }
+  .welcome-text {
+    font-size: 12px;
+  }
+
+  .quota-card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .quota-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px 12px;
+  }
+  .quota-cell {
+    gap: 10px;
+  }
+  .quota-icon-wrap {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+  }
+  .quota-number {
+    font-size: 18px;
+  }
+  .quota-label {
+    font-size: 11px;
+  }
+
+  .growth-entry-card {
+    padding: 14px 16px;
+    gap: 12px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+  }
+  .growth-entry-icon {
+    width: 56px;
+    height: 56px;
+  }
+  .growth-entry-title {
+    font-size: 14px;
+  }
+  .growth-entry-desc {
+    font-size: 12px;
+  }
+
+  .records-section {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
   .record-column {
     padding: 14px;
+    border-radius: 12px;
+  }
+  .column-header {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+  }
+  .column-title {
+    font-size: 14px;
+  }
+
+  /* 防止记录条目右侧溢出 */
+  .record-item {
+    padding: 10px 10px;
+    gap: 8px;
+    border-radius: 8px;
+  }
+  .record-left {
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+  .file-icon,
+  .interview-icon-wrap {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .file-icon svg,
+  .interview-icon-wrap svg {
+    width: 16px;
+    height: 16px;
+  }
+  .record-name {
+    font-size: 13px;
+    max-width: 100%;
+  }
+  .record-time {
+    font-size: 11px;
+  }
+  .record-info {
+    overflow: hidden;
+  }
+  .record-status-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    flex-shrink: 0;
+  }
+  .record-score-tag {
+    padding: 3px 8px;
+    flex-shrink: 0;
+  }
+  .score-value {
+    font-size: 13px;
+  }
+  .score-unit {
+    font-size: 11px;
+  }
+
+  .empty-state {
+    padding: 20px 0;
+  }
+}
+
+/* 极小屏手机：≤380px */
+@media (max-width: 380px) {
+  .stats-section {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .stat-card {
+    padding: 10px;
+    gap: 8px;
+  }
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+  }
+  .stat-value {
+    font-size: 16px;
+  }
+
+  .quota-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+  }
+  .quota-icon-wrap {
+    width: 44px;
+    height: 44px;
+  }
+  .quota-number {
+    font-size: 16px;
+  }
+
+  .growth-entry-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .quota-icon-wrap :deep(.feature-icon.size-lg) {
+    width: 36px;
+    height: 36px;
+  }
+  .stat-icon :deep(.feature-icon.size-lg) {
+    width: 36px;
+    height: 36px;
+  }
+  .growth-entry-icon :deep(.feature-icon.size-lg) {
+    width: 36px;
+    height: 36px;
+  }
+
+  .record-column {
+    padding: 10px;
+  }
+  .record-item {
+    padding: 8px;
+  }
+  .record-name {
+    font-size: 12px;
+  }
+  .record-status-badge,
+  .record-score-tag {
+    padding: 2px 6px;
+    font-size: 10px;
   }
 }
 
 /* ===== 暗色模式适配 ===== */
-.quota-divider {
-  background: linear-gradient(180deg, transparent 0%, var(--border-card) 50%, transparent 100%);
-}
 
 @media (prefers-reduced-motion: reduce) {
   .stat-card,

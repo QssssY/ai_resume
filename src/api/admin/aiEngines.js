@@ -129,18 +129,28 @@ export function updateCustomAiDailyLimit(limit) {
 
 /**
  * 查询用户自定义 AI 用量统计。
- * @param {{date?: string, page?: number, pageSize?: number}} params
+ * @param {{date?: string, startDate?: string, endDate?: string, page?: number, pageSize?: number}} params
  * @returns {Promise}
  */
 export function getCustomAiUsageStats(params = {}) {
+  const requestParams = {
+    page: params.page || 1,
+    pageSize: params.pageSize || 20
+  }
+  if (params.date) {
+    requestParams.date = params.date
+  }
+  if (params.startDate) {
+    requestParams.startDate = params.startDate
+  }
+  if (params.endDate) {
+    requestParams.endDate = params.endDate
+  }
+
   return adminRequest({
     url: '/api/admin/custom-ai/usage-stats',
     method: 'get',
-    params: {
-      date: params.date,
-      page: params.page || 1,
-      pageSize: params.pageSize || 20
-    }
+    params: requestParams
   })
 }
 

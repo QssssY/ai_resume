@@ -198,7 +198,7 @@
             <OptimizedImage :sources="assistantAvatar" alt="AI面试官" img-class="voice-avatar" @error="handleImageError" />
           </div>
 
-          <div class="voice-wave" :class="{ active: voiceCall.isListening.value, speaking: voiceCall.isAiSpeaking.value }" aria-hidden="true">
+          <div class="voice-wave" :class="{ active: voiceCall.isListening.value, speaking: textToSpeech.isSpeaking.value }" aria-hidden="true">
             <span></span>
             <span></span>
             <span></span>
@@ -262,7 +262,7 @@
       <div v-if="showCollapsedVoicePanel" class="voice-call-panel voice-call-panel-collapsed">
         <div class="voice-call-status">
           <div class="voice-call-main">
-            <span class="voice-state-dot" :class="{ active: voiceCall.isListening.value, speaking: voiceCall.isAiSpeaking.value }"></span>
+            <span class="voice-state-dot" :class="{ active: voiceCall.isListening.value, speaking: textToSpeech.isSpeaking.value }"></span>
             <div>
               <div class="voice-call-title">{{ voiceCallTitle }}</div>
               <div class="voice-call-desc">{{ voiceCallDescription }}</div>
@@ -506,7 +506,7 @@ const voiceDegradedBannerText = computed(() => {
 const canSwitchToVoice = computed(() =>
   isVoiceSession.value && voiceFeatureSupported.value
 );
-// 模式切换锁：AI 播报 / 回复期间不能切换语音与文本，避免切换时 stop/cancel 打断浏览器 TTS 队列。
+// 模式切换锁：AI 语音准备 / 播报 / 回复期间不能切换语音与文本，避免 stop/cancel 打断 TTS 队列。
 const modeSwitchLocked = computed(() => Boolean(replyLocked.value || voiceCall.isAiSpeaking.value));
 const voiceRecognitionEngineText = computed(() => {
   if (!voiceSttSupported.value) return '识别引擎：当前浏览器不支持语音识别';
@@ -521,6 +521,8 @@ const voiceCallTitle = computed(() => {
   if (voiceCall.isTextFallbackMode.value) return "语音暂不可用，已切换文本回答";
   if (voiceCall.isMuted.value) return "已静音";
   if (voiceCall.isManualResumePending.value) return "等待继续收音";
+  if (textToSpeech.isSpeaking.value) return "AI 正在播报";
+  if (textToSpeech.isPreparing.value) return "AI 语音准备中";
   if (replyLocked.value || voiceCall.isAiSpeaking.value) return "AI 正在回复";
   if (voiceCall.isListening.value) return "正在聆听";
   return "通话准备中";
@@ -531,7 +533,9 @@ const voiceCallDescription = computed(() => {
   if (voiceCall.isTextFallbackMode.value) return "当前浏览器语音服务暂不可用，可继续输入回答；需要恢复语音时请手动点击重试语音。";
   if (voiceCall.isMuted.value) return "麦克风已关闭，取消静音后会继续收音。";
   if (voiceCall.isManualResumePending.value) return "已取消静音，再次点击麦克风后继续收音。";
-  if (replyLocked.value || voiceCall.isAiSpeaking.value) return "AI 朗读时会暂停收音，避免播报内容被误识别。";
+  if (textToSpeech.isSpeaking.value) return "AI 播报时会暂停收音，避免播报内容被误识别。";
+  if (textToSpeech.isPreparing.value) return "正在合成云端语音，准备好后会自动播放。";
+  if (replyLocked.value || voiceCall.isAiSpeaking.value) return "AI 正在生成回复，期间会暂停收音。";
   if (!settingsPreferences.voiceAutoSubmitDelayMs) return "当前已关闭静音自动提交，请使用停止收听并发送。";
   return `说完后静音 ${settingsPreferences.voiceAutoSubmitDelayMs / 1000} 秒会自动发送本轮回答。`;
 });
@@ -604,12 +608,15 @@ const cloudTextToSpeech = useCloudTextToSpeech({
   enabled: false,
   onFallback: handleCloudTtsFallback,
 });
+const cloudTtsEngine = ref('');
 
 const shouldUseCloudTts = () => isVoiceSession.value && cloudTextToSpeech.isSupported.value;
 
 const textToSpeech = {
   isSupported: computed(() => browserTextToSpeech.isSupported.value || cloudTextToSpeech.isSupported.value),
+  isPreparing: computed(() => cloudTextToSpeech.isPreparing.value),
   isSpeaking: computed(() => browserTextToSpeech.isSpeaking.value || cloudTextToSpeech.isSpeaking.value),
+  isActive: computed(() => browserTextToSpeech.isSpeaking.value || cloudTextToSpeech.isActive.value),
   voicePreferenceStatus: browserTextToSpeech.voicePreferenceStatus,
   prepareForUserGesture: () => {
     browserTextToSpeech.prepareForUserGesture?.();
@@ -644,6 +651,12 @@ const textToSpeech = {
 
 const voiceTtsEngineText = computed(() => {
   if (cloudTextToSpeech.isSupported.value) {
+    if (cloudTtsEngine.value === 'system') {
+      return '播报音色：系统云端 TTS';
+    }
+    if (cloudTtsEngine.value === 'user_custom' || cloudTtsEngine.value === 'user_custom_tts') {
+      return '播报音色：自定义云端 TTS';
+    }
     return '播报音色：云端 TTS';
   }
   const status = browserTextToSpeech.voicePreferenceStatus.value;
@@ -1005,6 +1018,7 @@ const recoverPersistedStreamReply = async (sentContent) => {
 const loadInterviewTtsCapability = async (nextSessionData) => {
   if ((nextSessionData?.interactionType ?? INTERACTION_TYPE_TEXT) !== INTERACTION_TYPE_VOICE || !sessionId.value) {
     cloudTextToSpeech.setEnabled(false);
+    cloudTtsEngine.value = '';
     return;
   }
   try {
@@ -1012,11 +1026,13 @@ const loadInterviewTtsCapability = async (nextSessionData) => {
     const capability = response.data || {};
     // capability 只决定本场播放层是否走用户自定义 TTS；不可用时继续浏览器播报，不触发平台 AI fallback。
     cloudTextToSpeech.setEnabled(Boolean(capability.available));
+    cloudTtsEngine.value = capability.available ? String(capability.engine || '') : '';
     if (capability.available) {
       cloudTtsFallbackWarned.value = false;
     }
   } catch {
     cloudTextToSpeech.setEnabled(false);
+    cloudTtsEngine.value = '';
   }
 };
 

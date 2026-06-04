@@ -52,6 +52,26 @@
 
     <!-- 有数据时展示 -->
     <template v-else>
+      <!-- Tab 切换 -->
+      <div class="tab-bar">
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'overview' }"
+          @click="activeTab = 'overview'"
+        >
+          成长概览
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'consumption' }"
+          @click="activeTab = 'consumption'"
+        >
+          额度明细
+        </button>
+      </div>
+
+      <!-- 成长概览 Tab 内容 -->
+      <template v-if="activeTab === 'overview'">
       <!-- 1. 成长概览卡片 -->
       <section class="summary-section">
         <div class="summary-card">
@@ -331,6 +351,12 @@
           </div>
         </div>
       </section>
+      </template>
+
+      <!-- 额度明细 Tab 内容 -->
+      <div v-if="activeTab === 'consumption'" class="tab-content">
+        <ConsumptionLogPanel />
+      </div>
     </template>
   </div>
 </template>
@@ -343,6 +369,7 @@ defineOptions({
   name: 'GrowthCenterView'
 })
 import FeatureIcon from '@/components/common/FeatureIcon.vue'
+import ConsumptionLogPanel from '@/components/growth/ConsumptionLogPanel.vue'
 
 const LineChart = defineAsyncComponent(() => import('@/components/resume/LineChart.vue'))
 const RadarChart = defineAsyncComponent(() => import('@/components/resume/RadarChart.vue'))
@@ -354,6 +381,8 @@ const loading = ref(true)
 const loadError = ref(false)
 /** 成长中心概览数据 */
 const overviewData = ref(null)
+/** 当前激活的 Tab: overview / consumption */
+const activeTab = ref('overview')
 
 /** 成长概览摘要（数值字段统一 Number 转换，避免 JacksonConfig 字符串序列化问题） */
 const summary = computed(() => {
@@ -530,6 +559,46 @@ onMounted(() => {
 .growth-center {
   min-height: 100%;
   padding: 0 0 40px;
+}
+
+/* Tab 切换栏 */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 4px;
+  border: 1px solid rgba(243, 216, 199, 0.4);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.tab-btn:hover {
+  color: var(--text-title);
+  background: rgba(255, 140, 66, 0.04);
+}
+
+.tab-btn.active {
+  background: var(--orange-main);
+  color: #fff;
+  font-weight: 600;
+}
+
+.tab-content {
+  min-height: 300px;
 }
 
 /* 页面标题 */

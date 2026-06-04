@@ -596,7 +596,7 @@ const ResultList = defineComponent({
 .output-panel {
   padding: 22px 24px;
   position: sticky;
-  top: 84px;
+  top: calc(var(--header-height, 82px) + 24px);
   display: flex;
   flex-direction: column;
   overflow: hidden;

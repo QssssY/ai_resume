@@ -490,6 +490,9 @@
                     </span>
                     <FeatureIcon name="expand" size="xs" class="cai-tts-toggle-icon" :class="{ expanded: userTtsConfigExpanded }" />
                   </button>
+                  <p v-if="userTtsRuntimeStatusText" class="cai-tts-runtime-status">
+                    {{ userTtsRuntimeStatusText }}
+                  </p>
                   <div v-if="userTtsConfigExpanded" class="cai-tts-body">
                     <div class="cai-tts-discover-row">
                       <el-form-item label="TTS 服务商" class="cai-tts-provider-field">
@@ -1237,6 +1240,7 @@ import {
   discoverTtsModelsAndVoices,
   fetchUserAiModels,
   getUserAiConfigs,
+  getSystemTtsStatus,
   getUserAiUsage,
   previewTtsVoice,
   saveUserAiConfig,
@@ -1400,6 +1404,7 @@ const userAiConfigSaving = ref(false)
 const userAiConnectivityTesting = ref(false)
 const userAiConnectivityResult = ref(null)
 const userAiUsage = ref({ used: 0, limit: 50, remaining: 50 })
+const systemTtsAvailable = ref(false)
 const userAiToggleLoadingType = ref('')
 /** TTS Provider 预设常量 */
 const TTS_PROVIDER_PRESETS = [
@@ -1621,6 +1626,23 @@ const hasAnyTtsFormValue = computed(() =>
     || String(userAiConfigForm.value.ttsVoiceId || '').trim()
   )
 )
+
+const currentUserTtsConfigured = computed(() => {
+  if (!['default', 'interview'].includes(userAiConfigForm.value.configType)) return false
+  const selectedConfig = userAiConfigs.value.find((item) => item.configType === userAiConfigForm.value.configType)
+  return Boolean(selectedConfig?.ttsConfigured || hasAnyTtsFormValue.value)
+})
+
+const userTtsRuntimeStatusText = computed(() => {
+  if (!['default', 'interview'].includes(userAiConfigForm.value.configType)) return ''
+  if (currentUserTtsConfigured.value) {
+    return '当前使用自定义语音服务（优先于系统配置）'
+  }
+  if (systemTtsAvailable.value) {
+    return '当前使用系统提供的云端语音服务'
+  }
+  return ''
+})
 
 const isTtsSupportedAiConfig = computed(() => ['default', 'interview'].includes(userAiConfigForm.value.configType))
 
@@ -1963,12 +1985,14 @@ const handleUserAiModelsFetch = async () => {
 const fetchUserAiConfigState = async () => {
   userAiConfigLoading.value = true
   try {
-    const [configRes, usageRes] = await Promise.all([
+    const [configRes, usageRes, systemTtsRes] = await Promise.all([
       getUserAiConfigs(),
-      getUserAiUsage()
+      getUserAiUsage(),
+      getSystemTtsStatus()
     ])
     userAiConfigs.value = Array.isArray(configRes?.data) ? configRes.data : []
     userAiUsage.value = usageRes?.data || { used: 0, limit: 50, remaining: 50 }
+    systemTtsAvailable.value = Boolean(systemTtsRes?.data?.systemTtsAvailable)
   } catch (err) {
     ElMessage.warning(err?.message || '用户自定义 AI 配置暂时无法加载')
   } finally {
@@ -2628,10 +2652,11 @@ onBeforeUnmount(() => {
 .settings-view {
   --settings-ease: cubic-bezier(0.25, 1, 0.5, 1);
   --settings-panel-shadow: 0 18px 48px rgba(255, 140, 66, 0.09);
+  --settings-nav-sticky-top: calc(var(--header-height, 82px) + 24px);
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
-  min-height: calc(100dvh - 178px);
+  min-height: calc(100dvh - var(--header-height, 82px) - 96px);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -2674,13 +2699,13 @@ onBeforeUnmount(() => {
 
 .settings-nav {
   position: sticky;
-  top: 84px;
+  top: calc(var(--header-height, 82px) + 24px);
   align-self: start;
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 10px;
-  min-height: min(720px, calc(100dvh - 210px));
+  min-height: min(720px, calc(100dvh - var(--header-height, 82px) - 128px));
   border: 1px solid var(--border-card);
   border-radius: 16px;
   background:
@@ -2762,7 +2787,7 @@ onBeforeUnmount(() => {
 }
 
 .settings-panel {
-  min-height: min(720px, calc(100dvh - 210px));
+  min-height: min(720px, calc(100dvh - var(--header-height, 82px) - 128px));
   display: flex;
   flex-direction: column;
   padding: 24px;
@@ -3877,6 +3902,17 @@ onBeforeUnmount(() => {
   color: #15803d;
 }
 
+.cai-tts-runtime-status {
+  margin: -4px 16px 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 8px;
+  background: rgba(96, 165, 250, 0.08);
+  color: #2563eb;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .cai-tts-toggle-icon {
   width: 20px;
   height: 20px;
@@ -4196,21 +4232,36 @@ onBeforeUnmount(() => {
   margin-top: 0;
 }
 
+/* 平板竖屏 / 小屏笔记本：导航从左侧改为顶部横向滚动 */
 @media (max-width: 900px) {
   .settings-view {
     min-height: 0;
+    gap: 16px;
   }
 
   .settings-layout {
     grid-template-columns: 1fr;
     align-items: start;
+    gap: 16px;
   }
 
   .settings-nav {
-    position: static;
+    position: sticky;
+    top: var(--header-height, 64px);
+    z-index: 10;
     min-height: 0;
     overflow-x: auto;
+    overflow-y: visible;
     flex-direction: row;
+    flex-wrap: nowrap;
+    padding: 8px;
+    border-radius: 14px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .settings-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .settings-panel {
@@ -4220,7 +4271,17 @@ onBeforeUnmount(() => {
   .settings-nav-item {
     flex: 0 0 auto;
     width: auto;
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 13px;
     white-space: nowrap;
+    gap: 8px;
+  }
+
+  .settings-nav-item :deep(.feature-icon),
+  .settings-nav-item :deep(.feature-icon.size-md) {
+    width: 32px;
+    height: 32px;
   }
 
   .settings-nav-item::after {
@@ -4253,24 +4314,82 @@ onBeforeUnmount(() => {
   .account-delete-zone {
     max-width: none;
   }
+
+  .profile-overview-card {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
 }
 
+/* 手机横屏及以下 */
 @media (max-width: 640px) {
-  .settings-panel {
-    padding: 18px;
+  .settings-header h1 {
+    font-size: 20px;
   }
 
-  .panel-heading,
-  .profile-summary,
-  .profile-name-row,
-  .preference-row,
-  .preference-row.stacked {
+  .settings-panel {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .panel-heading {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+  }
+
+  .panel-heading h2 {
+    font-size: 17px;
+  }
+
+  .panel-heading-icon :deep(.feature-icon),
+  .panel-heading-icon:deep(.feature-icon.size-lg) {
+    width: 40px;
+    height: 40px;
+  }
+
+  .profile-overview-card {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .profile-overview-card :deep(.profile-avatar) {
+    width: 52px;
+    height: 52px;
+  }
+
+  .profile-name {
+    font-size: 16px;
+  }
+
+  .profile-name-row {
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .info-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .info-item {
+    padding: 12px;
+  }
+
+  .info-item strong {
+    font-size: 14px;
+  }
+
+  .profile-support-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .profile-support-card {
+    padding: 12px;
   }
 
   .notification-type-select {
@@ -4280,6 +4399,17 @@ onBeforeUnmount(() => {
   .preference-select,
   .preference-slider {
     width: 100%;
+  }
+
+  .preference-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .preference-row.stacked {
+    gap: 10px;
   }
 
   .voice-preference-main {
@@ -4294,15 +4424,22 @@ onBeforeUnmount(() => {
     align-items: center;
   }
 
-  .profile-support-grid,
   .onboarding-intro-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* 导航图标缩小 */
+  .settings-nav-item :deep(.feature-icon),
+  .settings-nav-item :deep(.feature-icon.size-md) {
+    width: 28px;
+    height: 28px;
   }
 
   .voice-preview-button {
-    width: 52px;
-    min-width: 52px;
-    height: 48px;
+    width: 48px;
+    min-width: 48px;
+    height: 44px;
   }
 
   .browser-voice-select {
@@ -4311,10 +4448,12 @@ onBeforeUnmount(() => {
 
   .cai-type-slots {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .cai-usage-bar {
     flex-wrap: wrap;
+    gap: 8px;
   }
 
   .cai-form-row-2col {
@@ -4329,16 +4468,105 @@ onBeforeUnmount(() => {
     width: 100%;
   }
 
+  .cai-slot {
+    padding: 12px;
+  }
+
   .appearance-status {
     align-items: flex-start;
   }
 
   .appearance-preview {
-    height: 64px;
+    height: 56px;
   }
 
   .account-delete-form .el-button--danger {
     width: 100%;
+  }
+
+  .settings-form {
+    max-width: none;
+  }
+
+  .security-mode-tabs,
+  .sub-nav-tabs {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .security-mode-tabs::-webkit-scrollbar,
+  .sub-nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .security-mode-tab,
+  .sub-nav-tab {
+    padding: 8px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .data-overview-grid {
+    gap: 8px;
+  }
+
+  .quota-grid .info-item {
+    padding: 10px;
+  }
+}
+
+/* 超小屏手机 */
+@media (max-width: 380px) {
+  .settings-panel {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-nav-item {
+    padding: 6px 10px;
+    min-height: 38px;
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .settings-nav-item :deep(.feature-icon),
+  .settings-nav-item :deep(.feature-icon.size-md) {
+    width: 24px;
+    height: 24px;
+  }
+
+  .settings-nav {
+    padding: 6px;
+    gap: 2px;
+  }
+
+  .profile-overview-card {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .preference-row {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .panel-heading {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+  }
+
+  .cai-form-card {
+    padding: 12px;
+  }
+
+  .settings-fill-note {
+    padding: 12px;
   }
 }
 

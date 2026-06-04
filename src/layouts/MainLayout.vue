@@ -153,7 +153,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 与 AppHeader 高度保持一致的 CSS 变量，子页面可引用 --header-height 计算偏移 */
 .main-layout {
+  --header-height: 82px;
   min-height: 100vh;
   background-color: var(--bg-page, #fff8f3);
   display: flex;
@@ -161,7 +163,7 @@ onUnmounted(() => {
 }
 
 .layout-main {
-  padding-top: 82px;
+  padding-top: var(--header-height);
   flex: 1;
   min-height: 0;
   display: flex;
@@ -299,10 +301,10 @@ onUnmounted(() => {
   }
 }
 
-/* 移动端适配 */
-@media (max-width: 768px) {
-  .layout-main {
-    padding-top: 64px;
+/* 移动端适配：同步 AppHeader 在各断点的高度 */
+@media (max-width: 767px) {
+  .main-layout {
+    --header-height: 64px;
   }
   .layout-content {
     padding: 16px;
@@ -315,8 +317,8 @@ onUnmounted(() => {
 }
 
 @media (max-width: 480px) {
-  .layout-main {
-    padding-top: 60px;
+  .main-layout {
+    --header-height: 60px;
   }
   .layout-content {
     padding: 12px;

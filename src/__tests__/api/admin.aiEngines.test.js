@@ -74,7 +74,7 @@ describe('admin aiEngines API', () => {
     })
   })
 
-  it('custom AI usage stats endpoint sends date and pagination params', async () => {
+  it('custom AI usage stats endpoint keeps legacy date param compatibility', async () => {
     await getCustomAiUsageStats({ date: '2026-06-03', page: 2, pageSize: 10 })
 
     expect(adminRequest).toHaveBeenCalledWith({
@@ -84,6 +84,21 @@ describe('admin aiEngines API', () => {
         date: '2026-06-03',
         page: 2,
         pageSize: 10
+      }
+    })
+  })
+
+  it('custom AI usage stats endpoint sends date range and pagination params', async () => {
+    await getCustomAiUsageStats({ startDate: '2026-06-01', endDate: '2026-06-07', page: 2, pageSize: 5 })
+
+    expect(adminRequest).toHaveBeenCalledWith({
+      url: '/api/admin/custom-ai/usage-stats',
+      method: 'get',
+      params: {
+        startDate: '2026-06-01',
+        endDate: '2026-06-07',
+        page: 2,
+        pageSize: 5
       }
     })
   })

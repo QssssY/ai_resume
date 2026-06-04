@@ -926,7 +926,7 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 82px;
+  height: var(--header-height, 82px);
   background: var(--bg-header);
   border-bottom: 1px solid rgba(255, 140, 66, 0.14);
   box-shadow: 0 10px 28px rgba(112, 62, 20, 0.06);
@@ -1746,7 +1746,7 @@ onUnmounted(() => {
 
 @media (max-width: 767px) {
   .app-header {
-    height: clamp(60px, 10vw, 64px);
+    height: var(--header-height, 64px);
     padding: 0 12px;
   }
   .brand-text {
@@ -1812,7 +1812,7 @@ onUnmounted(() => {
 
 @media (max-width: 480px) {
   .app-header {
-    height: 60px;
+    height: var(--header-height, 60px);
     padding: 0 10px;
   }
   .brand-mark {

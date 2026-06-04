@@ -63,6 +63,17 @@
       >
         自定义 AI 用量
       </button>
+      <button
+        type="button"
+        class="admin-section-tab"
+        :class="{ active: activeAdminSection === 'system-tts-config' }"
+        role="tab"
+        data-admin-section="system-tts-config"
+        :aria-selected="activeAdminSection === 'system-tts-config' ? 'true' : 'false'"
+        @click="activeAdminSection = 'system-tts-config'"
+      >
+        系统 TTS 配置
+      </button>
     </div>
 
     <div v-if="activeAdminSection === 'engine-config'" class="stats-grid">
@@ -136,15 +147,29 @@
       <div class="custom-ai-usage-header">
         <div>
           <span>用户自定义 AI 用量统计</span>
-          <strong>今日自定义 AI 调用</strong>
+          <strong>{{ customAiUsageRangeTitle }}自定义 AI 调用</strong>
         </div>
         <div class="custom-ai-usage-controls">
+          <el-radio-group
+            v-model="customAiUsageRangePreset"
+            size="small"
+            aria-label="自定义 AI 用量统计快捷范围"
+            @change="handleCustomAiUsageRangePresetChange"
+          >
+            <el-radio-button value="today">今天</el-radio-button>
+            <el-radio-button value="last7">近 7 天</el-radio-button>
+            <el-radio-button value="last30">近 30 天</el-radio-button>
+            <el-radio-button value="custom">自定义</el-radio-button>
+          </el-radio-group>
           <el-date-picker
-            v-model="customAiUsageDate"
-            type="date"
+            v-model="customAiUsageRange"
+            type="daterange"
             value-format="YYYY-MM-DD"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
             :clearable="false"
-            placeholder="选择日期"
+            @change="handleCustomAiUsageRangeChange"
           />
           <el-button :loading="customAiUsageLoading" @click="fetchCustomAiUsageStats">刷新统计</el-button>
         </div>
@@ -159,7 +184,7 @@
           <strong>{{ customAiUsageStats.configuredUserCount }}</strong>
         </div>
         <div>
-          <span>当日活跃</span>
+          <span>范围活跃</span>
           <strong>{{ customAiUsageStats.activeUserCount }}</strong>
         </div>
       </div>
@@ -236,7 +261,7 @@
         border
         size="small"
         class="custom-ai-usage-table"
-        empty-text="当日暂无用户自定义 AI 调用"
+        empty-text="所选范围暂无用户自定义 AI 调用"
       >
         <el-table-column prop="userId" label="用户ID" width="90" />
         <el-table-column label="用户" min-width="150">
@@ -272,6 +297,96 @@
           @current-change="handleCustomAiUsagePageChange"
         />
       </div>
+    </el-card>
+
+    <el-card v-if="activeAdminSection === 'system-tts-config'" shadow="never" class="system-tts-card" v-loading="systemTtsLoading">
+      <div class="system-tts-header">
+        <div>
+          <span>系统级云端语音</span>
+          <strong>系统 TTS 配置</strong>
+          <small>未配置自定义 TTS 的用户会使用此配置进行语音面试播报；用户自定义配置优先。</small>
+        </div>
+        <el-switch
+          v-model="systemTtsForm.enabled"
+          active-text="启用"
+          inactive-text="禁用"
+        />
+      </div>
+
+      <el-form label-width="100px" class="system-tts-form">
+        <div class="system-tts-grid">
+          <el-form-item label="服务商">
+            <el-select
+              v-model="systemTtsForm.ttsProvider"
+              placeholder="选择 TTS Provider"
+              @change="handleSystemTtsProviderChange"
+            >
+              <el-option
+                v-for="preset in systemTtsProviderPresets"
+                :key="preset.value"
+                :label="preset.label"
+                :value="preset.value"
+                :disabled="preset.disabled"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Base URL">
+            <el-input v-model.trim="systemTtsForm.baseUrl" maxlength="512" placeholder="https://api.example.com/v1" />
+          </el-form-item>
+          <el-form-item label="API Key">
+            <el-input v-model="systemTtsForm.apiKey" type="password" show-password maxlength="1024" placeholder="留空或保留脱敏值表示复用已保存 Key" />
+          </el-form-item>
+          <el-form-item label="模型">
+            <el-select
+              v-if="systemTtsModelOptions.length > 0"
+              v-model="systemTtsForm.model"
+              filterable
+              allow-create
+              default-first-option
+              placeholder="选择或输入模型"
+            >
+              <el-option
+                v-for="item in systemTtsModelOptions"
+                :key="item.id"
+                :label="item.name || item.id"
+                :value="item.id"
+              />
+            </el-select>
+            <el-input v-else v-model.trim="systemTtsForm.model" maxlength="128" placeholder="tts-1" />
+          </el-form-item>
+          <el-form-item label="音色">
+            <el-select
+              v-if="systemTtsVoiceOptions.length > 0"
+              v-model="systemTtsForm.voiceId"
+              filterable
+              allow-create
+              default-first-option
+              placeholder="选择或输入音色"
+            >
+              <el-option
+                v-for="item in systemTtsVoiceOptions"
+                :key="item.id"
+                :label="item.name || item.id"
+                :value="item.id"
+              />
+            </el-select>
+            <el-input v-else v-model.trim="systemTtsForm.voiceId" maxlength="128" placeholder="alloy" />
+          </el-form-item>
+          <el-form-item label="端点路径">
+            <el-input v-model.trim="systemTtsForm.endpointPath" maxlength="128" placeholder="/audio/speech" />
+          </el-form-item>
+        </div>
+        <div v-if="systemTtsConnectivityResult" class="system-tts-result" :class="{ failed: !systemTtsConnectivityResult.success }">
+          <span>{{ systemTtsConnectivityResult.message || (systemTtsConnectivityResult.success ? 'TTS 连通测试成功' : 'TTS 连通测试失败') }}</span>
+          <small v-if="systemTtsConnectivityResult.latencyMs">{{ systemTtsConnectivityResult.latencyMs }}ms</small>
+        </div>
+        <div class="system-tts-actions">
+          <el-button :loading="systemTtsSaving" type="primary" @click="handleSystemTtsSave">保存配置</el-button>
+          <el-button :loading="systemTtsTesting" @click="handleSystemTtsConnectivityTest">测试连通性</el-button>
+          <el-button :loading="systemTtsDiscovering" @click="handleSystemTtsDiscover">获取模型/音色</el-button>
+          <el-button :loading="systemTtsPreviewing" @click="handleSystemTtsPreview">预览音色</el-button>
+        </div>
+      </el-form>
     </el-card>
 
     <div v-if="activeAdminSection === 'engine-config'" class="filter-bar">
@@ -718,7 +833,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Connection, Edit, Search } from '@element-plus/icons-vue'
 import { Line } from 'vue-chartjs'
 import {
@@ -747,6 +862,13 @@ import {
   updateAdminAiEngine,
   updateCustomAiDailyLimit
 } from '@/api/admin/aiEngines'
+import {
+  discoverAdminTtsOptions,
+  getAdminTtsConfig,
+  previewAdminTtsVoice,
+  saveAdminTtsConfig,
+  testAdminTtsConnectivity
+} from '@/api/admin/ttsConfig'
 import {
   confirmAdminRiskAction,
   resolveAdminTableEmptyText,
@@ -783,7 +905,9 @@ const customAiDailyLimitSaving = ref(false)
 const customAiDailyLimitForm = reactive({
   limit: 50
 })
-const customAiUsageDate = ref(formatDate(new Date()))
+const customAiUsageRangePreset = ref('last7')
+// 功能分布和用户明细共用同一日期范围，避免两个统计区域口径不一致。
+const customAiUsageRange = ref(buildRecentDateRange(7))
 const customAiUsageLoading = ref(false)
 const customAiUsagePagination = reactive({
   page: 1,
@@ -796,6 +920,25 @@ const customAiTrendLoading = ref(false)
 const customAiUsageTrends = ref(buildEmptyCustomAiUsageTrends())
 // 自定义 AI 用量已隔离到独立分区，切换进入该分区后默认展开趋势图。
 const customAiTrendExpanded = ref(true)
+const systemTtsLoading = ref(false)
+const systemTtsSaving = ref(false)
+const systemTtsTesting = ref(false)
+const systemTtsDiscovering = ref(false)
+const systemTtsPreviewing = ref(false)
+const systemTtsConfigured = ref(false)
+const systemTtsConnectivityResult = ref(null)
+const systemTtsDiscoveryResult = ref(null)
+let systemTtsPreviewAudio = null
+let systemTtsPreviewObjectUrl = ''
+const systemTtsForm = reactive({
+  enabled: false,
+  ttsProvider: 'openai',
+  baseUrl: '',
+  apiKey: '',
+  model: '',
+  voiceId: '',
+  endpointPath: '/audio/speech'
+})
 
 // 弹窗编辑状态：复用一个表单完成新增和编辑。
 const dialogVisible = ref(false)
@@ -848,6 +991,56 @@ const providerBaseUrlPresetMap = {
   deepseek: 'https://api.deepseek.com/v1',
   qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1'
 }
+
+const systemTtsProviderPresets = [
+  {
+    value: 'openai',
+    label: 'OpenAI',
+    disabled: false,
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    defaultModel: 'tts-1',
+    defaultVoiceId: 'alloy',
+    endpointPath: '/audio/speech',
+    voices: [
+      { id: 'alloy', name: 'Alloy' },
+      { id: 'echo', name: 'Echo' },
+      { id: 'fable', name: 'Fable' },
+      { id: 'onyx', name: 'Onyx' },
+      { id: 'nova', name: 'Nova' },
+      { id: 'shimmer', name: 'Shimmer' }
+    ]
+  },
+  {
+    value: 'mimo',
+    label: 'MiMo（小米）',
+    disabled: false,
+    defaultBaseUrl: 'https://api.xiaomimimo.com/v1',
+    defaultModel: 'mimo-v2.5-tts',
+    defaultVoiceId: 'mimo_default',
+    endpointPath: '/chat/completions',
+    voices: [
+      { id: 'mimo_default', name: 'MiMo-默认' },
+      { id: 'Mia', name: 'Mia' },
+      { id: 'Chloe', name: 'Chloe' },
+      { id: 'Milo', name: 'Milo' },
+      { id: 'Dean', name: 'Dean' }
+    ]
+  },
+  { value: 'gemini', label: 'Gemini（暂未支持）', disabled: true },
+  { value: 'minimax', label: 'MiniMax（暂未支持）', disabled: true },
+  { value: 'qwen', label: 'Qwen（暂未支持）', disabled: true },
+  { value: 'xai', label: 'xAI（暂未支持）', disabled: true }
+]
+
+const systemTtsModelOptions = computed(() => {
+  const models = systemTtsDiscoveryResult.value?.models
+  return Array.isArray(models) ? models : []
+})
+
+const systemTtsVoiceOptions = computed(() => {
+  const voices = systemTtsDiscoveryResult.value?.voices
+  return Array.isArray(voices) ? voices : []
+})
 
 /**
  * 校验基础地址格式。
@@ -1187,6 +1380,180 @@ const handleModelFetch = async () => {
 /**
  * 测试当前 AI 引擎配置是否可连通。
  */
+const handleSystemTtsProviderChange = (providerId) => {
+  const preset = systemTtsProviderPresets.find((item) => item.value === providerId)
+  if (!preset || preset.disabled) return
+  systemTtsForm.baseUrl = preset.defaultBaseUrl
+  systemTtsForm.model = preset.defaultModel
+  systemTtsForm.voiceId = preset.defaultVoiceId
+  systemTtsForm.endpointPath = preset.endpointPath
+  systemTtsConnectivityResult.value = null
+  // 服务商预设只回填候选项，不触发网络请求，避免切换 Provider 时产生隐式出网。
+  systemTtsDiscoveryResult.value = {
+    success: true,
+    models: [{ id: preset.defaultModel, name: preset.defaultModel }],
+    voices: preset.voices || [],
+    ttsEndpointPath: preset.endpointPath
+  }
+}
+
+const buildSystemTtsPayload = () => ({
+  enabled: Boolean(systemTtsForm.enabled),
+  ttsProvider: String(systemTtsForm.ttsProvider || '').trim(),
+  baseUrl: String(systemTtsForm.baseUrl || '').trim(),
+  apiKey: String(systemTtsForm.apiKey || '').trim(),
+  model: String(systemTtsForm.model || '').trim(),
+  voiceId: String(systemTtsForm.voiceId || '').trim(),
+  endpointPath: String(systemTtsForm.endpointPath || '').trim()
+})
+
+const validateSystemTtsPayload = (payload, requireApiKey = false) => {
+  const hasAnyConfigValue = Boolean(payload.baseUrl || payload.apiKey || payload.model || payload.voiceId)
+  if (!payload.enabled && !hasAnyConfigValue) {
+    return true
+  }
+  if (!payload.baseUrl || !payload.model || !payload.voiceId) {
+    showAdminWarning('请完整填写系统 TTS 地址、模型和音色')
+    return false
+  }
+  if (requireApiKey && !payload.apiKey && !systemTtsConfigured.value) {
+    showAdminWarning('首次配置系统 TTS 时必须填写 API Key')
+    return false
+  }
+  return true
+}
+
+const applySystemTtsConfig = (config = {}) => {
+  systemTtsConfigured.value = Boolean(config.configured)
+  systemTtsForm.enabled = Boolean(config.enabled)
+  systemTtsForm.ttsProvider = config.ttsProvider || 'openai'
+  systemTtsForm.baseUrl = config.baseUrl || ''
+  systemTtsForm.apiKey = config.apiKey || ''
+  systemTtsForm.model = config.model || ''
+  systemTtsForm.voiceId = config.voiceId || ''
+  systemTtsForm.endpointPath = config.endpointPath || '/audio/speech'
+  systemTtsConnectivityResult.value = null
+}
+
+const fetchSystemTtsConfig = async () => {
+  systemTtsLoading.value = true
+  try {
+    const res = await getAdminTtsConfig()
+    applySystemTtsConfig(res?.data || {})
+  } catch (error) {
+    showAdminError(error?.message || '加载系统 TTS 配置失败')
+  } finally {
+    systemTtsLoading.value = false
+  }
+}
+
+const handleSystemTtsSave = async () => {
+  const payload = buildSystemTtsPayload()
+  if (!validateSystemTtsPayload(payload, true)) return
+  systemTtsSaving.value = true
+  try {
+    const res = await saveAdminTtsConfig(payload)
+    applySystemTtsConfig({ ...payload, ...(res?.data || {}) })
+    showAdminSuccess('系统 TTS 配置已保存')
+  } catch (error) {
+    showAdminError(error?.message || '保存系统 TTS 配置失败')
+  } finally {
+    systemTtsSaving.value = false
+  }
+}
+
+const handleSystemTtsConnectivityTest = async () => {
+  const payload = buildSystemTtsPayload()
+  if (!validateSystemTtsPayload(payload, true)) return
+  systemTtsTesting.value = true
+  systemTtsConnectivityResult.value = null
+  try {
+    const res = await testAdminTtsConnectivity(payload)
+    systemTtsConnectivityResult.value = res?.data || { success: true, message: 'TTS 连通测试成功' }
+    showAdminSuccess(systemTtsConnectivityResult.value.message || 'TTS 连通测试成功')
+  } catch (error) {
+    systemTtsConnectivityResult.value = {
+      success: false,
+      message: error?.message || 'TTS 连通测试失败'
+    }
+    showAdminError(systemTtsConnectivityResult.value.message)
+  } finally {
+    systemTtsTesting.value = false
+  }
+}
+
+const handleSystemTtsDiscover = async () => {
+  const payload = buildSystemTtsPayload()
+  if (!payload.baseUrl) {
+    showAdminWarning('请先填写系统 TTS 地址')
+    return
+  }
+  if (!payload.apiKey && !systemTtsConfigured.value) {
+    showAdminWarning('首次获取模型/音色时必须填写 API Key')
+    return
+  }
+  systemTtsDiscovering.value = true
+  try {
+    const res = await discoverAdminTtsOptions(payload)
+    const data = res?.data || {}
+    if (!data.success) {
+      throw new Error(data.errorMessage || data.message || '模型和音色获取失败')
+    }
+    systemTtsDiscoveryResult.value = data
+    if (data.ttsEndpointPath) {
+      systemTtsForm.endpointPath = data.ttsEndpointPath
+    }
+    if (!systemTtsForm.model && systemTtsModelOptions.value[0]?.id) {
+      systemTtsForm.model = systemTtsModelOptions.value[0].id
+    }
+    if (!systemTtsForm.voiceId && systemTtsVoiceOptions.value[0]?.id) {
+      systemTtsForm.voiceId = systemTtsVoiceOptions.value[0].id
+    }
+    showAdminSuccess(data.message || 'TTS 模型和音色获取成功')
+  } catch (error) {
+    showAdminError(error?.message || 'TTS 模型和音色获取失败')
+  } finally {
+    systemTtsDiscovering.value = false
+  }
+}
+
+const releaseSystemTtsPreviewAudio = () => {
+  if (systemTtsPreviewAudio) {
+    systemTtsPreviewAudio.pause()
+    systemTtsPreviewAudio.onended = null
+    systemTtsPreviewAudio.onerror = null
+    systemTtsPreviewAudio = null
+  }
+  if (systemTtsPreviewObjectUrl) {
+    URL.revokeObjectURL(systemTtsPreviewObjectUrl)
+    systemTtsPreviewObjectUrl = ''
+  }
+}
+
+const handleSystemTtsPreview = async () => {
+  const payload = buildSystemTtsPayload()
+  if (!validateSystemTtsPayload(payload, true)) return
+  systemTtsPreviewing.value = true
+  try {
+    releaseSystemTtsPreviewAudio()
+    const blob = await previewAdminTtsVoice(payload)
+    systemTtsPreviewObjectUrl = URL.createObjectURL(blob)
+    systemTtsPreviewAudio = new Audio(systemTtsPreviewObjectUrl)
+    systemTtsPreviewAudio.onended = releaseSystemTtsPreviewAudio
+    systemTtsPreviewAudio.onerror = () => {
+      releaseSystemTtsPreviewAudio()
+      showAdminError('系统 TTS 试音播放失败')
+    }
+    await systemTtsPreviewAudio.play()
+    showAdminSuccess('系统 TTS 试音已开始播放')
+  } catch (error) {
+    releaseSystemTtsPreviewAudio()
+    showAdminError(error?.message || '系统 TTS 试音失败')
+  } finally {
+    systemTtsPreviewing.value = false
+  }
+}
+
 const handleConnectivityTest = async () => {
   if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
@@ -1310,8 +1677,11 @@ function formatDate(date) {
 }
 
 function buildEmptyCustomAiUsageStats() {
+  const fallbackRange = customAiUsageRange?.value || buildRecentDateRange(7)
   return {
-    date: customAiUsageDate?.value || formatDate(new Date()),
+    date: fallbackRange[0] === fallbackRange[1] ? fallbackRange[0] : null,
+    startDate: fallbackRange[0],
+    endDate: fallbackRange[1],
     configuredUserCount: 0,
     activeUserCount: 0,
     totalCalls: 0,
@@ -1324,9 +1694,12 @@ function buildEmptyCustomAiUsageStats() {
 }
 
 function normalizeCustomAiUsageStats(data) {
+  const fallback = buildEmptyCustomAiUsageStats()
   return {
-    ...buildEmptyCustomAiUsageStats(),
+    ...fallback,
     ...data,
+    startDate: data?.startDate || data?.date || fallback.startDate,
+    endDate: data?.endDate || data?.date || fallback.endDate,
     configuredUserCount: Number(data?.configuredUserCount || 0),
     activeUserCount: Number(data?.activeUserCount || 0),
     totalCalls: Number(data?.totalCalls || 0),
@@ -1338,12 +1711,33 @@ function normalizeCustomAiUsageStats(data) {
   }
 }
 
+function getNormalizedCustomAiUsageRange() {
+  if (Array.isArray(customAiUsageRange.value) && customAiUsageRange.value[0] && customAiUsageRange.value[1]) {
+    return [customAiUsageRange.value[0], customAiUsageRange.value[1]]
+  }
+  return buildRecentDateRange(customAiUsageRangePreset.value === 'last30' ? 30 : 7)
+}
+
 function buildRecentDateRange(dayCount) {
   const end = new Date()
   const start = new Date(end)
   start.setDate(start.getDate() - (dayCount - 1))
   return [formatDate(start), formatDate(end)]
 }
+
+const customAiUsageRangeTitle = computed(() => {
+  if (customAiUsageRangePreset.value === 'today') {
+    return '今日'
+  }
+  if (customAiUsageRangePreset.value === 'last30') {
+    return '近 30 天'
+  }
+  if (customAiUsageRangePreset.value === 'last7') {
+    return '近 7 天'
+  }
+  const [startDate, endDate] = getNormalizedCustomAiUsageRange()
+  return `${startDate} 至 ${endDate}`
+})
 
 function buildEmptyCustomAiUsageTrends() {
   const fallbackRange = customAiTrendRange?.value || buildRecentDateRange(7)
@@ -1513,10 +1907,13 @@ const fetchCustomAiDailyLimit = async () => {
  * 说明：该统计只展示用户自带 Key 的调用，不混入平台 AI 额度消耗。
  */
 const fetchCustomAiUsageStats = async () => {
+  const [startDate, endDate] = getNormalizedCustomAiUsageRange()
+  customAiUsageRange.value = [startDate, endDate]
   customAiUsageLoading.value = true
   try {
     const res = await getCustomAiUsageStats({
-      date: customAiUsageDate.value,
+      startDate,
+      endDate,
       page: customAiUsagePagination.page,
       pageSize: customAiUsagePagination.pageSize
     })
@@ -1528,9 +1925,36 @@ const fetchCustomAiUsageStats = async () => {
   }
 }
 
+const handleCustomAiUsageRangePresetChange = async (value) => {
+  const nextPreset = value || customAiUsageRangePreset.value
+  customAiUsageRangePreset.value = nextPreset
+  if (nextPreset === 'today') {
+    customAiUsageRange.value = buildRecentDateRange(1)
+  } else if (nextPreset === 'last7') {
+    customAiUsageRange.value = buildRecentDateRange(7)
+  } else if (nextPreset === 'last30') {
+    customAiUsageRange.value = buildRecentDateRange(30)
+  } else if (!Array.isArray(customAiUsageRange.value) || customAiUsageRange.value.length !== 2) {
+    customAiUsageRange.value = buildRecentDateRange(7)
+  }
+  // 日期范围变化后重置用户明细页码，避免继续请求旧范围下的页码。
+  customAiUsagePagination.page = 1
+  await fetchCustomAiUsageStats()
+}
+
+const handleCustomAiUsageRangeChange = async (value) => {
+  if (!Array.isArray(value) || value.length !== 2 || !value[0] || !value[1]) {
+    return
+  }
+  customAiUsageRangePreset.value = 'custom'
+  customAiUsageRange.value = [value[0], value[1]]
+  customAiUsagePagination.page = 1
+  await fetchCustomAiUsageStats()
+}
+
 /**
  * 加载用户自定义 AI 按日趋势。
- * 说明：趋势筛选独立于单日明细筛选，避免切换图表范围时影响下方用户明细表格。
+ * 说明：趋势筛选独立于功能分布范围筛选，避免切换图表范围时影响下方用户明细表格。
  */
 const fetchCustomAiUsageTrends = async () => {
   const [startDate, endDate] = getNormalizedCustomAiTrendRange()
@@ -1974,6 +2398,12 @@ onMounted(() => {
   fetchCustomAiDailyLimit()
   fetchCustomAiUsageStats()
   fetchCustomAiUsageTrends()
+  fetchSystemTtsConfig()
+})
+
+// 离开系统 TTS 配置时释放试听音频，避免后台播放和 blob URL 泄漏
+onBeforeUnmount(() => {
+  releaseSystemTtsPreviewAudio()
 })
 
 /**
@@ -1992,11 +2422,6 @@ watch(
     pagination.page = 1
   }
 )
-
-watch(customAiUsageDate, () => {
-  customAiUsagePagination.page = 1
-  fetchCustomAiUsageStats()
-})
 
 /**
  * 监听筛选结果长度：
@@ -2274,8 +2699,14 @@ watch(
 .custom-ai-usage-controls {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
   flex-shrink: 0;
+}
+
+.custom-ai-usage-controls :deep(.el-date-editor) {
+  min-width: 260px;
 }
 
 .custom-ai-usage-summary {
@@ -2490,6 +2921,90 @@ watch(
   margin-top: 14px;
 }
 
+.system-tts-card :deep(.el-card__body) {
+  padding: 18px 20px;
+}
+
+.system-tts-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.system-tts-header span,
+.system-tts-header strong,
+.system-tts-header small {
+  display: block;
+}
+
+.system-tts-header span {
+  color: #a08060;
+  font-size: 13px;
+}
+
+.system-tts-header strong {
+  margin-top: 4px;
+  color: #5a4030;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.system-tts-header small {
+  margin-top: 6px;
+  color: #8f6f55;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.system-tts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 14px;
+}
+
+.system-tts-form :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.system-tts-form :deep(.el-select) {
+  width: 100%;
+}
+
+.system-tts-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.08);
+  color: #047857;
+  font-size: 13px;
+}
+
+.system-tts-result.failed {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+}
+
+.system-tts-result small {
+  margin-left: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.78;
+}
+
+.system-tts-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .filter-bar {
   display: flex;
   align-items: center;
@@ -2699,7 +3214,7 @@ watch(
   .admin-section-switch {
     align-self: stretch;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .admin-section-tab {
@@ -2731,6 +3246,10 @@ watch(
     flex-direction: column;
   }
 
+  .custom-ai-usage-controls :deep(.el-date-editor) {
+    width: 100%;
+  }
+
   .custom-ai-trend-header,
   .custom-ai-trend-controls {
     align-items: stretch;
@@ -2747,6 +3266,16 @@ watch(
   }
 
   .custom-ai-usage-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .system-tts-header,
+  .system-tts-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .system-tts-grid {
     grid-template-columns: 1fr;
   }
 

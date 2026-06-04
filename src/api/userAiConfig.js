@@ -108,6 +108,17 @@ export function getUserAiUsage() {
  * @param {{ttsBaseUrl: string, ttsApiKey: string, ttsProvider?: string}} data
  * @returns {Promise<{success: boolean, models: Array<{id: string, name: string}>, voices: Array<{id: string, name: string}>, voiceDiscoverySupported: boolean, message?: string}>}
  */
+/**
+ * 查询系统级 TTS 是否可作为当前用户未配置自定义 TTS 时的兜底能力。
+ * @returns {Promise}
+ */
+export function getSystemTtsStatus() {
+  return request({
+    url: '/api/user/ai-config/system-tts-status',
+    method: 'get'
+  })
+}
+
 export function discoverTtsModelsAndVoices(data) {
   return request({
     url: '/api/user/ai-config/tts-discovery',

@@ -200,3 +200,21 @@ export function unbanAdminUsersBatch(data) {
     }
   })
 }
+
+/**
+ * 管理员查询指定用户的额度消费记录。
+ * @param {string | number} userId
+ * @param {Object} [params] - 查询参数
+ * @param {string} [params.quotaType] - 额度类型筛选
+ * @param {number} [params.pageNum=1] - 页码
+ * @param {number} [params.pageSize=20] - 每页条数
+ * @returns {Promise}
+ */
+export function getAdminConsumptionLog(userId, params = {}) {
+  const safeUserId = normalizeUserId(userId)
+  return adminRequest({
+    url: `/api/admin/users/${encodeURIComponent(safeUserId)}/consumption-log`,
+    method: 'get',
+    params
+  })
+}

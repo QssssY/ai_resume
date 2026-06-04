@@ -293,6 +293,13 @@
             </el-table-column>
           </el-table>
         </el-tab-pane>
+        <!-- 消费记录 Tab -->
+        <el-tab-pane label="消费记录" name="consumption">
+          <div v-if="!rightsUserId" class="admin-consumption-empty">
+            <el-empty description="请先选择用户" />
+          </div>
+          <AdminConsumptionLog v-else :user-id="rightsUserId" />
+        </el-tab-pane>
       </el-tabs>
     </el-drawer>
 
@@ -513,6 +520,7 @@ import {
   normalizeUserId
 } from '@/api/admin/users'
 import AdminUserBanDialog from '@/components/admin/AdminUserBanDialog.vue'
+import AdminConsumptionLog from '@/components/admin/AdminConsumptionLog.vue'
 import { getAdminUserInterviews, getAdminUserResumeTasks } from '@/api/admin/userData'
 import {
   confirmAdminRiskAction,
@@ -552,9 +560,11 @@ const pagination = reactive({
 // 服务端分页总数
 const paginationTotal = ref(0)
 
-// 权益详情抽屉状态：点击“查看权益”后加载展示。
+// 权益详情抽屉状态：点击”查看权益”后加载展示。
 const rightsDrawerVisible = ref(false)
 const rightsLoading = ref(false)
+/** 当前查看权益的用户ID（供消费记录 Tab 使用） */
+const rightsUserId = computed(() => rightsData.userId || '')
 const rightsData = reactive({
   userId: '',
   username: '',

@@ -9,6 +9,7 @@ import {
   deleteUserAiConfig,
   fetchUserAiModels,
   getUserAiConfigs,
+  getSystemTtsStatus,
   getUserAiUsage,
   saveUserAiConfig,
   testUserAiConnectivity,
@@ -41,6 +42,7 @@ describe('userAiConfig API', () => {
     await fetchUserAiModels(payload)
     await testUserAiConnectivity(payload)
     await testUserTtsConnectivity(payload)
+    await getSystemTtsStatus()
     await getUserAiUsage()
     await deleteUserAiConfig('resume')
 
@@ -91,10 +93,14 @@ describe('userAiConfig API', () => {
       skipDefaultErrorHandler: true
     })
     expect(request).toHaveBeenNthCalledWith(7, {
-      url: '/api/user/ai-config/usage',
+      url: '/api/user/ai-config/system-tts-status',
       method: 'get'
     })
     expect(request).toHaveBeenNthCalledWith(8, {
+      url: '/api/user/ai-config/usage',
+      method: 'get'
+    })
+    expect(request).toHaveBeenNthCalledWith(9, {
       url: '/api/user/ai-config/resume',
       method: 'delete'
     })

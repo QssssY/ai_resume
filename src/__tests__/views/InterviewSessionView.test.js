@@ -961,7 +961,63 @@ describe('InterviewSessionView', () => {
     )
     expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
     expect(audioInstances[0].play).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('播报音色：云端 TTS')
+    expect(wrapper.text()).toContain('播报音色：自定义云端 TTS')
+  })
+
+  it('labels cloud TTS as system source when system fallback is available', async () => {
+    getInterviewTtsCapability.mockResolvedValue({
+      data: { available: true, engine: 'system', systemTtsAvailable: true },
+    })
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [
+          { id: 1, messageRole: 'assistant', content: '你好，我是本次 AI 面试官。请先做一个自我介绍。', createTime: '2026-05-19 14:00:00' },
+        ],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getInterviewTtsCapability).toHaveBeenCalledWith('session-1')
+    expect(wrapper.text()).toContain('播报音色：系统云端 TTS')
+  })
+
+  it('shows cloud TTS preparing state before real audio playback starts', async () => {
+    let resolveAudio
+    synthesizeInterviewTts.mockReturnValueOnce(new Promise((resolve) => {
+      resolveAudio = resolve
+    }))
+    getInterviewTtsCapability.mockResolvedValue({
+      data: { available: true, engine: 'user_custom_tts', configType: 'interview' },
+    })
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [
+          { id: 1, messageRole: 'assistant', content: '你好，我是本次 AI 面试官。请先做一个自我介绍。', createTime: '2026-05-19 14:00:00' },
+        ],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('AI 语音准备中')
+    expect(wrapper.find('.voice-wave').classes()).not.toContain('speaking')
+
+    resolveAudio(new Blob(['mp3'], { type: 'audio/mpeg' }))
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('AI 正在播报')
+    expect(wrapper.find('.voice-wave').classes()).toContain('speaking')
   })
 
   it('uses cloud TTS for streamed voice replies without browser speech synthesis', async () => {

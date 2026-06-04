@@ -273,6 +273,11 @@ describe('ResumeResultView', () => {
 
     await vi.advanceTimersByTimeAsync(2000)
     await flushPromises()
+    expect(getResumeTaskStatus).toHaveBeenCalledTimes(2)
+    expect(getResumeTask).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(4000)
+    await flushPromises()
     expect(getResumeTaskStatus).toHaveBeenCalledTimes(3)
     expect(getResumeTask).toHaveBeenCalledTimes(1)
     expect(getResumeTask).toHaveBeenCalledWith('pending-task')
