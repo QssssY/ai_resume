@@ -447,8 +447,8 @@ const handleCommentImageUpload = async (e) => {
   imageUploading.value = true
   try {
     const validFiles = toUpload.filter(file => {
-      if (file.size > 5 * 1024 * 1024) {
-        ElMessage.warning('单张图片不能超过5MB')
+      if (file.size > 2 * 1024 * 1024) {
+        ElMessage.warning('单张图片不能超过2MB')
         return false
       }
       return true
@@ -586,8 +586,8 @@ const handleReplyImageUpload = async (e) => {
   replyImageUploading.value = true
   try {
     const validFiles = toUpload.filter(file => {
-      if (file.size > 5 * 1024 * 1024) {
-        ElMessage.warning('单张图片不能超过5MB')
+      if (file.size > 2 * 1024 * 1024) {
+        ElMessage.warning('单张图片不能超过2MB')
         return false
       }
       return true

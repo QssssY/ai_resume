@@ -22,7 +22,7 @@ export function createResumePdfImagePages({
   pageWidth = A4_RESUME_PDF_PAGE.width,
   pageHeight = A4_RESUME_PDF_PAGE.height,
   margin = 0,
-  minSinglePageScale = 0.9,
+  minSinglePageScale = 0.85,
 }) {
   if (canvasWidth <= 0 || canvasHeight <= 0) {
     throw new Error('canvas size must be positive')
