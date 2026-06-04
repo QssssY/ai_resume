@@ -5,6 +5,74 @@ export const INTERVIEW_RETENTION_DAY_OPTIONS = Object.freeze([0, 30, 90, 180, 36
 export const RESUME_RETENTION_DAY_OPTIONS = Object.freeze([0, 30, 90, 180, 365])
 export const VOICE_AUTO_SUBMIT_DELAY_OPTIONS = Object.freeze([0, 2000, 3000, 5000])
 
+const freezePresetGroup = (group) => Object.freeze({
+  ...group,
+  options: Object.freeze(group.options.map((option) => Object.freeze({ ...option })))
+})
+
+export const BROWSER_TTS_VOICE_PRESET_GROUPS = Object.freeze([
+  freezePresetGroup({
+    label: '女声系列',
+    options: [
+      { label: '温柔女声', value: 'gentle_female' },
+      { label: '专业女声', value: 'pro_female' },
+      { label: '活泼女声', value: 'lively_female' },
+      { label: '暖心女声', value: 'warm_female' },
+      { label: '女声优先', value: 'female' }
+    ]
+  }),
+  freezePresetGroup({
+    label: '男声系列',
+    options: [
+      { label: '磁性男声', value: 'magnetic_male' },
+      { label: '专业男声', value: 'pro_male' },
+      { label: '沉稳男声', value: 'calm_male' },
+      { label: '活力男声', value: 'energetic_male' },
+      { label: '男声优先', value: 'male' }
+    ]
+  }),
+  freezePresetGroup({
+    label: '通用',
+    options: [
+      { label: '默认中文自然音色', value: 'natural_zh' },
+      { label: '新闻播报', value: 'news_anchor' },
+      { label: '慢速清晰', value: 'slow_clear' },
+      { label: '系统默认', value: 'system' }
+    ]
+  }),
+  freezePresetGroup({
+    label: '自定义',
+    options: [
+      { label: '指定浏览器音色', value: 'custom' }
+    ]
+  })
+])
+
+export const BROWSER_TTS_PRESET_PARAMETERS = Object.freeze({
+  natural_zh: Object.freeze({ rate: 0.92, pitch: 1.06 }),
+  gentle_female: Object.freeze({ rate: 0.85, pitch: 1.12 }),
+  pro_female: Object.freeze({ rate: 0.95, pitch: 1 }),
+  lively_female: Object.freeze({ rate: 0.98, pitch: 1.15 }),
+  warm_female: Object.freeze({ rate: 0.88, pitch: 1.08 }),
+  magnetic_male: Object.freeze({ rate: 0.88, pitch: 0.9 }),
+  pro_male: Object.freeze({ rate: 0.95, pitch: 0.95 }),
+  calm_male: Object.freeze({ rate: 0.85, pitch: 0.88 }),
+  energetic_male: Object.freeze({ rate: 0.98, pitch: 1.05 }),
+  news_anchor: Object.freeze({ rate: 1, pitch: 1 }),
+  slow_clear: Object.freeze({ rate: 0.75, pitch: 1.02 }),
+  female: Object.freeze({ rate: 0.92, pitch: 1.06 }),
+  male: Object.freeze({ rate: 0.92, pitch: 1.06 })
+})
+
+/**
+ * 浏览器 TTS 预设绑定参数。
+ * 返回新对象避免调用方误改全局预设；system/custom 不绑定滑块值。
+ */
+export function getBrowserTtsPresetParameters(presetKey) {
+  const parameters = BROWSER_TTS_PRESET_PARAMETERS[presetKey]
+  return parameters ? { ...parameters } : null
+}
+
 export const DEFAULT_SETTINGS_PREFERENCES = Object.freeze({
   notificationRealtimeEnabled: true,
   notificationDefaultUnreadOnly: false,
@@ -49,7 +117,9 @@ const INTERACTION_TYPE_VALUES = Object.freeze([0, 1])
 const VOICE_MUTE_RESUME_MODE_VALUES = Object.freeze(['auto', 'manual'])
 const VOICE_RECOGNITION_LANGUAGE_VALUES = Object.freeze(['auto', 'zh-CN', 'en-US'])
 const VOICE_RECOGNITION_ENGINE_VALUES = Object.freeze(['system_local'])
-const VOICE_PREFERRED_TYPE_VALUES = Object.freeze(['natural_zh', 'female', 'male', 'system', 'custom'])
+const VOICE_PREFERRED_TYPE_VALUES = Object.freeze(
+  BROWSER_TTS_VOICE_PRESET_GROUPS.flatMap((group) => group.options.map((option) => option.value))
+)
 
 const booleanOrDefault = (value, defaultValue) => (
   typeof value === 'boolean' ? value : defaultValue

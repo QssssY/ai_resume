@@ -101,6 +101,48 @@ describe('useTextToSpeech', () => {
     expect(window.speechSynthesis.resume).toHaveBeenCalled()
   })
 
+  it('uses a specific female preset voice and its bound speaking style', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Yunxi Natural', voiceURI: 'yunxi-uri', localService: true },
+      { lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural', voiceURI: 'xiaoxiao-uri', localService: true },
+    ])
+    const tts = useTextToSpeech({ voicePreference: { type: 'gentle_female' } })
+
+    tts.speak('你好。')
+
+    expect(spokenUtterances[0].voice.name).toBe('Microsoft Xiaoxiao Natural')
+    expect(spokenUtterances[0].rate).toBe(0.85)
+    expect(spokenUtterances[0].pitch).toBe(1.12)
+    expect(tts.getPresetParameters('gentle_female')).toEqual({ rate: 0.85, pitch: 1.12 })
+  })
+
+  it('does not bind Chinese-specific presets to English browser voices', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'en-US', name: 'Microsoft Jenny Online', voiceURI: 'jenny-uri', localService: false },
+      { lang: 'en-US', name: 'Microsoft David Desktop', voiceURI: 'david-uri', localService: true },
+    ])
+    const tts = useTextToSpeech({ voicePreference: { type: 'pro_female' } })
+
+    tts.speak('你好。')
+
+    expect(tts.isPresetAvailable('pro_female')).toBe(false)
+    expect(tts.voicePreferenceStatus.value.isRequestedPresetAvailable).toBe(false)
+    expect(spokenUtterances[0].voice).toBeUndefined()
+  })
+
+  it('checks browser voice preset availability against the current voice list', () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      { lang: 'zh-CN', name: 'Microsoft Xiaoxiao Natural', voiceURI: 'xiaoxiao-uri', localService: true },
+      { lang: 'en-US', name: 'English Voice', voiceURI: 'english-uri', localService: true },
+    ])
+    const tts = useTextToSpeech()
+
+    expect(tts.isPresetAvailable('gentle_female')).toBe(true)
+    expect(tts.isPresetAvailable('lively_female')).toBe(false)
+    expect(tts.isPresetAvailable('news_anchor')).toBe(true)
+    expect(tts.isPresetAvailable('custom')).toBe(true)
+  })
+
   it('waits for browser voices before speaking the first utterance', async () => {
     vi.useFakeTimers()
     let currentVoices = []

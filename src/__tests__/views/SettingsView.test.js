@@ -23,6 +23,7 @@ const clearUserInfo = vi.fn()
 const setTheme = vi.fn()
 const setFollowSystem = vi.fn()
 let currentWrapper = null
+const originalUserAgent = window.navigator.userAgent
 
 vi.setConfig({ testTimeout: 15000 })
 
@@ -190,6 +191,13 @@ const switchSection = async (wrapper, section) => {
 const settingsViewSource = () =>
   readFileSync(resolve(process.cwd(), 'src/views/settings/SettingsView.vue'), 'utf8')
 
+const setUserAgent = (userAgent) => {
+  Object.defineProperty(window.navigator, 'userAgent', {
+    value: userAgent,
+    configurable: true
+  })
+}
+
 describe('SettingsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -236,6 +244,7 @@ describe('SettingsView', () => {
   afterEach(() => {
     currentWrapper?.unmount()
     currentWrapper = null
+    setUserAgent(originalUserAgent)
     vi.useRealTimers()
   })
 
@@ -841,6 +850,64 @@ describe('SettingsView', () => {
     expect(window.speechSynthesis.speak.mock.calls[0][0].voice.name).toBe('Microsoft Xiaoxiao Natural')
   }, 15000)
 
+  it('groups browser voice presets and marks unavailable specific presets', async () => {
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      {
+        name: 'Microsoft Xiaoxiao Natural',
+        lang: 'zh-CN',
+        voiceURI: 'xiaoxiao-uri',
+        localService: true
+      }
+    ])
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    const optionGroups = wrapper.vm.voicePreferredTypeOptions
+    const femaleGroup = optionGroups.find((group) => group.label === '女声系列')
+    const maleGroup = optionGroups.find((group) => group.label === '男声系列')
+    const livelyFemaleOption = femaleGroup.children.find((option) => option.value === 'lively_female')
+
+    expect(optionGroups.map((group) => group.label)).toEqual(['女声系列', '男声系列', '通用', '自定义'])
+    expect(femaleGroup.children.map((option) => option.value)).toEqual(expect.arrayContaining([
+      'gentle_female',
+      'pro_female',
+      'lively_female',
+      'warm_female'
+    ]))
+    expect(maleGroup.children.map((option) => option.value)).toEqual(expect.arrayContaining([
+      'magnetic_male',
+      'pro_male',
+      'calm_male',
+      'energetic_male'
+    ]))
+    expect(livelyFemaleOption.disabled).toBe(true)
+    expect(livelyFemaleOption.label).toContain('当前系统不可用')
+  }, 15000)
+
+  it('applies preset rate and pitch when a bound browser voice preset is selected', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.interviewPreferenceForm.voiceSpeakingRate = 1.2
+    wrapper.vm.interviewPreferenceForm.voicePitch = 0.8
+    wrapper.vm.interviewPreferenceForm.voicePreferredType = 'slow_clear'
+    wrapper.vm.handleVoicePreferredTypeChange()
+    await flushPromises()
+
+    expect(wrapper.vm.interviewPreferenceForm.voiceSpeakingRate).toBe(0.75)
+    expect(wrapper.vm.interviewPreferenceForm.voicePitch).toBe(1.02)
+    expect(getSettingsPreferences()).toMatchObject({
+      voicePreferredType: 'slow_clear',
+      voiceSpeakingRate: 0.75,
+      voicePitch: 1.02
+    })
+  }, 15000)
+
   it('shows the actual browser voice when male preference is degraded in Chrome', async () => {
     saveSettingsPreferences({ voicePreferredType: 'male' })
     window.speechSynthesis.getVoices = vi.fn(() => [
@@ -869,6 +936,37 @@ describe('SettingsView', () => {
     expect(status.exists()).toBe(true)
     expect(status.text()).toContain('没有暴露中文男声')
     expect(status.text()).toContain('Google 普通话（中国大陆）')
+  }, 15000)
+
+  it('labels Chrome presets when only one Chinese browser voice is exposed', async () => {
+    setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36')
+    window.speechSynthesis.getVoices = vi.fn(() => [
+      {
+        name: 'Google 普通话（中国大陆）',
+        lang: 'zh-CN',
+        voiceURI: 'google-zh-cn',
+        localService: false
+      }
+    ])
+    const wrapper = mountView()
+    await flushPromises()
+
+    await switchSection(wrapper, 'interview')
+    wrapper.vm.interviewSubTab = 'voice'
+    await flushPromises()
+    await waitForSecurityTransition()
+
+    const status = wrapper.find('[data-testid="browser-tts-voice-status"]')
+    const generalGroup = wrapper.vm.voicePreferredTypeOptions.find((group) => group.label.includes('通用'))
+    const newsAnchorOption = generalGroup.children.find((option) => option.value === 'news_anchor')
+    const slowClearOption = generalGroup.children.find((option) => option.value === 'slow_clear')
+
+    expect(status.text()).toContain('Chrome 当前只暴露 1 种中文浏览器 voice')
+    expect(status.text()).toContain('多个预设会共用同一音色')
+    expect(status.text()).toContain('Google 普通话（中国大陆）')
+    expect(newsAnchorOption.disabled).toBe(false)
+    expect(newsAnchorOption.label).toContain('Chrome 共用 1 种 voice')
+    expect(slowClearOption.label).toContain('Chrome 共用 1 种 voice')
   }, 15000)
 
   it('keeps browser TTS status below the voice controls to avoid squeezing the row', async () => {

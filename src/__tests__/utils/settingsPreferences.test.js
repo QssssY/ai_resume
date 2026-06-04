@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  BROWSER_TTS_VOICE_PRESET_GROUPS,
   clearLocalSettingsCache,
   DEFAULT_SETTINGS_PREFERENCES,
+  getBrowserTtsPresetParameters,
   getSettingsPreferences,
   normalizeSettingsPreferences,
   resetSettingsPreferences,
@@ -83,6 +85,38 @@ describe('settingsPreferences', () => {
     expect(normalized).not.toHaveProperty('offlineTtsEngine')
     expect(normalized).not.toHaveProperty('offlineTtsVoiceType')
     expect(normalized.voicePreferredType).toBe('female')
+  })
+
+  it('keeps expanded browser voice presets and their bound speaking style', () => {
+    const presetValues = BROWSER_TTS_VOICE_PRESET_GROUPS.flatMap((group) =>
+      group.options.map((option) => option.value)
+    )
+    const normalized = normalizeSettingsPreferences({
+      voicePreferredType: 'slow_clear'
+    })
+
+    expect(presetValues.length).toBeGreaterThanOrEqual(15)
+    expect(presetValues).toEqual(expect.arrayContaining([
+      'natural_zh',
+      'gentle_female',
+      'pro_female',
+      'lively_female',
+      'warm_female',
+      'magnetic_male',
+      'pro_male',
+      'calm_male',
+      'energetic_male',
+      'news_anchor',
+      'slow_clear',
+      'female',
+      'male',
+      'system',
+      'custom'
+    ]))
+    expect(normalized.voicePreferredType).toBe('slow_clear')
+    expect(getBrowserTtsPresetParameters('slow_clear')).toEqual({ rate: 0.75, pitch: 1.02 })
+    expect(getBrowserTtsPresetParameters('system')).toBeNull()
+    expect(getBrowserTtsPresetParameters('custom')).toBeNull()
   })
 
   it('normalizes invalid stored interview preferences to defaults', () => {

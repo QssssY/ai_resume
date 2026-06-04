@@ -1094,6 +1094,7 @@ describe('InterviewSessionView', () => {
 
   it('uses local voice speaking preferences for opening speech', async () => {
     saveSettingsPreferences({
+      voicePreferredType: 'system',
       voiceSpeakingRate: 1.1,
       voicePitch: 0.95,
       voiceVolume: 0.6
@@ -1117,6 +1118,35 @@ describe('InterviewSessionView', () => {
     const utterance = window.speechSynthesis.speak.mock.calls[0][0]
     expect(utterance.rate).toBe(1.1)
     expect(utterance.pitch).toBe(0.95)
+    expect(utterance.volume).toBe(0.6)
+  })
+
+  it('uses selected preset speaking parameters over stored slider values for opening speech', async () => {
+    saveSettingsPreferences({
+      voicePreferredType: 'slow_clear',
+      voiceSpeakingRate: 1.1,
+      voicePitch: 0.95,
+      voiceVolume: 0.6
+    })
+    getInterviewSession.mockResolvedValue({
+      data: {
+        ...baseSession,
+        interactionType: 1,
+        chatLogs: [
+          { id: 1, messageRole: 'assistant', content: '你好，我是本次 AI 面试官。', createTime: '2026-05-19 14:00:00' },
+        ],
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.findAll('.voice-dock-actions .voice-icon-btn')[1].trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const utterance = window.speechSynthesis.speak.mock.calls[0][0]
+    expect(utterance.rate).toBe(0.75)
+    expect(utterance.pitch).toBe(1.02)
     expect(utterance.volume).toBe(0.6)
   })
 

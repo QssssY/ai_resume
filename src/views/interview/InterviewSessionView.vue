@@ -430,7 +430,7 @@ import {
 import { prefetchInterviewReportRoute } from "@/router/routeLoaders";
 import { ElMessage } from "element-plus";
 import { getToken } from "@/utils/auth";
-import { getSettingsPreferences } from "@/utils/settingsPreferences";
+import { getBrowserTtsPresetParameters, getSettingsPreferences } from "@/utils/settingsPreferences";
 import FeatureIcon from "@/components/common/FeatureIcon.vue";
 import OptimizedImage from "@/components/common/OptimizedImage.vue";
 import { useSpeechToText } from "@/composables/useSpeechToText";
@@ -443,6 +443,7 @@ import { optimizedImages } from "@/utils/optimizedImages";
 const router = useRouter();
 const route = useRoute();
 const settingsPreferences = getSettingsPreferences();
+const browserTtsPresetParameters = getBrowserTtsPresetParameters(settingsPreferences.voicePreferredType);
 const RATE_LIMIT_STATUS = 429;
 const INTERVIEW_STREAM_RATE_LIMIT_MESSAGE = "发送太频繁，请稍后继续。10 分钟内最多 60 轮对话。";
 const OPENING_SPEECH_MAX_ATTEMPTS = 2;
@@ -575,8 +576,9 @@ const {
 } = useSpeechToText();
 
 const browserTextToSpeech = useTextToSpeech({
-  rate: settingsPreferences.voiceSpeakingRate,
-  pitch: settingsPreferences.voicePitch,
+  // 绑定预设优先使用预设语速/音调，避免历史滑块值覆盖本次选择的音色风格。
+  rate: browserTtsPresetParameters?.rate ?? settingsPreferences.voiceSpeakingRate,
+  pitch: browserTtsPresetParameters?.pitch ?? settingsPreferences.voicePitch,
   volume: settingsPreferences.voiceVolume,
   voicePreference: {
     type: settingsPreferences.voicePreferredType,

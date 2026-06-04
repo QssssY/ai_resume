@@ -1,4 +1,5 @@
 import { computed, onUnmounted, ref } from 'vue'
+import { getBrowserTtsPresetParameters } from '@/utils/settingsPreferences'
 
 const SENTENCE_END_REGEXP = /[。！？.!?]/
 const FEEDBACK_BLOCK_REGEXP = /<FEEDBACK>[\s\S]*?<\/FEEDBACK>/gi
@@ -10,6 +11,18 @@ const STARTED_UTTERANCE_MIN_TIMEOUT_MS = 60000
 const MAX_UTTERANCE_TIMEOUT_MS = 180000
 const UTTERANCE_TIMEOUT_PER_CHAR_MS = 450
 const MAX_UTTERANCE_START_RETRIES = 1
+const SPECIFIC_PRESET_MATCHERS = Object.freeze({
+  gentle_female: Object.freeze([/xiaoxiao/, /yaoyao/]),
+  pro_female: Object.freeze([/xiaoyi/, /jenny/]),
+  lively_female: Object.freeze([/xiaoxuan/, /aria/]),
+  warm_female: Object.freeze([/xiaobei/, /samantha/]),
+  magnetic_male: Object.freeze([/yunxi/, /mark/]),
+  pro_male: Object.freeze([/yunyang/, /david/]),
+  calm_male: Object.freeze([/yunjian/, /daniel/]),
+  energetic_male: Object.freeze([/kangkang/, /george/])
+})
+const SPECIFIC_PRESET_TYPES = new Set(Object.keys(SPECIFIC_PRESET_MATCHERS))
+const QUALITY_CHINESE_PRESET_TYPES = new Set(['news_anchor', 'slow_clear'])
 
 /**
  * 浏览器 TTS 语音合成封装。
@@ -25,8 +38,9 @@ export function useTextToSpeech(options = {}) {
   const engineStatus = computed(() => (isSupported.value ? 'system-tts' : 'unsupported'))
   const enhancedVoiceReady = ref(false)
   const activeUtteranceCount = ref(0)
-  const rate = ref(Number(options.rate ?? 0.92))
-  const pitch = ref(Number(options.pitch ?? 1.06))
+  const initialPresetParameters = getBrowserTtsPresetParameters(options.voicePreference?.type || 'natural_zh')
+  const rate = ref(Number(options.rate ?? initialPresetParameters?.rate ?? 0.92))
+  const pitch = ref(Number(options.pitch ?? initialPresetParameters?.pitch ?? 1.06))
   const volume = ref(Number(options.volume ?? 1))
   const voicePreference = ref(options.voicePreference || { type: 'natural_zh' })
   const genderPreferenceTypes = new Set(['female', 'male'])
@@ -69,6 +83,21 @@ export function useTextToSpeech(options = {}) {
   const isLegacySystemVoice = (voice) => isLegacySystemVoiceName((voice?.name || '').toLowerCase())
   const isChineseVoice = (voice) => (voice?.lang || '').toLowerCase().startsWith('zh')
   const isHighQualityChineseVoiceName = (name) => /xiaoxiao|xiaoyi|xiaobei|yunxi|xiaoxuan|natural|neural|premium/.test(name)
+  const matchesSpecificPresetVoice = (voice, presetType) => {
+    const matchers = SPECIFIC_PRESET_MATCHERS[presetType]
+    if (!matchers) return false
+    if (!isChineseVoice(voice)) return false
+    const name = (voice?.name || '').toLowerCase()
+    return matchers.some((matcher) => matcher.test(name))
+  }
+  const getSpecificPresetMatchScore = (voice, presetType) => {
+    const matchers = SPECIFIC_PRESET_MATCHERS[presetType]
+    if (!matchers) return 0
+    if (!isChineseVoice(voice)) return 0
+    const name = (voice?.name || '').toLowerCase()
+    const matchedIndex = matchers.findIndex((matcher) => matcher.test(name))
+    return matchedIndex === -1 ? 0 : 80 - matchedIndex
+  }
   const getVoiceGender = (voice) => {
     const name = (voice?.name || '').toLowerCase()
     if (isMaleVoiceName(name)) return 'male'
@@ -93,6 +122,7 @@ export function useTextToSpeech(options = {}) {
     if (isLegacySystemVoiceName(name)) score -= 8
     if (preferredType === 'female' && isFemaleVoiceName(name)) score += 16
     if (preferredType === 'male' && isMaleVoiceName(name)) score += 16
+    score += getSpecificPresetMatchScore(voice, preferredType)
     return score
   }
 
@@ -117,6 +147,15 @@ export function useTextToSpeech(options = {}) {
     const pickHighestScoredVoice = (voiceList) => [...voiceList]
       .sort((left, right) => getVoiceScore(right, preference?.type) - getVoiceScore(left, preference?.type))[0]
       || null
+    if (SPECIFIC_PRESET_TYPES.has(preference?.type)) {
+      // 具体预设只绑定明确匹配的系统 voice；找不到时不强行套用错误音色。
+      const matchedPresetVoices = availableVoices.filter((voice) => matchesSpecificPresetVoice(voice, preference.type))
+      return matchedPresetVoices.length > 0 ? pickHighestScoredVoice(matchedPresetVoices) : null
+    }
+    if (QUALITY_CHINESE_PRESET_TYPES.has(preference?.type)) {
+      const chineseVoices = availableVoices.filter(isChineseVoice)
+      return chineseVoices.length > 0 ? pickHighestScoredVoice(chineseVoices) : null
+    }
     if (genderPreferenceTypes.has(preference?.type)) {
       const matchedGenderVoices = availableVoices.filter((voice) => getVoiceGender(voice) === preference.type)
       if (matchedGenderVoices.length > 0) return pickHighestScoredVoice(matchedGenderVoices)
@@ -150,6 +189,24 @@ export function useTextToSpeech(options = {}) {
     return pickHighestScoredVoice(availableVoices)
   }
 
+  const isPresetAvailable = (presetKey, availableVoices = voices.value) => {
+    if (presetKey === 'system') return true
+    if (presetKey === 'custom') return availableVoices.length > 0
+    if (SPECIFIC_PRESET_TYPES.has(presetKey)) {
+      return availableVoices.some((voice) => matchesSpecificPresetVoice(voice, presetKey))
+    }
+    if (presetKey === 'female') {
+      return availableVoices.some((voice) => isChineseVoice(voice) && getVoiceGender(voice) === 'female')
+    }
+    if (presetKey === 'male') {
+      return availableVoices.some((voice) => isChineseVoice(voice) && getVoiceGender(voice) === 'male')
+    }
+    if (presetKey === 'natural_zh' || QUALITY_CHINESE_PRESET_TYPES.has(presetKey)) {
+      return availableVoices.some(isChineseVoice)
+    }
+    return false
+  }
+
   const voicePreferenceStatus = computed(() => {
     const requestedType = voicePreference.value?.type || 'natural_zh'
     const selected = selectedVoice.value
@@ -166,6 +223,7 @@ export function useTextToSpeech(options = {}) {
       selectedGender,
       usesBrowserDefaultVoice: !selected,
       hasRequestedGenderVoice,
+      isRequestedPresetAvailable: isPresetAvailable(requestedType),
       isDegraded: Boolean(isGenderPreference && selectedGender !== requestedType),
     }
   })
@@ -625,6 +683,8 @@ export function useTextToSpeech(options = {}) {
     volume,
     setVoice,
     setVoicePreference,
+    getPresetParameters: getBrowserTtsPresetParameters,
+    isPresetAvailable,
     speak,
     speakStreaming,
     flushRemaining,

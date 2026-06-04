@@ -207,7 +207,7 @@
                 </div>
                 <p
                   class="voice-selection-status"
-                  :class="{ degraded: previewTextToSpeech.voicePreferenceStatus.value.isDegraded }"
+                  :class="{ degraded: previewTextToSpeech.voicePreferenceStatus.value.isDegraded || isChromeBrowserVoiceLimited }"
                   data-testid="browser-tts-voice-status"
                 >
                   {{ browserTtsVoiceStatusText }}
@@ -1255,8 +1255,10 @@ import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import OptimizedImage from '@/components/common/OptimizedImage.vue'
 import { optimizedImages } from '@/utils/optimizedImages'
 import {
+  BROWSER_TTS_VOICE_PRESET_GROUPS,
   clearLocalSettingsCache,
   DEFAULT_SETTINGS_PREFERENCES,
+  getBrowserTtsPresetParameters,
   getSettingsPreferences,
   saveSettingsPreferences
 } from '@/utils/settingsPreferences'
@@ -1492,13 +1494,46 @@ const difficultyPreferenceOptions = [
 const interviewModeOptions = INTERVIEW_MODE_OPTIONS
 const feedbackModeOptions = FEEDBACK_MODE_OPTIONS
 const interactionModeOptions = INTERACTION_MODE_OPTIONS
-const voicePreferredTypeOptions = [
-  { label: '默认中文自然音色', value: 'natural_zh' },
-  { label: '女声优先', value: 'female' },
-  { label: '男声优先', value: 'male' },
-  { label: '系统默认', value: 'system' },
-  { label: '指定浏览器音色', value: 'custom' }
-]
+const buildVoiceKey = (voice) => `${voice.voiceURI || ''}|||${voice.name || ''}|||${voice.lang || ''}`
+const isChromeBrowser = computed(() => {
+  if (typeof window === 'undefined' || !window.navigator) return false
+  const userAgent = window.navigator.userAgent || ''
+  return /(?:Chrome|Chromium|CriOS)\//.test(userAgent) && !/(?:Edg|EdgiOS|EdgA|OPR|Opera|SamsungBrowser)\//.test(userAgent)
+})
+const browserTtsChineseVoiceCount = computed(() => {
+  const voiceKeys = new Set()
+  previewTextToSpeech.voices.value
+    .filter((voice) => String(voice?.lang || '').toLowerCase().startsWith('zh'))
+    .forEach((voice) => voiceKeys.add(buildVoiceKey(voice)))
+  return voiceKeys.size
+})
+const isChromeBrowserVoiceLimited = computed(() => (
+  isChromeBrowser.value && browserTtsChineseVoiceCount.value > 0 && browserTtsChineseVoiceCount.value <= 2
+))
+const getVoicePresetOptionLabel = (option, available) => {
+  if (!available) {
+    const unavailableReason = isChromeBrowser.value ? 'Chrome 未暴露该音色' : '当前系统不可用'
+    return `${option.label}（${unavailableReason}）`
+  }
+  if (isChromeBrowserVoiceLimited.value && !['system', 'custom'].includes(option.value)) {
+    // Chrome 的 speechSynthesis 常只暴露 1-2 个中文 voice；预设仍可改变语速/音调，但不应暗示存在更多真实音色。
+    return `${option.label}（Chrome 共用 ${browserTtsChineseVoiceCount.value} 种 voice）`
+  }
+  return option.label
+}
+const voicePreferredTypeOptions = computed(() => BROWSER_TTS_VOICE_PRESET_GROUPS.map((group) => ({
+  type: 'group',
+  label: group.label,
+  key: group.label,
+  children: group.options.map((option) => {
+    const available = previewTextToSpeech.isPresetAvailable(option.value)
+    return {
+      ...option,
+      label: getVoicePresetOptionLabel(option, available),
+      disabled: !available
+    }
+  })
+})))
 const retentionDayOptions = [
   { label: '不自动清理', value: 0 },
   { label: '保留 30 天', value: 30 },
@@ -1623,7 +1658,6 @@ const resumeRetentionPreferenceText = computed(() => {
 const formatSpeechRate = (value) => `${Number(value).toFixed(2)}x`
 const formatSpeechPitch = (value) => Number(value).toFixed(2)
 const formatSpeechVolume = (value) => `${Math.round(Number(value) * 100)}%`
-const buildVoiceKey = (voice) => `${voice.voiceURI || ''}|||${voice.name || ''}|||${voice.lang || ''}`
 
 const browserVoiceOptions = computed(() => previewTextToSpeech.voices.value.map((voice) => ({
   label: `${voice.name || 'Unknown'}${voice.lang ? ` (${voice.lang})` : ''}`,
@@ -1653,11 +1687,34 @@ const buildVoicePreferenceFromForm = () => ({
 })
 previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
 
+const applyVoicePresetParameters = () => {
+  const parameters = getBrowserTtsPresetParameters(interviewPreferenceForm.value.voicePreferredType)
+  if (!parameters) return
+  // 预设音色自带语速和音调，选择预设时同步滑块，保证设置页回显与真实面试播报一致。
+  interviewPreferenceForm.value.voiceSpeakingRate = parameters.rate
+  interviewPreferenceForm.value.voicePitch = parameters.pitch
+}
+
+const getResolvedBrowserTtsStyle = () => {
+  const parameters = getBrowserTtsPresetParameters(interviewPreferenceForm.value.voicePreferredType)
+  return {
+    rate: Number(parameters?.rate ?? interviewPreferenceForm.value.voiceSpeakingRate),
+    pitch: Number(parameters?.pitch ?? interviewPreferenceForm.value.voicePitch),
+    volume: Number(interviewPreferenceForm.value.voiceVolume)
+  }
+}
+
 const browserTtsVoiceStatusText = computed(() => {
   const status = previewTextToSpeech.voicePreferenceStatus.value
   const selectedVoiceName = status.selectedVoiceName || '浏览器默认中文 voice'
   if (!previewTextToSpeech.isSupported.value) return '当前浏览器不支持系统 TTS。'
   if (status.requestedType === 'system') return '当前使用浏览器系统默认 voice。'
+  if (isChromeBrowserVoiceLimited.value) {
+    const selectedText = status.usesBrowserDefaultVoice
+      ? '当前实际音色由浏览器默认中文 voice 决定'
+      : `当前实际音色：${selectedVoiceName}`
+    return `Chrome 当前只暴露 ${browserTtsChineseVoiceCount.value} 种中文浏览器 voice，多个预设会共用同一音色；Edge 或安装更多系统语音后可用更多音色。${selectedText}。`
+  }
   if (status.usesBrowserDefaultVoice) {
     return '当前使用浏览器默认中文 voice；如果 Chrome 没有暴露可区分的中文男声/女声，听感可能仍由系统默认音色决定。'
   }
@@ -2393,6 +2450,7 @@ const handleVoicePreferredTypeChange = () => {
     interviewPreferenceForm.value.voiceName = ''
     interviewPreferenceForm.value.voiceURI = ''
     interviewPreferenceForm.value.voiceLang = ''
+    applyVoicePresetParameters()
   } else if (!selectedBrowserVoiceKey.value && browserVoiceOptions.value.length > 0) {
     selectedBrowserVoiceKey.value = browserVoiceOptions.value[0].value
     return
@@ -2412,9 +2470,10 @@ const handleBrowserVoiceChange = (value) => {
 }
 
 const handleVoicePreview = () => {
-  previewTextToSpeech.rate.value = Number(interviewPreferenceForm.value.voiceSpeakingRate)
-  previewTextToSpeech.pitch.value = Number(interviewPreferenceForm.value.voicePitch)
-  previewTextToSpeech.volume.value = Number(interviewPreferenceForm.value.voiceVolume)
+  const browserTtsStyle = getResolvedBrowserTtsStyle()
+  previewTextToSpeech.rate.value = browserTtsStyle.rate
+  previewTextToSpeech.pitch.value = browserTtsStyle.pitch
+  previewTextToSpeech.volume.value = browserTtsStyle.volume
   previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
   // Chrome 的 voices 可能只有在用户点击手势内唤醒后才加载，试听前先预热以避免落到机械的系统默认音色。
   previewTextToSpeech.prepareForUserGesture?.()

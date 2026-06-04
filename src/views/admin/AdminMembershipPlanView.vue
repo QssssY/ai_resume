@@ -137,16 +137,15 @@
             <el-input-number v-model="form.durationDays" :min="1" :step="30" style="width: 100%" />
           </el-form-item>
         </div>
+        <el-divider content-position="left">功能日限额</el-divider>
         <div class="form-row">
-          <el-form-item label="简历额度" prop="resumeQuota" class="form-half">
+          <el-form-item label="简历诊断/天" prop="resumeQuota" class="form-half">
             <el-input-number v-model="form.resumeQuota" :min="0" :step="5" style="width: 100%" />
           </el-form-item>
-          <el-form-item label="面试额度" prop="interviewQuota" class="form-half">
+          <el-form-item label="模拟面试/天" prop="interviewQuota" class="form-half">
             <el-input-number v-model="form.interviewQuota" :min="0" :step="5" style="width: 100%" />
           </el-form-item>
         </div>
-
-        <el-divider content-position="left">功能日限额</el-divider>
         <div class="form-row">
           <el-form-item label="AI润色/天" class="form-half">
             <el-input-number v-model="form.dailyPolishLimit" :min="0" :step="1" style="width: 100%" />
