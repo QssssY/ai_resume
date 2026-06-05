@@ -1026,10 +1026,91 @@ const systemTtsProviderPresets = [
       { id: 'Dean', name: 'Dean' }
     ]
   },
-  { value: 'gemini', label: 'Gemini（暂未支持）', disabled: true },
-  { value: 'minimax', label: 'MiniMax（暂未支持）', disabled: true },
-  { value: 'qwen', label: 'Qwen（暂未支持）', disabled: true },
-  { value: 'xai', label: 'xAI（暂未支持）', disabled: true }
+  {
+    value: 'edge',
+    label: 'EdgeTTS',
+    disabled: false,
+    defaultBaseUrl: 'https://speech.platform.bing.com',
+    defaultModel: 'edge-tts',
+    defaultVoiceId: 'zh-CN-XiaoxiaoNeural',
+    endpointPath: '/consumer/speech/synthesize/readaloud/edge/v1',
+    voices: [
+      { id: 'zh-CN-XiaoxiaoNeural', name: '晓晓（女声，普通话）' },
+      { id: 'zh-CN-XiaoyiNeural', name: '晓伊（女声，普通话）' },
+      { id: 'zh-CN-YunjianNeural', name: '云健（男声，普通话）' },
+      { id: 'zh-CN-YunxiNeural', name: '云希（男声，普通话）' },
+      { id: 'zh-CN-YunxiaNeural', name: '云夏（男声，普通话）' },
+      { id: 'zh-CN-YunyangNeural', name: '云扬（男声，普通话）' },
+      { id: 'zh-HK-HiuGaaiNeural', name: '晓佳（女声，粤语）' },
+      { id: 'zh-HK-HiuMaanNeural', name: '晓曼（女声，粤语）' },
+      { id: 'zh-HK-WanLungNeural', name: '云龙（男声，粤语）' },
+      { id: 'zh-TW-HsiaoChenNeural', name: '晓臻（女声，台湾普通话）' },
+      { id: 'zh-TW-HsiaoYuNeural', name: '晓雨（女声，台湾普通话）' },
+      { id: 'zh-TW-YunJheNeural', name: '云哲（男声，台湾普通话）' }
+    ]
+  },
+  {
+    value: 'gemini',
+    label: 'Gemini',
+    disabled: false,
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com',
+    defaultModel: 'gemini-2.5-flash-preview-tts',
+    defaultVoiceId: 'Kore',
+    endpointPath: '/v1beta/models/{model}:generateContent',
+    voices: [
+      { id: 'Kore', name: 'Kore' },
+      { id: 'Puck', name: 'Puck' },
+      { id: 'Charon', name: 'Charon' },
+      { id: 'Fenrir', name: 'Fenrir' },
+      { id: 'Aoede', name: 'Aoede' }
+    ]
+  },
+  {
+    value: 'minimax',
+    label: 'MiniMax',
+    disabled: false,
+    defaultBaseUrl: 'https://api.minimax.chat',
+    defaultModel: 'speech-02-turbo',
+    defaultVoiceId: 'male-qn-qingse',
+    endpointPath: '/v1/t2a_v2',
+    voices: [
+      { id: 'male-qn-qingse', name: '青涩男声' },
+      { id: 'male-qn-jingying', name: '精英男声' },
+      { id: 'female-shaonv', name: '少女女声' },
+      { id: 'female-yujie', name: '御姐女声' },
+      { id: 'presenter_male', name: '主持男声' },
+      { id: 'presenter_female', name: '主持女声' }
+    ]
+  },
+  {
+    value: 'qwen',
+    label: 'Qwen',
+    disabled: false,
+    defaultBaseUrl: 'https://dashscope.aliyuncs.com',
+    defaultModel: 'qwen3-tts-flash',
+    defaultVoiceId: 'Cherry',
+    endpointPath: '/api/v1/services/aigc/multimodal-generation/generation',
+    voices: [
+      { id: 'Cherry', name: 'Cherry' },
+      { id: 'Serena', name: 'Serena' },
+      { id: 'Ethan', name: 'Ethan' },
+      { id: 'Chelsie', name: 'Chelsie' }
+    ]
+  },
+  {
+    value: 'xai',
+    label: 'xAI',
+    disabled: false,
+    defaultBaseUrl: 'https://api.x.ai',
+    defaultModel: 'grok-tts',
+    defaultVoiceId: 'Fritz-PlayAI',
+    endpointPath: '/v1/tts',
+    voices: [
+      { id: 'Fritz-PlayAI', name: 'Fritz' },
+      { id: 'Aiden-PlayAI', name: 'Aiden' },
+      { id: 'Luna-PlayAI', name: 'Luna' }
+    ]
+  }
 ]
 
 const systemTtsModelOptions = computed(() => {
@@ -1383,7 +1464,11 @@ const handleModelFetch = async () => {
 const handleSystemTtsProviderChange = (providerId) => {
   const preset = systemTtsProviderPresets.find((item) => item.value === providerId)
   if (!preset || preset.disabled) return
+  systemTtsForm.ttsProvider = providerId
   systemTtsForm.baseUrl = preset.defaultBaseUrl
+  if (providerId === 'edge') {
+    systemTtsForm.apiKey = ''
+  }
   systemTtsForm.model = preset.defaultModel
   systemTtsForm.voiceId = preset.defaultVoiceId
   systemTtsForm.endpointPath = preset.endpointPath
@@ -1412,11 +1497,12 @@ const validateSystemTtsPayload = (payload, requireApiKey = false) => {
   if (!payload.enabled && !hasAnyConfigValue) {
     return true
   }
+  const ttsKeyRequired = payload.ttsProvider !== 'edge'
   if (!payload.baseUrl || !payload.model || !payload.voiceId) {
     showAdminWarning('请完整填写系统 TTS 地址、模型和音色')
     return false
   }
-  if (requireApiKey && !payload.apiKey && !systemTtsConfigured.value) {
+  if (ttsKeyRequired && requireApiKey && !payload.apiKey && !systemTtsConfigured.value) {
     showAdminWarning('首次配置系统 TTS 时必须填写 API Key')
     return false
   }
@@ -1488,7 +1574,7 @@ const handleSystemTtsDiscover = async () => {
     showAdminWarning('请先填写系统 TTS 地址')
     return
   }
-  if (!payload.apiKey && !systemTtsConfigured.value) {
+  if (payload.ttsProvider !== 'edge' && !payload.apiKey && !systemTtsConfigured.value) {
     showAdminWarning('首次获取模型/音色时必须填写 API Key')
     return
   }

@@ -111,12 +111,15 @@ describe('settingsPreferences', () => {
       'female',
       'male',
       'system',
-      'custom'
+      'custom',
+      'edge_cloud'
     ]))
     expect(normalized.voicePreferredType).toBe('slow_clear')
+    expect(normalizeSettingsPreferences({ voicePreferredType: 'edge_cloud' }).voicePreferredType).toBe('edge_cloud')
     expect(getBrowserTtsPresetParameters('slow_clear')).toEqual({ rate: 0.75, pitch: 1.02 })
     expect(getBrowserTtsPresetParameters('system')).toBeNull()
     expect(getBrowserTtsPresetParameters('custom')).toBeNull()
+    expect(getBrowserTtsPresetParameters('edge_cloud')).toBeNull()
   })
 
   it('normalizes invalid stored interview preferences to defaults', () => {

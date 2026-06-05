@@ -408,6 +408,83 @@ describe('AdminAiEngineView', () => {
     expect(wrapper.vm.systemTtsDiscoveryResult.voices).toEqual([{ id: 'alloy', name: 'alloy' }])
   })
 
+  it('should offer EdgeTTS as a no-key system TTS provider preset', async () => {
+    const wrapper = await mountView()
+    await switchToSystemTtsSection(wrapper)
+
+    wrapper.vm.handleSystemTtsProviderChange('edge')
+    await flushPromises()
+
+    expect(wrapper.vm.systemTtsForm).toMatchObject({
+      ttsProvider: 'edge',
+      baseUrl: 'https://speech.platform.bing.com',
+      model: 'edge-tts',
+      voiceId: 'zh-CN-XiaoxiaoNeural',
+      endpointPath: '/consumer/speech/synthesize/readaloud/edge/v1'
+    })
+    expect(wrapper.vm.systemTtsDiscoveryResult.voices).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'zh-CN-XiaoxiaoNeural' }),
+      expect.objectContaining({ id: 'zh-CN-YunxiNeural' })
+    ]))
+  })
+
+  it('should offer Gemini MiniMax Qwen and xAI system TTS provider presets', async () => {
+    const wrapper = await mountView()
+    await switchToSystemTtsSection(wrapper)
+    const providerPresets = [
+      {
+        provider: 'gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+        model: 'gemini-2.5-flash-preview-tts',
+        voiceId: 'Kore',
+        endpointPath: '/v1beta/models/{model}:generateContent',
+        voiceIds: ['Kore', 'Puck']
+      },
+      {
+        provider: 'minimax',
+        baseUrl: 'https://api.minimax.chat',
+        model: 'speech-02-turbo',
+        voiceId: 'male-qn-qingse',
+        endpointPath: '/v1/t2a_v2',
+        voiceIds: ['male-qn-qingse', 'female-shaonv']
+      },
+      {
+        provider: 'qwen',
+        baseUrl: 'https://dashscope.aliyuncs.com',
+        model: 'qwen3-tts-flash',
+        voiceId: 'Cherry',
+        endpointPath: '/api/v1/services/aigc/multimodal-generation/generation',
+        voiceIds: ['Cherry', 'Serena']
+      },
+      {
+        provider: 'xai',
+        baseUrl: 'https://api.x.ai',
+        model: 'grok-tts',
+        voiceId: 'Fritz-PlayAI',
+        endpointPath: '/v1/tts',
+        voiceIds: ['Fritz-PlayAI', 'Luna-PlayAI']
+      }
+    ]
+
+    for (const preset of providerPresets) {
+      wrapper.vm.systemTtsForm.ttsProvider = preset.provider
+      wrapper.vm.handleSystemTtsProviderChange(preset.provider)
+      await flushPromises()
+
+      expect(wrapper.vm.systemTtsForm).toMatchObject({
+        ttsProvider: preset.provider,
+        baseUrl: preset.baseUrl,
+        model: preset.model,
+        voiceId: preset.voiceId,
+        endpointPath: preset.endpointPath
+      })
+      expect(wrapper.vm.systemTtsDiscoveryResult.models).toEqual([{ id: preset.model, name: preset.model }])
+      expect(wrapper.vm.systemTtsDiscoveryResult.voices).toEqual(expect.arrayContaining(
+        preset.voiceIds.map(id => expect.objectContaining({ id }))
+      ))
+    }
+  })
+
   it('should display custom AI usage stats and user details', async () => {
     const wrapper = await mountView()
     await switchToCustomAiUsageSection(wrapper)

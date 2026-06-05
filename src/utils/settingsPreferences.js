@@ -4,6 +4,7 @@ export const SETTINGS_PREFERENCES_UPDATED_EVENT = 'ai-resume-settings-preference
 export const INTERVIEW_RETENTION_DAY_OPTIONS = Object.freeze([0, 30, 90, 180, 365])
 export const RESUME_RETENTION_DAY_OPTIONS = Object.freeze([0, 30, 90, 180, 365])
 export const VOICE_AUTO_SUBMIT_DELAY_OPTIONS = Object.freeze([0, 2000, 3000, 5000])
+export const EDGE_CLOUD_TTS_VOICE_PREFERENCE = 'edge_cloud'
 
 const freezePresetGroup = (group) => Object.freeze({
   ...group,
@@ -38,6 +39,12 @@ export const BROWSER_TTS_VOICE_PRESET_GROUPS = Object.freeze([
       { label: '新闻播报', value: 'news_anchor' },
       { label: '慢速清晰', value: 'slow_clear' },
       { label: '系统默认', value: 'system' }
+    ]
+  }),
+  freezePresetGroup({
+    label: '云端语音',
+    options: [
+      { label: 'EdgeTTS 免费云端音色', value: EDGE_CLOUD_TTS_VOICE_PREFERENCE }
     ]
   }),
   freezePresetGroup({

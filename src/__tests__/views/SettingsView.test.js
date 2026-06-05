@@ -10,7 +10,7 @@ import { clearInterviewHistory, getInterviewJobRoles } from '@/api/interview'
 import { getMembershipPlans } from '@/api/membership'
 import { clearResumeHistory } from '@/api/resume'
 import { getUserSettings, saveUserSettings } from '@/api/userSettings'
-import { fetchUserAiModels, getSystemTtsStatus, getUserAiConfigs, getUserAiUsage, saveUserAiConfig, testUserAiConnectivity, testUserTtsConnectivity, toggleUserAiConfig } from '@/api/userAiConfig'
+import { fetchUserAiModels, getSystemTtsStatus, getUserAiConfigs, getUserAiUsage, previewTtsVoice, saveUserAiConfig, testUserAiConnectivity, testUserTtsConnectivity, toggleUserAiConfig } from '@/api/userAiConfig'
 import { deleteAccount, getCurrentAccountSecurityQuestion } from '@/api/auth'
 import { createUserFeedback } from '@/api/feedback'
 import { useUserStore } from '@/stores/user'
@@ -122,6 +122,7 @@ vi.mock('@/api/userAiConfig', () => ({
       systemTtsAvailable: true
     }
   })),
+  previewTtsVoice: vi.fn(() => Promise.resolve(new Blob(['audio'], { type: 'audio/mpeg' }))),
   saveUserAiConfig: vi.fn(() => Promise.resolve({ data: { configType: 'resume' } })),
   testUserAiConnectivity: vi.fn(() => Promise.resolve({
     data: {
@@ -218,6 +219,19 @@ describe('SettingsView', () => {
     window.SpeechSynthesisUtterance = vi.fn(function SpeechSynthesisUtterance(text) {
       this.text = text
     })
+    Object.defineProperty(URL, 'createObjectURL', {
+      value: vi.fn(() => 'blob:tts-preview'),
+      configurable: true
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      value: vi.fn(),
+      configurable: true
+    })
+    vi.stubGlobal('Audio', vi.fn(function Audio(src) {
+      this.src = src
+      this.pause = vi.fn()
+      this.play = vi.fn(() => Promise.resolve())
+    }))
     useUserStore.mockReturnValue({
       userInfo: {
         id: 1,
@@ -251,6 +265,7 @@ describe('SettingsView', () => {
     currentWrapper = null
     setUserAgent(originalUserAgent)
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('renders all settings sections', async () => {
@@ -459,6 +474,75 @@ describe('SettingsView', () => {
     })
   })
 
+  it('offers EdgeTTS provider with built-in free voices', async () => {
+    const wrapper = mountView()
+    wrapper.vm.handleTtsProviderChange('edge')
+    await flushPromises()
+
+    expect(wrapper.vm.userAiConfigForm.ttsProvider).toBe('edge')
+    expect(wrapper.vm.userAiConfigForm.ttsBaseUrl).toBe('https://speech.platform.bing.com')
+    expect(wrapper.vm.userAiConfigForm.ttsModel).toBe('edge-tts')
+    expect(wrapper.vm.userAiConfigForm.ttsVoiceId).toBe('zh-CN-XiaoxiaoNeural')
+    expect(wrapper.vm.userAiConfigForm.ttsEndpointPath).toBe('/consumer/speech/synthesize/readaloud/edge/v1')
+    expect(wrapper.vm.ttsDiscoveryResult.voices).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'zh-CN-XiaoxiaoNeural' }),
+      expect.objectContaining({ id: 'zh-CN-YunxiNeural' })
+    ]))
+  })
+
+  it('offers Gemini MiniMax Qwen and xAI TTS provider presets', async () => {
+    const wrapper = mountView()
+    const providerPresets = [
+      {
+        provider: 'gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+        model: 'gemini-2.5-flash-preview-tts',
+        voiceId: 'Kore',
+        endpointPath: '/v1beta/models/{model}:generateContent',
+        voiceIds: ['Kore', 'Puck']
+      },
+      {
+        provider: 'minimax',
+        baseUrl: 'https://api.minimax.chat',
+        model: 'speech-02-turbo',
+        voiceId: 'male-qn-qingse',
+        endpointPath: '/v1/t2a_v2',
+        voiceIds: ['male-qn-qingse', 'female-shaonv']
+      },
+      {
+        provider: 'qwen',
+        baseUrl: 'https://dashscope.aliyuncs.com',
+        model: 'qwen3-tts-flash',
+        voiceId: 'Cherry',
+        endpointPath: '/api/v1/services/aigc/multimodal-generation/generation',
+        voiceIds: ['Cherry', 'Serena']
+      },
+      {
+        provider: 'xai',
+        baseUrl: 'https://api.x.ai',
+        model: 'grok-tts',
+        voiceId: 'Fritz-PlayAI',
+        endpointPath: '/v1/tts',
+        voiceIds: ['Fritz-PlayAI', 'Luna-PlayAI']
+      }
+    ]
+
+    for (const preset of providerPresets) {
+      wrapper.vm.handleTtsProviderChange(preset.provider)
+      await flushPromises()
+
+      expect(wrapper.vm.userAiConfigForm.ttsProvider).toBe(preset.provider)
+      expect(wrapper.vm.userAiConfigForm.ttsBaseUrl).toBe(preset.baseUrl)
+      expect(wrapper.vm.userAiConfigForm.ttsModel).toBe(preset.model)
+      expect(wrapper.vm.userAiConfigForm.ttsVoiceId).toBe(preset.voiceId)
+      expect(wrapper.vm.userAiConfigForm.ttsEndpointPath).toBe(preset.endpointPath)
+      expect(wrapper.vm.ttsDiscoveryResult.models).toEqual([{ id: preset.model, name: preset.model }])
+      expect(wrapper.vm.ttsDiscoveryResult.voices).toEqual(expect.arrayContaining(
+        preset.voiceIds.map(id => expect.objectContaining({ id }))
+      ))
+    }
+  })
+
   it('shows system TTS fallback status when user has no custom TTS config', async () => {
     getUserAiConfigs.mockResolvedValueOnce({
       data: [
@@ -512,6 +596,15 @@ describe('SettingsView', () => {
     expect(source).toContain('height: var(--cai-form-control-height);')
     expect(source).toContain('.cai-form .el-select .el-input__wrapper,')
     expect(source).toContain('.cai-form .el-select .el-select__wrapper')
+  })
+
+  it('keeps EdgeTTS preset visible in user custom TTS provider list', () => {
+    const source = settingsViewSource()
+
+    expect(source).toContain("value: 'edge'")
+    expect(source).toContain('EdgeTTS')
+    expect(source).toContain('zh-CN-XiaoxiaoNeural')
+    expect(source).toContain('zh-CN-YunxiNeural')
   })
 
   it('uses readable local feature icon sizes inside the personal settings center', () => {
@@ -907,9 +1000,11 @@ describe('SettingsView', () => {
     const optionGroups = wrapper.vm.voicePreferredTypeOptions
     const femaleGroup = optionGroups.find((group) => group.label === '女声系列')
     const maleGroup = optionGroups.find((group) => group.label === '男声系列')
+    const cloudGroup = optionGroups.find((group) => group.children.some((option) => option.value === 'edge_cloud'))
     const livelyFemaleOption = femaleGroup.children.find((option) => option.value === 'lively_female')
+    const edgeCloudOption = cloudGroup.children.find((option) => option.value === 'edge_cloud')
 
-    expect(optionGroups.map((group) => group.label)).toEqual(['女声系列', '男声系列', '通用', '自定义'])
+    expect(optionGroups.map((group) => group.label)).toEqual(expect.arrayContaining(['女声系列', '男声系列', '通用', '自定义']))
     expect(femaleGroup.children.map((option) => option.value)).toEqual(expect.arrayContaining([
       'gentle_female',
       'pro_female',
@@ -922,8 +1017,83 @@ describe('SettingsView', () => {
       'calm_male',
       'energetic_male'
     ]))
+    expect(edgeCloudOption.disabled).toBe(false)
     expect(livelyFemaleOption.disabled).toBe(true)
     expect(livelyFemaleOption.label).toContain('当前系统不可用')
+  }, 15000)
+
+  it('selects EdgeTTS cloud voice as an unsaved TTS configuration shortcut', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const previousPreference = getSettingsPreferences().voicePreferredType
+    wrapper.vm.interviewPreferenceForm.voicePreferredType = 'edge_cloud'
+    wrapper.vm.handleVoicePreferredTypeChange()
+    await flushPromises()
+
+    expect(wrapper.vm.userAiConfigForm.ttsProvider).toBe('edge')
+    expect(wrapper.vm.userAiConfigForm.ttsBaseUrl).toBe('https://speech.platform.bing.com')
+    expect(wrapper.vm.userAiConfigForm.ttsApiKey).toBe('')
+    expect(wrapper.vm.userAiConfigForm.ttsModel).toBe('edge-tts')
+    expect(wrapper.vm.userAiConfigForm.ttsVoiceId).toBe('zh-CN-XiaoxiaoNeural')
+    expect(wrapper.vm.userAiConfigForm.ttsEndpointPath).toBe('/consumer/speech/synthesize/readaloud/edge/v1')
+    expect(wrapper.vm.userTtsConfigExpanded).toBe(true)
+    expect(getSettingsPreferences().voicePreferredType).toBe(previousPreference)
+    expect(wrapper.vm.browserTtsVoiceStatusText).toContain('EdgeTTS')
+
+    await wrapper.vm.handleVoicePreview()
+    await flushPromises()
+
+    expect(previewTtsVoice).toHaveBeenCalledWith({
+      ttsBaseUrl: 'https://speech.platform.bing.com',
+      ttsApiKey: '',
+      ttsModel: 'edge-tts',
+      ttsVoiceId: 'zh-CN-XiaoxiaoNeural',
+      ttsEndpointPath: '/consumer/speech/synthesize/readaloud/edge/v1',
+      ttsProvider: 'edge'
+    })
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled()
+  }, 15000)
+
+  it('persists EdgeTTS cloud voice preference after saving the custom TTS config', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.vm.userAiConfigForm.configType = 'interview'
+    wrapper.vm.userAiConfigForm.providerName = 'EdgeTTS Interview'
+    wrapper.vm.userAiConfigForm.baseUrl = 'https://api.deepseek.com/v1'
+    wrapper.vm.userAiConfigForm.apiKey = 'sk-user-real'
+    wrapper.vm.userAiConfigForm.model = 'deepseek-chat'
+    wrapper.vm.interviewPreferenceForm.voicePreferredType = 'edge_cloud'
+    wrapper.vm.handleVoicePreferredTypeChange()
+    await flushPromises()
+
+    await wrapper.vm.handleUserAiConfigSave()
+    await flushPromises()
+
+    expect(saveUserAiConfig).toHaveBeenCalledWith(expect.objectContaining({
+      configType: 'interview',
+      ttsProvider: 'edge',
+      ttsBaseUrl: 'https://speech.platform.bing.com',
+      ttsApiKey: '',
+      ttsModel: 'edge-tts',
+      ttsVoiceId: 'zh-CN-XiaoxiaoNeural',
+      ttsEndpointPath: '/consumer/speech/synthesize/readaloud/edge/v1'
+    }))
+    expect(getSettingsPreferences().voicePreferredType).toBe('edge_cloud')
+  }, 15000)
+
+  it('keeps saved EdgeTTS cloud voice preference aligned after settings reload', async () => {
+    saveSettingsPreferences({ voicePreferredType: 'edge_cloud' })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.vm.interviewPreferenceForm.voicePreferredType).toBe('edge_cloud')
+    expect(wrapper.vm.userAiConfigForm.ttsProvider).toBe('edge')
+    expect(wrapper.vm.userAiConfigForm.ttsBaseUrl).toBe('https://speech.platform.bing.com')
+    expect(wrapper.vm.userAiConfigForm.ttsModel).toBe('edge-tts')
+    expect(wrapper.vm.userAiConfigForm.ttsVoiceId).toBe('zh-CN-XiaoxiaoNeural')
+    expect(wrapper.vm.userTtsConfigExpanded).toBe(true)
   }, 15000)
 
   it('applies preset rate and pitch when a bound browser voice preset is selected', async () => {

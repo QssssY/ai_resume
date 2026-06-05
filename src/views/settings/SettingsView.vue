@@ -183,7 +183,7 @@
                 <div class="voice-preference-main">
                   <div class="voice-preference-copy">
                     <strong>AI 播报声音</strong>
-                    <span>使用当前浏览器可用的系统语音，音色偏好只保存在本机。</span>
+                    <span>可选择浏览器系统语音，也可切换 EdgeTTS 云端音色；浏览器偏好只保存在本机。</span>
                   </div>
                   <div class="voice-control">
                     <n-select
@@ -198,7 +198,7 @@
                       class="voice-preview-button"
                       title="试听"
                       aria-label="试听当前 AI 播报声音"
-                      :disabled="!previewTextToSpeech.isSupported.value"
+                      :disabled="isCloudTtsVoiceSelected ? ttsPreviewing : !previewTextToSpeech.isSupported.value"
                       @click="handleVoicePreview"
                     >
                     <FeatureIcon name="announcement" size="md" class="voice-preview-icon" />
@@ -207,7 +207,7 @@
                 </div>
                 <p
                   class="voice-selection-status"
-                  :class="{ degraded: previewTextToSpeech.voicePreferenceStatus.value.isDegraded || isChromeBrowserVoiceLimited }"
+                  :class="{ degraded: !isCloudTtsVoiceSelected && (previewTextToSpeech.voicePreferenceStatus.value.isDegraded || isChromeBrowserVoiceLimited) }"
                   data-testid="browser-tts-voice-status"
                 >
                   {{ browserTtsVoiceStatusText }}
@@ -514,7 +514,7 @@
                         class="cai-tts-discover-btn"
                         :loading="ttsDiscovering"
                         @click="handleTtsDiscovery"
-                        :disabled="!userAiConfigForm.ttsBaseUrl?.trim() || !userAiConfigForm.ttsApiKey?.trim()"
+                        :disabled="!userAiConfigForm.ttsBaseUrl?.trim() || (!isUserEdgeTtsProvider && !userAiConfigForm.ttsApiKey?.trim())"
                       >获取模型/音色</el-button>
                     </div>
                     <div class="cai-form-row-2col">
@@ -1262,6 +1262,7 @@ import {
   BROWSER_TTS_VOICE_PRESET_GROUPS,
   clearLocalSettingsCache,
   DEFAULT_SETTINGS_PREFERENCES,
+  EDGE_CLOUD_TTS_VOICE_PREFERENCE,
   getBrowserTtsPresetParameters,
   getSettingsPreferences,
   saveSettingsPreferences
@@ -1438,10 +1439,91 @@ const TTS_PROVIDER_PRESETS = [
       { id: 'Dean', name: 'Dean' }
     ]
   },
-  { value: 'gemini', label: 'Gemini（暂未支持）', disabled: true },
-  { value: 'minimax', label: 'MiniMax（暂未支持）', disabled: true },
-  { value: 'qwen', label: 'Qwen（暂未支持）', disabled: true },
-  { value: 'xai', label: 'xAI（暂未支持）', disabled: true },
+  {
+    value: 'edge',
+    label: 'EdgeTTS',
+    disabled: false,
+    defaultBaseUrl: 'https://speech.platform.bing.com',
+    defaultModel: 'edge-tts',
+    defaultVoiceId: 'zh-CN-XiaoxiaoNeural',
+    endpointPath: '/consumer/speech/synthesize/readaloud/edge/v1',
+    voices: [
+      { id: 'zh-CN-XiaoxiaoNeural', name: '晓晓（女声，普通话）' },
+      { id: 'zh-CN-XiaoyiNeural', name: '晓伊（女声，普通话）' },
+      { id: 'zh-CN-YunjianNeural', name: '云健（男声，普通话）' },
+      { id: 'zh-CN-YunxiNeural', name: '云希（男声，普通话）' },
+      { id: 'zh-CN-YunxiaNeural', name: '云夏（男声，普通话）' },
+      { id: 'zh-CN-YunyangNeural', name: '云扬（男声，普通话）' },
+      { id: 'zh-HK-HiuGaaiNeural', name: '晓佳（女声，粤语）' },
+      { id: 'zh-HK-HiuMaanNeural', name: '晓曼（女声，粤语）' },
+      { id: 'zh-HK-WanLungNeural', name: '云龙（男声，粤语）' },
+      { id: 'zh-TW-HsiaoChenNeural', name: '晓臻（女声，台湾普通话）' },
+      { id: 'zh-TW-HsiaoYuNeural', name: '晓雨（女声，台湾普通话）' },
+      { id: 'zh-TW-YunJheNeural', name: '云哲（男声，台湾普通话）' }
+    ]
+  },
+  {
+    value: 'gemini',
+    label: 'Gemini',
+    disabled: false,
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com',
+    defaultModel: 'gemini-2.5-flash-preview-tts',
+    defaultVoiceId: 'Kore',
+    endpointPath: '/v1beta/models/{model}:generateContent',
+    voices: [
+      { id: 'Kore', name: 'Kore' },
+      { id: 'Puck', name: 'Puck' },
+      { id: 'Charon', name: 'Charon' },
+      { id: 'Fenrir', name: 'Fenrir' },
+      { id: 'Aoede', name: 'Aoede' }
+    ]
+  },
+  {
+    value: 'minimax',
+    label: 'MiniMax',
+    disabled: false,
+    defaultBaseUrl: 'https://api.minimax.chat',
+    defaultModel: 'speech-02-turbo',
+    defaultVoiceId: 'male-qn-qingse',
+    endpointPath: '/v1/t2a_v2',
+    voices: [
+      { id: 'male-qn-qingse', name: '青涩男声' },
+      { id: 'male-qn-jingying', name: '精英男声' },
+      { id: 'female-shaonv', name: '少女女声' },
+      { id: 'female-yujie', name: '御姐女声' },
+      { id: 'presenter_male', name: '主持男声' },
+      { id: 'presenter_female', name: '主持女声' }
+    ]
+  },
+  {
+    value: 'qwen',
+    label: 'Qwen',
+    disabled: false,
+    defaultBaseUrl: 'https://dashscope.aliyuncs.com',
+    defaultModel: 'qwen3-tts-flash',
+    defaultVoiceId: 'Cherry',
+    endpointPath: '/api/v1/services/aigc/multimodal-generation/generation',
+    voices: [
+      { id: 'Cherry', name: 'Cherry' },
+      { id: 'Serena', name: 'Serena' },
+      { id: 'Ethan', name: 'Ethan' },
+      { id: 'Chelsie', name: 'Chelsie' }
+    ]
+  },
+  {
+    value: 'xai',
+    label: 'xAI',
+    disabled: false,
+    defaultBaseUrl: 'https://api.x.ai',
+    defaultModel: 'grok-tts',
+    defaultVoiceId: 'Fritz-PlayAI',
+    endpointPath: '/v1/tts',
+    voices: [
+      { id: 'Fritz-PlayAI', name: 'Fritz' },
+      { id: 'Aiden-PlayAI', name: 'Aiden' },
+      { id: 'Luna-PlayAI', name: 'Luna' }
+    ]
+  },
 ]
 
 const userTtsConfigExpanded = ref(false)
@@ -1468,12 +1550,17 @@ const userAiModelFetching = ref(false)
 const userAiModelOptions = ref([])
 const ttsDiscovering = ref(false)
 const ttsDiscoveryResult = ref(null)
+const isUserEdgeTtsProvider = computed(() => userAiConfigForm.value.ttsProvider === 'edge')
 
 /** 选择 TTS Provider 时自动填入预设默认值 */
 const handleTtsProviderChange = (providerId) => {
   const preset = TTS_PROVIDER_PRESETS.find(p => p.value === providerId)
   if (!preset || preset.disabled) return
+  userAiConfigForm.value.ttsProvider = providerId
   userAiConfigForm.value.ttsBaseUrl = preset.defaultBaseUrl
+  if (providerId === 'edge') {
+    userAiConfigForm.value.ttsApiKey = ''
+  }
   userAiConfigForm.value.ttsModel = preset.defaultModel
   userAiConfigForm.value.ttsVoiceId = preset.defaultVoiceId
   userAiConfigForm.value.ttsEndpointPath = preset.endpointPath
@@ -1515,7 +1602,10 @@ const browserTtsChineseVoiceCount = computed(() => {
 const isChromeBrowserVoiceLimited = computed(() => (
   isChromeBrowser.value && browserTtsChineseVoiceCount.value > 0 && browserTtsChineseVoiceCount.value <= 2
 ))
+const isCloudTtsVoiceOption = (value) => value === EDGE_CLOUD_TTS_VOICE_PREFERENCE
+const isCloudTtsVoiceSelected = computed(() => isCloudTtsVoiceOption(interviewPreferenceForm.value.voicePreferredType))
 const getVoicePresetOptionLabel = (option, available) => {
+  if (isCloudTtsVoiceOption(option.value)) return option.label
   if (!available) {
     const unavailableReason = isChromeBrowser.value ? 'Chrome 未暴露该音色' : '当前系统不可用'
     return `${option.label}（${unavailableReason}）`
@@ -1531,7 +1621,7 @@ const voicePreferredTypeOptions = computed(() => BROWSER_TTS_VOICE_PRESET_GROUPS
   label: group.label,
   key: group.label,
   children: group.options.map((option) => {
-    const available = previewTextToSpeech.isPresetAvailable(option.value)
+    const available = isCloudTtsVoiceOption(option.value) || previewTextToSpeech.isPresetAvailable(option.value)
     return {
       ...option,
       label: getVoicePresetOptionLabel(option, available),
@@ -1727,6 +1817,9 @@ const getResolvedBrowserTtsStyle = () => {
 }
 
 const browserTtsVoiceStatusText = computed(() => {
+  if (isCloudTtsVoiceSelected.value) {
+    return '当前使用 EdgeTTS 云端音色；Chrome 只负责播放后端返回的音频，不依赖浏览器本地 voice。'
+  }
   const status = previewTextToSpeech.voicePreferenceStatus.value
   const selectedVoiceName = status.selectedVoiceName || '浏览器默认中文 voice'
   if (!previewTextToSpeech.isSupported.value) return '当前浏览器不支持系统 TTS。'
@@ -1834,11 +1927,19 @@ const securityQuestionOptions = [
   '你最好的朋友叫什么名字？'
 ]
 
+const syncCloudTtsVoicePreference = () => {
+  if (!isCloudTtsVoiceSelected.value) return
+  handleTtsProviderChange('edge')
+  userTtsConfigExpanded.value = true
+}
+
 const syncPreferenceForms = (preferences) => {
   const nextPreferences = { ...preferences }
   notificationForm.value = nextPreferences
   interviewPreferenceForm.value = { ...nextPreferences }
   previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
+  // 回显已保存的 EdgeTTS 云端音色时，同步保持 TTS 表单指向 EdgeTTS，避免下拉与试听链路不一致。
+  syncCloudTtsVoicePreference()
 }
 
 const buildServerSettingsPayload = () => ({
@@ -1924,9 +2025,12 @@ const validateUserAiConfigForm = () => {
     ElMessage.warning('请填写 API 地址、API Key 和模型')
     return null
   }
-  const ttsValues = [payload.ttsBaseUrl, payload.ttsApiKey, payload.ttsModel, payload.ttsVoiceId]
+  const ttsKeyRequired = payload.ttsProvider !== 'edge'
+  const ttsValues = ttsKeyRequired
+    ? [payload.ttsBaseUrl, payload.ttsApiKey, payload.ttsModel, payload.ttsVoiceId]
+    : [payload.ttsBaseUrl, payload.ttsModel, payload.ttsVoiceId]
   if (['default', 'interview'].includes(payload.configType) && ttsValues.some(Boolean) && !ttsValues.every(Boolean)) {
-    ElMessage.warning('启用 TTS 时请完整填写 TTS 地址、Key、模型和音色')
+    ElMessage.warning(ttsKeyRequired ? '启用 TTS 时请完整填写 TTS 地址、Key、模型和音色' : '启用 EdgeTTS 时请完整填写 TTS 地址、模型和音色')
     return null
   }
   return payload
@@ -1947,12 +2051,19 @@ const validateUserTtsConfigForm = () => {
     return null
   }
   const payload = buildUserTtsConnectivityPayload()
-  if (!payload.ttsBaseUrl || !payload.ttsApiKey || !payload.ttsModel || !payload.ttsVoiceId) {
-    ElMessage.warning('请完整填写 TTS 地址、API Key、模型和音色')
+  const ttsKeyRequired = payload.ttsProvider !== 'edge'
+  if (!payload.ttsBaseUrl || (ttsKeyRequired && !payload.ttsApiKey) || !payload.ttsModel || !payload.ttsVoiceId) {
+    ElMessage.warning(ttsKeyRequired ? '请完整填写 TTS 地址、API Key、模型和音色' : '请完整填写 EdgeTTS 地址、模型和音色')
     return null
   }
   return payload
 }
+
+const shouldPersistEdgeCloudTtsPreference = (payload) => (
+  ['default', 'interview'].includes(payload.configType) &&
+  payload.ttsProvider === 'edge' &&
+  Boolean(payload.ttsBaseUrl && payload.ttsModel && payload.ttsVoiceId)
+)
 
 const handleUserAiModelsFetch = async () => {
   const baseUrl = String(userAiConfigForm.value.baseUrl || '').trim()
@@ -2022,6 +2133,7 @@ const fillUserAiConfigForm = (item) => {
   userAiModelOptions.value = []
   ttsDiscoveryResult.value = null
   userTtsConfigExpanded.value = false
+  syncCloudTtsVoicePreference()
 }
 
 const handleUserAiConfigTypeChange = (configType) => {
@@ -2049,6 +2161,7 @@ const handleUserAiConfigTypeChange = (configType) => {
   userAiModelOptions.value = []
   ttsDiscoveryResult.value = null
   userTtsConfigExpanded.value = false
+  syncCloudTtsVoicePreference()
 }
 
 const handleUserAiConnectivityTest = async () => {
@@ -2130,8 +2243,8 @@ const handleTtsVoicePreview = async () => {
 }
 
 const handleTtsDiscovery = async () => {
-  if (!userAiConfigForm.value.ttsBaseUrl?.trim() || !userAiConfigForm.value.ttsApiKey?.trim()) {
-    ElMessage.warning('请先填写 TTS 地址和 API Key')
+  if (!userAiConfigForm.value.ttsBaseUrl?.trim() || (!isUserEdgeTtsProvider.value && !userAiConfigForm.value.ttsApiKey?.trim())) {
+    ElMessage.warning(isUserEdgeTtsProvider.value ? '请先填写 TTS 地址' : '请先填写 TTS 地址和 API Key')
     return
   }
   ttsDiscovering.value = true
@@ -2170,6 +2283,15 @@ const handleUserAiConfigSave = async () => {
   userAiConfigSaving.value = true
   try {
     await saveUserAiConfig(payload)
+    if (shouldPersistEdgeCloudTtsPreference(payload)) {
+      syncPreferenceForms(saveSettingsPreferences({
+        ...interviewPreferenceForm.value,
+        voicePreferredType: EDGE_CLOUD_TTS_VOICE_PREFERENCE,
+        voiceName: '',
+        voiceURI: '',
+        voiceLang: ''
+      }))
+    }
     ElMessage.success('自定义 AI 配置已保存')
     userAiConfigForm.value.apiKey = ''
     await fetchUserAiConfigState()
@@ -2470,6 +2592,15 @@ const handleInterviewPreferenceSave = () => {
 }
 
 const handleVoicePreferredTypeChange = () => {
+  if (isCloudTtsVoiceSelected.value) {
+    interviewPreferenceForm.value.voiceName = ''
+    interviewPreferenceForm.value.voiceURI = ''
+    interviewPreferenceForm.value.voiceLang = ''
+    handleTtsProviderChange('edge')
+    userTtsConfigExpanded.value = true
+    previewTextToSpeech.setVoicePreference(buildVoicePreferenceFromForm())
+    return
+  }
   if (interviewPreferenceForm.value.voicePreferredType !== 'custom') {
     interviewPreferenceForm.value.voiceName = ''
     interviewPreferenceForm.value.voiceURI = ''
@@ -2493,7 +2624,11 @@ const handleBrowserVoiceChange = (value) => {
   handleInterviewPreferenceSave()
 }
 
-const handleVoicePreview = () => {
+const handleVoicePreview = async () => {
+  if (isCloudTtsVoiceSelected.value) {
+    await handleTtsVoicePreview()
+    return
+  }
   const browserTtsStyle = getResolvedBrowserTtsStyle()
   previewTextToSpeech.rate.value = browserTtsStyle.rate
   previewTextToSpeech.pitch.value = browserTtsStyle.pitch
