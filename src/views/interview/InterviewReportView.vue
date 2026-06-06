@@ -566,7 +566,9 @@ const reportPollRounds = ref(0);
 const replayExpanded = ref(false);
 const roundReviewsExpanded = ref(false);
 const collapsedReplayRounds = ref([]);
-const REPORT_POLL_INTERVAL_MS = 3000;
+const REPORT_POLL_FAST_INTERVAL_MS = 3000;
+const REPORT_POLL_NORMAL_INTERVAL_MS = 6000;
+const REPORT_POLL_FAST_ROUNDS = 6;
 const REPORT_POLL_MAX_ROUNDS = 120;
 let reportPollingTimer = null;
 
@@ -909,44 +911,66 @@ const fetchSessionDetail = async (options = {}) => {
 };
 
 const startReportPolling = () => {
-  if (reportPollingTimer || !sessionId.value) return;
+  if (reportPolling.value || reportPollingTimer || !sessionId.value) return;
   reportPolling.value = true;
   reportPollRounds.value = 0;
-  reportPollingTimer = setInterval(async () => {
-    if (refreshingReport.value) return;
-    refreshingReport.value = true;
-    try {
-      const res = await getInterviewSessionStatus(sessionId.value);
-      const statusData = res.data || {};
-      sessionData.value = {
-        ...(sessionData.value || {}),
-        status: statusData.status ?? sessionData.value?.status,
-        statusDesc: statusData.statusDesc || sessionData.value?.statusDesc,
-        comprehensiveScore: statusData.comprehensiveScore ?? sessionData.value?.comprehensiveScore,
-        openingPending: Boolean(statusData.openingPending),
-        updateTime: statusData.updateTime || sessionData.value?.updateTime,
-      };
-      reportPollRounds.value += 1;
-      if (statusData.reportReady) {
-        const detailLoaded = await fetchSessionDetail({ showLoading: false, silentError: true });
-        // 只有完整报告详情成功回填后才停止轮询；轻量状态先到但详情请求短暂失败时继续等待下一轮。
-        if (detailLoaded && hasReport.value) {
-          stopReportPolling();
-          ElMessage.success("评估报告已生成");
-        }
-        return;
-      }
-      if (reportPollRounds.value >= REPORT_POLL_MAX_ROUNDS) {
+  scheduleNextReportPoll();
+};
+
+const getNextReportPollDelay = () =>
+  reportPollRounds.value < REPORT_POLL_FAST_ROUNDS
+    ? REPORT_POLL_FAST_INTERVAL_MS
+    : REPORT_POLL_NORMAL_INTERVAL_MS;
+
+const scheduleNextReportPoll = () => {
+  if (!reportPolling.value || reportPollingTimer || !sessionId.value) return;
+  reportPollingTimer = setTimeout(runReportPoll, getNextReportPollDelay());
+};
+
+const runReportPoll = async () => {
+  reportPollingTimer = null;
+  if (!reportPolling.value || !sessionId.value || hasReport.value) {
+    stopReportPolling();
+    return;
+  }
+  if (refreshingReport.value) {
+    scheduleNextReportPoll();
+    return;
+  }
+
+  refreshingReport.value = true;
+  try {
+    const res = await getInterviewSessionStatus(sessionId.value);
+    const statusData = res.data || {};
+    sessionData.value = {
+      ...(sessionData.value || {}),
+      status: statusData.status ?? sessionData.value?.status,
+      statusDesc: statusData.statusDesc || sessionData.value?.statusDesc,
+      comprehensiveScore: statusData.comprehensiveScore ?? sessionData.value?.comprehensiveScore,
+      openingPending: Boolean(statusData.openingPending),
+      updateTime: statusData.updateTime || sessionData.value?.updateTime,
+    };
+    reportPollRounds.value += 1;
+    if (statusData.reportReady) {
+      const detailLoaded = await fetchSessionDetail({ showLoading: false, silentError: true });
+      // 只有完整报告详情成功回填后才停止轮询；轻量状态先到但详情请求短暂失败时继续等待下一轮。
+      if (detailLoaded && hasReport.value) {
         stopReportPolling();
+        ElMessage.success("评估报告已生成");
       }
-    } finally {
-      refreshingReport.value = false;
+      return;
     }
-  }, REPORT_POLL_INTERVAL_MS);
+    if (reportPollRounds.value >= REPORT_POLL_MAX_ROUNDS) {
+      stopReportPolling();
+    }
+  } finally {
+    refreshingReport.value = false;
+    scheduleNextReportPoll();
+  }
 };
 const stopReportPolling = () => {
   if (reportPollingTimer) {
-    clearInterval(reportPollingTimer);
+    clearTimeout(reportPollingTimer);
     reportPollingTimer = null;
   }
   reportPolling.value = false;

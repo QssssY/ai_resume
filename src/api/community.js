@@ -24,10 +24,12 @@ export function getPostList(params) {
  * @param {number|string} postId
  */
 export function getPostDetail(postId) {
-  return request({
-    url: `/api/community/posts/${postId}`,
-    method: 'get'
-  })
+  return cachedGet(buildCacheKey('community:postDetail', { postId }), API_CACHE_TTL.COMMUNITY_DETAIL, () =>
+    request({
+      url: `/api/community/posts/${postId}`,
+      method: 'get'
+    })
+  )
 }
 
 /**
@@ -104,11 +106,13 @@ export function togglePostFavorite(postId) {
  * @param {number} params.pageSize
  */
 export function getComments(postId, params) {
-  return request({
-    url: `/api/community/posts/${postId}/comments`,
-    method: 'get',
-    params
-  })
+  return cachedGet(buildCacheKey('community:comments', { postId, ...(params || {}) }), API_CACHE_TTL.COMMUNITY_COMMENTS, () =>
+    request({
+      url: `/api/community/posts/${postId}/comments`,
+      method: 'get',
+      params
+    })
+  )
 }
 
 /**

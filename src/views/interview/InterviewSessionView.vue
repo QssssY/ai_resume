@@ -1076,21 +1076,42 @@ const OPENING_POLL_FAST_ROUNDS = 6;
 const OPENING_POLL_FAST_DELAY_MS = 500;
 const OPENING_POLL_NORMAL_DELAY_MS = 3000;
 let openingPollRounds = 0;
+let openingPollingGeneration = 0;
+let openingStatusRequestInFlight = false;
 
 const startOpeningPolling = () => {
   stopOpeningPolling();
+  const pollingGeneration = ++openingPollingGeneration;
   openingPollRounds = 0;
+  const scheduleNextOpeningPoll = (delay) => {
+    if (pollingGeneration !== openingPollingGeneration) return;
+    openingPollingTimer = setTimeout(poll, delay);
+  };
   const poll = async () => {
+    openingPollingTimer = null;
+    if (pollingGeneration !== openingPollingGeneration) return;
+    if (openingStatusRequestInFlight) {
+      scheduleNextOpeningPoll(OPENING_POLL_FAST_DELAY_MS);
+      return;
+    }
     openingPollRounds++;
     if (openingPollRounds > OPENING_POLL_MAX_ROUNDS) {
       openingPending.value = false;
+      stopOpeningPolling();
       ElMessage.warning("开场白生成超时，请刷新页面重试");
       return;
     }
+    openingStatusRequestInFlight = true;
     try {
       const statusRes = await getInterviewSessionStatus(sessionId.value);
       const statusData = statusRes.data || {};
-      if (!statusData.openingPending) {
+      const openingGenerated = statusData.openingGenerated === true || statusData.openingPending === false;
+      if (Number(statusData.status) === 1) {
+        openingPending.value = false;
+        stopOpeningPolling();
+        return;
+      }
+      if (openingGenerated) {
         const res = await getInterviewSession(sessionId.value);
         const data = res.data || {};
         if (data.chatLogs?.length > 0) {
@@ -1102,22 +1123,28 @@ const startOpeningPolling = () => {
           await nextTick();
           scrollToBottom();
           speakOpeningMessageOnce();
-          return;
         }
+        stopOpeningPolling();
+        return;
       }
     } catch (err) {
       // 后端开场白生成是异步过程，单次轮询失败不一定意味着永久错误，
       // 但完全静默会让排查变困难，至少要在控制台留痕方便定位。
       console.warn("开场白轮询失败，将继续重试", err);
+    } finally {
+      openingStatusRequestInFlight = false;
     }
+    if (pollingGeneration !== openingPollingGeneration) return;
     const nextDelay = openingPollRounds < OPENING_POLL_FAST_ROUNDS
       ? OPENING_POLL_FAST_DELAY_MS
       : OPENING_POLL_NORMAL_DELAY_MS;
-    openingPollingTimer = setTimeout(poll, nextDelay);
+    scheduleNextOpeningPoll(nextDelay);
   };
-  openingPollingTimer = setTimeout(poll, OPENING_POLL_FAST_DELAY_MS);
+  scheduleNextOpeningPoll(OPENING_POLL_FAST_DELAY_MS);
 };
 const stopOpeningPolling = () => {
+  openingPollingGeneration++;
+  openingStatusRequestInFlight = false;
   if (openingPollingTimer) {
     clearTimeout(openingPollingTimer);
     openingPollingTimer = null;

@@ -5,12 +5,14 @@ vi.mock('@/utils/request', () => ({
 }))
 
 import request from '@/utils/request'
+import { clearApiCache } from '@/utils/apiCache'
 import { getLatestVersionLogs } from '@/api/versionLog'
 import { getPublicVersionLogsPage } from '@/api/publicVersionLog'
 
 describe('public versionLog API', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearApiCache()
   })
 
   it('getLatestVersionLogs sends limit param', async () => {
@@ -23,6 +25,30 @@ describe('public versionLog API', () => {
   it('getLatestVersionLogs uses default limit', async () => {
     await getLatestVersionLogs()
     expect(request).toHaveBeenCalledWith({
+      url: '/api/version-logs/latest', method: 'get', params: { limit: 5 }
+    })
+  })
+
+  it('reuses latest version log requests with the same limit during the cache window', async () => {
+    await getLatestVersionLogs(3)
+    await getLatestVersionLogs(3)
+
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request).toHaveBeenCalledWith({
+      url: '/api/version-logs/latest', method: 'get', params: { limit: 3 }
+    })
+  })
+
+  it('keeps latest version log cache entries isolated by limit', async () => {
+    await getLatestVersionLogs(3)
+    await getLatestVersionLogs(5)
+    await getLatestVersionLogs(3)
+
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(request).toHaveBeenNthCalledWith(1, {
+      url: '/api/version-logs/latest', method: 'get', params: { limit: 3 }
+    })
+    expect(request).toHaveBeenNthCalledWith(2, {
       url: '/api/version-logs/latest', method: 'get', params: { limit: 5 }
     })
   })

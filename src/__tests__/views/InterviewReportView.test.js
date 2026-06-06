@@ -281,6 +281,50 @@ describe('InterviewReportView', () => {
     expect(elMessageSuccess).toHaveBeenCalledWith('评估报告已生成')
   })
 
+  it('backs off long-running report status polling after the fast rounds', async () => {
+    vi.useFakeTimers()
+    getInterviewSession.mockResolvedValueOnce({
+      data: { ...session, evaluationReport: null, comprehensiveScore: null },
+    })
+    getInterviewSessionStatus.mockResolvedValue({
+      data: {
+        sessionId: 'session-1',
+        status: 1,
+        openingPending: false,
+        reportReady: false,
+      },
+    })
+
+    const wrapper = mount(InterviewReportView, {
+      global: {
+        plugins: [ElementPlus],
+        stubs: {
+          FeatureIcon: {
+            props: ['name'],
+            template: '<span class="feature-icon-stub">{{ name }}</span>',
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    for (let round = 1; round <= 6; round += 1) {
+      await vi.advanceTimersByTimeAsync(3000)
+      await flushPromises()
+      expect(getInterviewSessionStatus).toHaveBeenCalledTimes(round)
+    }
+
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(getInterviewSessionStatus).toHaveBeenCalledTimes(6)
+
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(getInterviewSessionStatus).toHaveBeenCalledTimes(7)
+
+    wrapper.unmount()
+  })
+
   it('keeps existing report actions reachable', async () => {
     const wrapper = await mountView()
 

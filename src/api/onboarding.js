@@ -1,14 +1,17 @@
 import request from '@/utils/request'
+import { API_CACHE_TTL, cachedGet, clearApiCacheByPrefix } from '@/utils/apiCache'
 
 /**
  * 获取当前用户的新手引导状态
  * @returns {Promise}
  */
 export function getOnboardingStatus() {
-  return request({
-    url: '/api/user/onboarding/status',
-    method: 'get'
-  })
+  return cachedGet('onboarding:status', API_CACHE_TTL.ONBOARDING_STATUS, () =>
+    request({
+      url: '/api/user/onboarding/status',
+      method: 'get'
+    })
+  )
 }
 
 /**
@@ -24,6 +27,9 @@ export function updateOnboardingStatus(data) {
     url: '/api/user/onboarding/status',
     method: 'put',
     data
+  }).then((response) => {
+    clearApiCacheByPrefix('onboarding')
+    return response
   })
 }
 
@@ -48,5 +54,8 @@ export function completeOnboardingTask(taskKey) {
     url: '/api/user/onboarding/tasks/complete',
     method: 'post',
     data: { taskKey }
+  }).then((response) => {
+    clearApiCacheByPrefix('onboarding')
+    return response
   })
 }

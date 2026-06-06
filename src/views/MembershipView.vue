@@ -147,8 +147,6 @@
             round
             block
             class="upgrade-btn"
-            :disabled="isUpgradeBusy"
-            :loading="upgradingPlanCode === plan.planCode"
             @click="handleUpgrade(plan)"
           >
             续费
@@ -160,8 +158,6 @@
             round
             block
             class="upgrade-btn"
-            :disabled="isUpgradeBusy"
-            :loading="upgradingPlanCode === plan.planCode"
             @click="handleUpgrade(plan)"
           >
             立即升级
@@ -192,7 +188,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { NButton, NSkeleton, NTag } from 'naive-ui'
-import { getMembershipPlans, mockUpgradeMembership } from '@/api/membership'
+import { getMembershipPlans } from '@/api/membership'
 import FeatureIcon from '@/components/common/FeatureIcon.vue'
 import { useUserStore } from '@/stores/user'
 
@@ -202,7 +198,8 @@ const userStore = useUserStore()
 
 const plans = ref([])
 const plansLoading = ref(false)
-const upgradingPlanCode = ref('')
+
+const MEMBERSHIP_RECHARGE_UNAVAILABLE_MESSAGE = '当前未开放充值功能，请联系管理员进行升级'
 
 const userInfo = computed(() => userStore.userInfo)
 const resumeQuotaText = computed(() => Number(userInfo.value?.vipDailyResumeQuota ?? userInfo.value?.resumeQuota ?? 0))
@@ -254,8 +251,6 @@ const membershipTipText = computed(() => {
 
   return '普通用户总免费 1 次简历诊断、3 次模拟面试，用完后可升级会员继续使用。'
 })
-
-const isUpgradeBusy = computed(() => upgradingPlanCode.value !== '')
 
 const currentPlanSort = computed(() => {
   if (!isVipUser.value || !currentPlanCode.value) return 0
@@ -353,21 +348,9 @@ const ensureUserInfo = async () => {
 
 const isCurrentPlan = (plan) => isVipUser.value && currentPlanCode.value === plan.planCode
 
-const handleUpgrade = async (plan) => {
-  if (isUpgradeBusy.value) return
-
-  const isRenewal = isCurrentPlan(plan)
-  upgradingPlanCode.value = plan.planCode
-
-  try {
-    await mockUpgradeMembership({ planCode: plan.planCode })
-    await userStore.fetchUserInfo()
-    ElMessage.success(`${getPlanNameCn(plan.planName)}${isRenewal ? '续费' : '升级'}成功`)
-  } catch {
-    // Request interceptor owns user-facing error handling.
-  } finally {
-    upgradingPlanCode.value = ''
-  }
+const handleUpgrade = () => {
+  // 测试项目暂不开放真实充值和 mock 升级，续费与升级入口统一给出管理员联系提示。
+  ElMessage.warning(MEMBERSHIP_RECHARGE_UNAVAILABLE_MESSAGE)
 }
 
 const formatDateTime = (value) => {

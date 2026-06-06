@@ -547,6 +547,57 @@ describe('InterviewSessionView', () => {
     }
   })
 
+  it('stops opening speech polling when lightweight status reports generated', async () => {
+    vi.useFakeTimers()
+    try {
+      getInterviewSession.mockResolvedValueOnce({
+        data: {
+          ...baseSession,
+          interactionType: 1,
+          openingPending: true,
+          chatLogs: [],
+        },
+      })
+      getInterviewSessionStatus.mockResolvedValueOnce({
+        data: {
+          sessionId: 'session-1',
+          status: 0,
+          openingPending: true,
+          openingGenerated: true,
+          reportReady: false,
+        },
+      })
+      getInterviewSession.mockResolvedValueOnce({
+        data: {
+          ...baseSession,
+          interactionType: 1,
+          openingPending: false,
+          chatLogs: [
+            { id: 1, messageRole: 'assistant', content: '你好，请先做一个自我介绍。', createTime: '2026-05-19 14:00:00' },
+          ],
+        },
+      })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await vi.advanceTimersByTimeAsync(500)
+      await flushPromises()
+
+      expect(getInterviewSessionStatus).toHaveBeenCalledTimes(1)
+      expect(getInterviewSession).toHaveBeenCalledTimes(2)
+      expect(wrapper.text()).toContain('你好，请先做一个自我介绍。')
+
+      await vi.advanceTimersByTimeAsync(3000)
+      await flushPromises()
+      expect(getInterviewSessionStatus).toHaveBeenCalledTimes(1)
+    } finally {
+      getInterviewSession.mockReset()
+      getInterviewSessionStatus.mockReset()
+      vi.useRealTimers()
+    }
+  })
+
   it('prefetches the report waiting page and navigates there after ending without reloading full session detail', async () => {
     getInterviewSession.mockResolvedValueOnce({
       data: {

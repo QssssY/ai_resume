@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import MembershipView from '@/views/MembershipView.vue'
 import { getMembershipPlans, mockUpgradeMembership } from '@/api/membership'
+import { ElMessage } from 'element-plus'
 
 const fetchUserInfo = vi.fn(() => Promise.resolve())
 
@@ -31,7 +32,8 @@ vi.mock('@/api/membership', () => ({
 
 vi.mock('element-plus', () => ({
   ElMessage: {
-    success: vi.fn()
+    success: vi.fn(),
+    warning: vi.fn()
   }
 }))
 
@@ -120,14 +122,17 @@ describe('MembershipView', () => {
     expect(planCards[1].text()).toContain('立即升级')
   })
 
-  it('calls the existing upgrade endpoint and refreshes user info', async () => {
+  it('shows unavailable notice for renewal and upgrade without calling payment endpoint', async () => {
     const wrapper = await mountView()
 
+    await wrapper.findAll('.plan-card')[0].find('button').trigger('click')
     await wrapper.findAll('.plan-card')[1].find('button').trigger('click')
     await flushPromises()
 
-    expect(mockUpgradeMembership).toHaveBeenCalledWith({ planCode: 'vip_quarter' })
-    expect(fetchUserInfo).toHaveBeenCalled()
+    expect(ElMessage.warning).toHaveBeenCalledTimes(2)
+    expect(ElMessage.warning).toHaveBeenCalledWith('当前未开放充值功能，请联系管理员进行升级')
+    expect(mockUpgradeMembership).not.toHaveBeenCalled()
+    expect(fetchUserInfo).not.toHaveBeenCalled()
   })
 
   it('renders empty and loading states', async () => {
