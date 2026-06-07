@@ -70,4 +70,34 @@ describe('public versionLog API', () => {
       params: { page: 1, size: 10 }
     })
   })
+
+  it('reuses public version log page requests with the same pagination during the cache window', async () => {
+    await getPublicVersionLogsPage({ page: 2, size: 20 })
+    await getPublicVersionLogsPage({ page: 2, size: 20 })
+
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request).toHaveBeenCalledWith({
+      url: '/api/version-logs',
+      method: 'get',
+      params: { page: 2, size: 20 }
+    })
+  })
+
+  it('keeps public version log page cache entries isolated by pagination', async () => {
+    await getPublicVersionLogsPage({ page: 1, size: 10 })
+    await getPublicVersionLogsPage({ page: 2, size: 10 })
+    await getPublicVersionLogsPage({ page: 1, size: 10 })
+
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(request).toHaveBeenNthCalledWith(1, {
+      url: '/api/version-logs',
+      method: 'get',
+      params: { page: 1, size: 10 }
+    })
+    expect(request).toHaveBeenNthCalledWith(2, {
+      url: '/api/version-logs',
+      method: 'get',
+      params: { page: 2, size: 10 }
+    })
+  })
 })

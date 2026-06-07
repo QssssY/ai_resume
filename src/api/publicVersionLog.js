@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { API_CACHE_TTL, buildCacheKey, cachedGet } from '@/utils/apiCache'
 
 /**
  * 分页获取公开版本日志列表。
@@ -7,9 +8,12 @@ import request from '@/utils/request'
  * @returns {Promise}
  */
 export function getPublicVersionLogsPage(params = {}) {
-  return request({
-    url: '/api/version-logs',
-    method: 'get',
-    params: { page: 1, size: 10, ...params }
-  })
+  const normalizedParams = { page: 1, size: 10, ...params }
+  return cachedGet(buildCacheKey('version:page', normalizedParams), API_CACHE_TTL.VERSION_LOGS, () =>
+    request({
+      url: '/api/version-logs',
+      method: 'get',
+      params: normalizedParams
+    })
+  )
 }

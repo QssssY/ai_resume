@@ -1,17 +1,19 @@
 import request from '@/utils/request'
 import { getToken, getTokenType } from '@/utils/auth'
-import { API_CACHE_TTL, cachedGet, clearApiCacheByPrefix } from '@/utils/apiCache'
+import { API_CACHE_TTL, buildCacheKey, cachedGet, clearApiCacheByPrefix } from '@/utils/apiCache'
 
 /**
  * 查询当前用户通知列表（分页+筛选）
  * @param {Object} params - { page, size, readStatus, type }
  */
 export function getNotifications(params) {
-  return request({
-    url: '/api/user/notifications',
-    method: 'get',
-    params
-  })
+  return cachedGet(buildCacheKey('notification:list', params || {}), API_CACHE_TTL.NOTIFICATION_LIST, () =>
+    request({
+      url: '/api/user/notifications',
+      method: 'get',
+      params
+    })
+  )
 }
 
 /**

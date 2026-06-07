@@ -85,6 +85,29 @@ describe('performance cache API integration', () => {
     expect(requestMock).toHaveBeenNthCalledWith(3, { url: '/api/user/notifications/unread-count', method: 'get' })
   })
 
+  it('caches notification list briefly and invalidates it after notification writes', async () => {
+    const { getNotifications, markAllAsRead } = await import('@/api/notification')
+    const params = { pageNum: 1, size: 10 }
+
+    await getNotifications(params)
+    await getNotifications(params)
+    await markAllAsRead()
+    await getNotifications(params)
+
+    expect(requestMock).toHaveBeenCalledTimes(3)
+    expect(requestMock).toHaveBeenNthCalledWith(1, {
+      url: '/api/user/notifications',
+      method: 'get',
+      params
+    })
+    expect(requestMock).toHaveBeenNthCalledWith(2, { url: '/api/user/notifications/read-all', method: 'post' })
+    expect(requestMock).toHaveBeenNthCalledWith(3, {
+      url: '/api/user/notifications',
+      method: 'get',
+      params
+    })
+  })
+
   it('invalidates community list caches after post interactions without caching writes', async () => {
     const { getPostList, createPost, togglePostLike } = await import('@/api/community')
     const params = { pageNum: 1, pageSize: 8, sort: 'latest' }
